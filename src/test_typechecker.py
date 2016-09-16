@@ -342,31 +342,8 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 	def test_override_py3(self):
 		# Todo: Test Python 3.5-style type-hints
-		print("Checking py3")
+		#print("Checking py3")
+		pass
 
 if __name__ == '__main__':
-# 	unittest.main()
-	tc = testClass("daff")
-	print(tc.testmeth_class_raw)
-	print(testClass.testmeth_class_raw)
-
-	#import test_typechecker_py3 as py3
-# 	tc = testClass("mnop")
-# 	print(type(tc.testmeth_class.__func__))
-# 	print(type(testClass.testmeth_class))
-# 	print(get_types(tc.testmeth_class))
-# 	print(tc.testmeth_class.__self__)
-# 	print(tc.testmeth_class.__self__.__class__)
-	
-	#print(get_types(testfunc4))
-# 	tc2 = testClass2("asdasf")
-# 	print(type(testClass2.testmeth0))
-# 	import inspect
-# 	print(inspect.ismethod(testClass2.testmeth0))
-# 	print(inspect.ismethod(tc2.testmeth0))
-# 	print(type(tc2.testmeth0))
-	#print(get_types(testClass2.testmeth)) #(Tuple[int, Real], str)
-	#print(get_type_hints(testClass2.testmeth))
-	#print(dir(testClass2.testmeth))
-	#print(typing.get_type_hints(testClass2.testmeth))
-# 	self.assertEqual(get_types(testClass3Base.testmeth), (Tuple[int, Real], Union[str, unicode]))
+	unittest.main()

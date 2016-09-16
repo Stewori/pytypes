@@ -134,20 +134,11 @@ def _funcsigtypes(func, slf):
 		# Maybe raise warning here
 		return Any, Any
 	globs = sys.modules[func.__module__].__dict__
-# 	print(func)
-# 	print(tpHints)
-# 	print(tpStr)
 	if not tpHints is None and tpHints:
-		#print(_actualfunc(func))
 		# We're running Python 3
 		argNames = inspect.getfullargspec(_actualfunc(func)).args
 		if slf:
 			argNames = argNames[1:]
-# 		print("py3")
-# 		print(_actualfunc(func))
-# 		print(slf)
-# 		print(tpHints)
-# 		print(argNames)
 		resType = (Tuple[tuple(tpHints[t] for t in argNames)], tpHints['return'])
 		if not tpStr[0] is None:
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
@@ -284,13 +275,7 @@ def _actualfunc(func):
 
 def typechecked(func):
 	clsm = type(func) == classmethod
-	if clsm:
-		print("clsm:")
-		print(func)
-		print(func.__func__)
-		print(dir(func))
 	stat = type(func) == staticmethod
-	# Todo: Assure that the resulting object preserves this type (e.g. as a subtype)
 	func0 = _actualfunc(func)
 
 	if hasattr(func, "ov_func"):
@@ -307,12 +292,9 @@ def typechecked(func):
 				if argNames[0] != 'cls':
 					print("Warning: classmethod using non-idiomatic argname "+func0.__name__)
 				tp = _methargtype(args)
-			elif stat:
-				tp = _methargtype(args)
 			elif argNames[0] == 'self':
 				if hasattr(args[0].__class__, func0.__name__) and \
 						inspect.ismethod(getattr(args[0], func0.__name__)):
-# 						type(getattr(args[0].__class__, func0.__name__)) == MethodType:
 					tp = _methargtype(args)
 					slf = True
 				else:
@@ -338,14 +320,13 @@ def typechecked(func):
 		resSigs = []
 		for ffunc in toCheck:
 			resSigs.append(_checkfunctype(tp, ffunc, slf or clsm, args[0].__class__))
-		if clsm:
-			# Manually fix classmethod-magic here
-			args2 = tuple((args[0].__class__ if t == 0 else args[t]) for t in range(len(args)))
-			res = func0(*args2, **kw)
-		elif stat:
-			res = func0(*(args[1:]), **kw)
+
+		# perform backend-call:
+		if clsm or stat:
+			res = func.__func__(*args, **kw)
 		else:
 			res = func(*args, **kw)
+
 		tp = deep_type(res)
 		for i in range(len(resSigs)):
 			_checkfuncresult(resSigs[i], tp, toCheck[i], slf, args[0].__class__)
@@ -353,10 +334,16 @@ def typechecked(func):
 
 	checker_tp.ch_func = func
 	checker_tp.__func__ = func
-	checker_tp.__name__ = _actualfunc(func).__name__ # What sorts of evil might this bring over us?
+	checker_tp.__name__ = func0.__name__ # What sorts of evil might this bring over us?
 	if hasattr(func, '__annotations__'):
 		checker_tp.__annotations__ = func.__annotations__
-	return checker_tp
+	if clsm:
+		return classmethod(checker_tp)
+	elif stat:
+		return staticmethod(checker_tp)
+	else:
+		return checker_tp
+
 
 def is_method(func):
 	func0 = _actualfunc(func)
@@ -376,12 +363,6 @@ def is_method(func):
 def get_types(func):
 	clsm = type(func) == classmethod
 	func0 = _actualfunc(func)
-# 	print("clsm:")
-# 	print(clsm)
-# 	print(func.__self__)
-# 	print(func.__self__.__class__)
-# 	print(dir(func))
-	#print(inspect.ismethod(func) and func.__self__ is cls)
 
 	# check consistency regarding special case with 'self'-keyword
 	slf = is_method(func)
@@ -391,15 +372,6 @@ def get_types(func):
 			if clsm:
 				if argNames[0] != 'cls':
 					print("Warning: classmethod using non-idiomatic argname "+func0.__name__)
-# 		elif argNames[0] == 'self':
-# 			if inspect.ismethod(func):
-# 				slf = True
-# 			elif sys.version_info.major >= 3:
-# 				# In Python3 there are no unbound methods, so we count as method,
-# 				# if first arg is called 'self' 
-# 				slf = True
-# 			else:
-# 				print("Warning: non-method declaring self "+func0.__name__)
 	return _funcsigtypes(func0, slf)
 
 def get_type_hints(func):
@@ -414,38 +386,3 @@ def get_type_hints(func):
 		result[argNames[i]] = args.__tuple_params__[i-slf]
 	result['return'] = res
 	return result
-
-@typechecked
-def testfunc(a, # type: int
-			b,  # type: Real
-			c   # type: str
-			):
-	# type: (...) -> Tuple[int, Real]
-	return a*a, a*b
-
-@typechecked
-def testfunc2(a, b, c):
-	# type: (int, Real, str) -> Tuple[int, float]
-	return a*a, a*b
-
-# @typechecked
-# def testfunc3(a: int, b: Real, c: str) -> Tuple[int, float]:
-# # type: (int, Real, str) -> Tuple[int, float]
-# 	return a*a, a*b
-
-#print (testfunc2(12, 3.5, "blah"))
-
-#print(_get_typestrings(testfunc2))
-#argNames = inspect.getfullargspec(testfunc3).args
-# argNames = inspect.getargspec(testfunc3).args
-# print(_funcsigtypesfromstring(*_get_typestrings(testfunc2)))
-# print(argNames)
-# #print(inspect.getargspec(testfunc2).args)
-# tpHints = typing.get_type_hints(testfunc3)
-# if not tpHints is None:
-# 	print((Tuple[tuple(tpHints[t] for t in argNames)], tpHints['return']))
-# print(_get_typestrings(testfunc3))
-
-# print deep_type(('abc', [3, 'a', 7], 4.5))
-# print issubclass(float, Complex)
-#print ("done")
