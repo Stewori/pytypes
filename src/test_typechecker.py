@@ -86,6 +86,17 @@ class testClass2Base(str):
 		# type: (int, Real) -> Union[str, int]
 		pass
 
+	def testmeth3_err(self, a, b):
+		# type: (int, Real) -> Union[str, int]
+		pass
+	
+	def testmeth4(self,
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		pass
+
 class testClass2(testClass2Base):
 	def testmeth0(self,
 				a, # type: int
@@ -111,10 +122,21 @@ class testClass2(testClass2Base):
 	@typechecked
 	@override
 	def testmeth3(self, a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), self))
+
+	@typechecked
+	@override
+	def testmeth3_err(self, a, b):
+		# type: (int, Real) -> int
 		return "-".join((str(a), str(b), self))
 
 	@override
-	def testmeth4(self,
+	def testmeth4(self, a, b):
+		return "-".join((str(a), str(b), self))
+
+	@override
+	def testmeth5(self,
 				a, # type: int
 				b  # type: Real
 				):
@@ -198,28 +220,6 @@ class TestTypecheck(unittest.TestCase):
 
 	def test_staticmethod(self):
 		tc = testClass("efgh")
-# 		print type(testClass.testmeth_static_raw)
-# 		print type(tc.testmeth_static_raw)
-# 		print testClass.testmeth_static_raw
-# 		print tc.testmeth_static_raw
-# 		print ""
-# 		print type(testClass.testmeth_static)
-# 		print type(tc.testmeth_static)
-# 		print testClass.testmeth_static
-# 		print tc.testmeth_static
-# 		print ""
-# 		print type(testClass.testmeth_class_raw)
-# 		print type(tc.testmeth_class_raw)
-# 		print testClass.testmeth_class_raw
-# 		print tc.testmeth_class_raw
-# 		print ""
-# 		import __builtin__
-# 		for ln in dir(__builtin__):
-# 			print ln
-# 		print type(testClass.testmeth_class)
-# 		print type(tc.testmeth_class)
-# 		print testClass.testmeth_class
-# 		print tc.testmeth_class
 		self.assertEqual(tc.testmeth_static(12, 0.7), "12-0.7-static")
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_static(12, [3]))
 		self.assertEqual(tc.testmeth_static2(11, 1.9), "11-1.9-static")
@@ -255,12 +255,14 @@ class TestOverride(unittest.TestCase):
 	def test_override(self):
 		tc2 = testClass2("uvwx")
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
-		self.assertRaises(OverrideError, lambda: tc2.testmeth4(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.testmeth5(1, 2.5))
 
 	def test_override_typecheck(self):
 		tc2 = testClass2("uvwx")
 		self.assertEqual(tc2.testmeth(1, 2.5), "1-2.5-uvwx")
 		self.assertEqual(tc2.testmeth3(1, 2.5), "1-2.5-uvwx")
+		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth3_err(1, 2.5))
+		self.assertEqual(tc2.testmeth4(1, 2.5), "1-2.5-uvwx")
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -347,3 +349,5 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
+	#tc = testClass2("ttyl")
+	#print(tc.testmeth3(3, 4.4))

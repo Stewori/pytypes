@@ -4,17 +4,11 @@ Created on 20.08.2016
 @author: Stefan Richthofer
 '''
 
-# import os
 import sys
-# if os.name == 'java':
-# 	sys.path.append("/usr/local/lib/python2.7/dist-packages")
 
 import typing
 from typing import Tuple, List, Union, Any
 import inspect
-from types import MethodType
-
-# checked_modules = set()
 
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
@@ -87,7 +81,8 @@ def _get_typestrings(obj, slf):
 	if not res is None:
 		return res, result[1:] if slf else result
 	if len(srclines) > funcstart+1 and srclines[funcstart+1].strip()[0] == '#':
-		return _parse_typecomment_oneline(srclines[funcstart+1]), result[1:] if slf else result
+		res= _parse_typecomment_oneline(srclines[funcstart+1]), result[1:] if slf else result
+		return res
 	else:
 		return None, result[1:] if slf else result
 
@@ -314,7 +309,7 @@ def typechecked(func):
 				if hasattr(cls, func0.__name__):
 					ffunc = getattr(cls, func0.__name__)
 					if has_typehints(_actualfunc(ffunc)):
-						toCheck.append(ffunc)
+						toCheck.append(_actualfunc(ffunc))
 		else:
 			toCheck = (func0,)
 		resSigs = []
