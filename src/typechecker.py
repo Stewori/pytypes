@@ -116,11 +116,11 @@ def _methargtype(obj):
 	assert(type(obj) == tuple)
 	return Tuple[tuple(deep_type(t) for t in obj[1:])]
 
-def has_typehints(func):
+def has_type_hints(func):
 	# Todo: Respect @no_type_check etc
 	tpHints = typing.get_type_hints(func)
 	tpStr = _get_typestrings(func, False)
-	return not (tpStr[0] is None and tpHints is None)
+	return not (tpStr[0] is None and (tpHints is None or not tpHints))
 
 def _funcsigtypes(func, slf):
 	tpHints = typing.get_type_hints(func)
@@ -183,11 +183,11 @@ def override(func):
 								% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
 				#check arg/res-type compatibility
 				argSig, resSig = _funcsigtypes(func, True)
-				if has_typehints(func):
+				if has_type_hints(func):
 					for ovcls in ovmro:
 						ovf = getattr(ovcls, func.__name__)
 						ovSig, ovResSig = _funcsigtypes(ovf, True)
-						if has_typehints(ovf):
+						if has_type_hints(ovf):
 							if not issubclass(ovSig, argSig):
 								raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
 										% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
@@ -308,7 +308,7 @@ def typechecked(func):
 			for cls in args[0].__class__.__mro__:
 				if hasattr(cls, func0.__name__):
 					ffunc = getattr(cls, func0.__name__)
-					if has_typehints(_actualfunc(ffunc)):
+					if has_type_hints(_actualfunc(ffunc)):
 						toCheck.append(_actualfunc(ffunc))
 		else:
 			toCheck = (func0,)

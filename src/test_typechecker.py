@@ -323,8 +323,8 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc3.testmeth), (Any, Any))
 		self.assertEqual(get_types(py3.testClass3Base.testmeth), (Tuple[int, Real], Union[str, int]))
 		self.assertEqual(get_types(tc.testmeth2), (Tuple[int, Real], str))
-# 		self.assertEqual(get_types(tc.testmeth_class), (Tuple[Any, int, Real], str))
-# 		self.assertEqual(get_types(tc.testmeth_class2), (Tuple[int, Real], str))
+#		self.assertEqual(get_types(tc.testmeth_class), (Tuple[Any, int, Real], str))
+#		self.assertEqual(get_types(tc.testmeth_class2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
@@ -349,5 +349,4 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
-	#tc = testClass2("ttyl")
-	#print(tc.testmeth3(3, 4.4))
+	tc = testClass2("ttyl")
