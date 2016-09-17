@@ -66,14 +66,15 @@ def _get_typestrings(obj, slf):
 	result = []
 	for line in srclines:
 		ln = _striptrailingcomment(line)
-		if ln.startswith("def "):
-			startInit = True
-		if startInit:
-			if ln.endswith(":"):
-				if ln[:-1].strip().endswith(")") or ln.find('->') != -1:
-					break
-			elif not ln[-1] == '(':
-				result.append(_parse_typecomment_oneline(line))
+		if len(ln) > 0:
+			if ln.startswith("def "):
+				startInit = True
+			if startInit:
+				if ln.endswith(":"):
+					if ln[:-1].strip().endswith(")") or ln.find('->') != -1:
+						break
+				elif not ln[-1] == '(':
+					result.append(_parse_typecomment_oneline(line))
 		funcstart += 1
 	if len(srclines) <= funcstart:
 		return None
@@ -95,14 +96,20 @@ def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(), se
 		return None
 	argString = typestring[:splt].strip()
 	if _isargsellipsis(argString):
+# 		useEllipsis = True
 		argString = ''.join(('(', ', '.join(['Any' if x is None else x for x in argTypes]), ')'))
+# 	else:
+# 		useEllipsis = False
 	resString = typestring[splt+2:].strip()
 	if selfType is None:
-		return Tuple[eval(argString, globals)], eval(resString, globals)
+		tpl = Tuple[eval(argString, globals)]
 	else:
 		argTypes = [selfType]
 		argTypes += eval(argString, globals)
-		return Tuple[tuple(argTypes)], eval(resString, globals)
+		tpl =  Tuple[tuple(argTypes)]
+# 	if useEllipsis:
+# 		tpl.__tuple_use_ellipsis__ = True
+	return tpl, eval(resString, globals)
 
 def deep_type(obj):
 	res = type(obj)
@@ -128,6 +135,10 @@ def _funcsigtypes(func, slf):
 	if tpStr[0] is None and (tpHints is None or not tpHints):
 		# Maybe raise warning here
 		return Any, Any
+	if not tpStr[0] is None and tpStr[0].find('...') != 0:
+		numArgs = len(getargspecs(func).args) - 1 if slf else 0
+		while len(tpStr[1]) < numArgs:
+			tpStr[1].append(None)
 	globs = sys.modules[func.__module__].__dict__
 	if not tpHints is None and tpHints:
 		# We're running Python 3
@@ -143,7 +154,8 @@ def _funcsigtypes(func, slf):
 					+ "Via hints:   %s\nVia comment: %s"
 					% (str(resType), str(resType2)))
 		return resType
-	return _funcsigtypesfromstring(*tpStr, globals = globs)
+	res = _funcsigtypesfromstring(*tpStr, globals = globs)
+	return res
 
 def getargspecs(func):
 	if hasattr(func, "ch_func"):

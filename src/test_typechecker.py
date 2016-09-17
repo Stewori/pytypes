@@ -97,6 +97,13 @@ class testClass2Base(str):
 		# type: (...) -> str
 		pass
 
+	def testmeth5(self,
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		pass
+
 class testClass2(testClass2Base):
 	def testmeth0(self,
 				a, # type: int
@@ -136,7 +143,12 @@ class testClass2(testClass2Base):
 		return "-".join((str(a), str(b), self))
 
 	@override
-	def testmeth5(self,
+	def testmeth5(self, a, b):
+		# type: (...) -> str
+		return "-".join((str(a), str(b), self))
+
+	@override
+	def testmeth6(self,
 				a, # type: int
 				b  # type: Real
 				):
@@ -255,7 +267,7 @@ class TestOverride(unittest.TestCase):
 	def test_override(self):
 		tc2 = testClass2("uvwx")
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
-		self.assertRaises(OverrideError, lambda: tc2.testmeth5(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.testmeth6(1, 2.5))
 
 	def test_override_typecheck(self):
 		tc2 = testClass2("uvwx")
@@ -263,6 +275,7 @@ class TestOverride(unittest.TestCase):
 		self.assertEqual(tc2.testmeth3(1, 2.5), "1-2.5-uvwx")
 		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth3_err(1, 2.5))
 		self.assertEqual(tc2.testmeth4(1, 2.5), "1-2.5-uvwx")
+		self.assertEqual(tc2.testmeth5(1, 2.5), "1-2.5-uvwx")
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -349,4 +362,3 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
-	tc = testClass2("ttyl")
