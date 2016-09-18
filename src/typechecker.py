@@ -9,6 +9,7 @@ import sys
 import typing
 from typing import Tuple, List, Union, Any
 import inspect
+import types
 
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
@@ -367,8 +368,23 @@ def is_method(func):
 				print("Warning: non-method declaring self "+func0.__name__)
 	return False
 
+def is_class(obj):
+	if sys.version_info.major >= 3:
+		return isinstance(obj, type)
+	else:
+		return isinstance(obj, (types.TypeType, types.ClassType))
+
+def is_classmethod(meth):
+	if not inspect.ismethod(meth):
+		return False
+	if not is_class(meth.__self__):
+		return False
+	if not hasattr(meth.__self__, meth.__name__):
+		return False
+	return meth == getattr(meth.__self__, meth.__name__)
+
 def get_types(func):
-	clsm = type(func) == classmethod
+	clsm = is_classmethod(func)
 	func0 = _actualfunc(func)
 
 	# check consistency regarding special case with 'self'-keyword
@@ -379,7 +395,7 @@ def get_types(func):
 			if clsm:
 				if argNames[0] != 'cls':
 					print("Warning: classmethod using non-idiomatic argname "+func0.__name__)
-	return _funcsigtypes(func0, slf)
+	return _funcsigtypes(func0, slf or clsm)
 
 def get_type_hints(func):
 	'''
