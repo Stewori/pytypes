@@ -12,7 +12,7 @@ Typing-utility
 
 Besides various other useful typing-related functions pytypes so far features an actually functional Python 2.7 compliant version of typing.get_type_hints (the original version always returns None for Python 2.7).
 
-Further it provides a typecheck-decorator for runtime typechecking and an override-decorator for runtime-assertion of consistent method-overriding w.r.t. type-annotations. In combination these decorators can also perform type-checking on overridden methods if only the parent method was type-annotated.
+Further it provides a typecheck-decorator for runtime typechecking and an override-decorator for runtime-assertion of consistent method-overriding w.r.t. type-annotations. In combination these decorators can also perform type-checking on overridden methods even if only the parent method was type-annotated.
 
 
 Python 2.7 and 3.5
@@ -30,8 +30,6 @@ As of this writing pytypes doesn't yet support
 - method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
 - stub files: https://www.python.org/dev/peps/pep-0484/#stub-files
 - all constructs from typing (e.g. List, Tuple, Union, Any are supported, e.g. generics and callables are not yet)
-
-There are also still issues with @classmethod on Python 3.5.
 
 
 License

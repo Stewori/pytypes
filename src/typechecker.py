@@ -146,7 +146,8 @@ def _funcsigtypes(func, slf):
 		argNames = inspect.getfullargspec(_actualfunc(func)).args
 		if slf:
 			argNames = argNames[1:]
-		resType = (Tuple[tuple(tpHints[t] for t in argNames)], tpHints['return'])
+		resType = (Tuple[tuple((tpHints[t] if t in tpHints else Any) for t in argNames)],
+				tpHints['return'])
 		if not tpStr[0] is None:
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
 			if resType != resType2:
@@ -352,6 +353,19 @@ def typechecked(func):
 	else:
 		return checker_tp
 
+
+def get_class_that_defined_method(meth):
+	if inspect.ismethod(meth):
+		for cls in inspect.getmro(meth.__self__.__class__):
+			if cls.__dict__.get(meth.__name__) is meth:
+				return cls
+		meth = meth.__func__ # fallback to __qualname__ parsing
+	if inspect.isfunction(meth):
+		cls = getattr(inspect.getmodule(meth),
+				meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
+		if isinstance(cls, type):
+			return cls
+	return None # not required since None would have been implicitly returned anyway
 
 def is_method(func):
 	func0 = _actualfunc(func)

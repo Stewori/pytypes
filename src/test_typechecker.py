@@ -304,12 +304,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
 	def test_method_py3(self):
 		tc2 = py3.testClass2("ijkl")
-# 		print(tc2.testmeth0.__annotations__)
-# 		print(tc2.testmeth.__func__.__func__.__func__)
-# 		print(py3.testClass2.testmeth0)
-# 		print(tc2.testmeth.__annotations__)
-# 		print(tc2.testmeth.__func__.__annotations__)
-# 		print(typing.get_type_hints(tc2.testmeth))
 		self.assertEqual(tc2.testmeth(1, 2.5), "1-2.5-ijkl")
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth(1, 2.5, 7))
 		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth_err(1, 2.5))
@@ -358,7 +352,18 @@ class TestOverride_Python3_5(unittest.TestCase):
 	def test_override_py3(self):
 		# Todo: Test Python 3.5-style type-hints
 		#print("Checking py3")
-		pass
+		tc2 = py3.testClass2("uvwx")
+		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.testmeth6(1, 2.5))
+
+	def test_override_typecheck(self):
+		tc2 = py3.testClass2("uvwx")
+		self.assertEqual(tc2.testmeth(1, 2.5), "1-2.5-uvwx")
+		self.assertEqual(tc2.testmeth3(1, 2.5), "1-2.5-uvwx")
+		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth3_err(1, 2.5))
+		self.assertEqual(tc2.testmeth4(1, 2.5), "1-2.5-uvwx")
+		self.assertEqual(tc2.testmeth5(1, 2.5), "1-2.5-uvwx")
+		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
 if __name__ == '__main__':
 	unittest.main()
