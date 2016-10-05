@@ -61,6 +61,9 @@ class testClass2Base(str):
 	def testmeth2(self, a: int, b: Real) -> Union[str, int]:
 		pass
 
+	def testmeth2b(self, a: int, b: Real) -> Union[str, int]:
+		pass
+
 	def testmeth3(self, a: int, b: Real) -> Union[str, int]:
 		pass
 
@@ -87,6 +90,10 @@ class testClass2(testClass2Base):
 
 	@override
 	def testmeth2(self, a: str, b: Real) -> Union[str, int]:
+		return "-".join((str(a), str(b), self))
+
+	@override
+	def testmeth2b(self, a: int, b: Real) -> Union[str, Real]:
 		return "-".join((str(a), str(b), self))
 
 	@typechecked

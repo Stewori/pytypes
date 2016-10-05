@@ -82,6 +82,10 @@ class testClass2Base(str):
 		# type: (int, Real) -> Union[str, int]
 		pass
 
+	def testmeth2b(self, a, b):
+		# type: (int, Real) -> Union[str, int]
+		pass
+
 	def testmeth3(self, a, b):
 		# type: (int, Real) -> Union[str, int]
 		pass
@@ -124,6 +128,11 @@ class testClass2(testClass2Base):
 	@override
 	def testmeth2(self, a, b):
 		# type: (str, Real) -> Union[str, int]
+		return "-".join((str(a), str(b), self))
+
+	@override
+	def testmeth2b(self, a, b):
+		# type: (int, Real) -> Union[str, Real]
 		return "-".join((str(a), str(b), self))
 
 	@typechecked
@@ -267,6 +276,7 @@ class TestOverride(unittest.TestCase):
 	def test_override(self):
 		tc2 = testClass2("uvwx")
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.testmeth2b(3, 1.1))
 		self.assertRaises(OverrideError, lambda: tc2.testmeth6(1, 2.5))
 
 	def test_override_typecheck(self):
@@ -354,6 +364,7 @@ class TestOverride_Python3_5(unittest.TestCase):
 		#print("Checking py3")
 		tc2 = py3.testClass2("uvwx")
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.testmeth2b(3, 1.1))
 		self.assertRaises(OverrideError, lambda: tc2.testmeth6(1, 2.5))
 
 	def test_override_typecheck(self):
