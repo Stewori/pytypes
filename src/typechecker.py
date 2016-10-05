@@ -11,6 +11,8 @@ from typing import Tuple, List, Union, Any
 import inspect
 import types
 
+check_override_on_class_definition_time = True
+
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
 class InputTypeError(TypeCheckError): pass
@@ -170,6 +172,12 @@ def getargspecs(func):
 		return inspect.getargspec(func)
 
 def override(func):
+# 	if check_override_on_class_definition_time:
+# 		print("check_override_on_class_definition_time...")
+# 		print(func)
+# 		print(is_method(func))
+# 		print(get_class_that_defined_method(func))
+# 		print("")
 	def checker_ov(*args, **kw):
 		argSpecs = getargspecs(func)
 		if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
@@ -224,8 +232,11 @@ def override(func):
 	checker_ov.ov_func = func
 	checker_ov.__func__ = func
 	checker_ov.__name__ = func.__name__ # What sorts of evil might this bring over us?
+	checker_ov.__module__ = func.__module__
 	if hasattr(func, '__annotations__'):
 		checker_ov.__annotations__ = func.__annotations__
+	if hasattr(func, '__qualname__'):
+		checker_ov.__qualname__ = func.__qualname__
 	return checker_ov
 
 def _checkfunctype(tp, func, slf, func_class):
@@ -344,8 +355,11 @@ def typechecked(func):
 	checker_tp.ch_func = func
 	checker_tp.__func__ = func
 	checker_tp.__name__ = func0.__name__ # What sorts of evil might this bring over us?
+	checker_tp.__module__ = func0.__module__
 	if hasattr(func, '__annotations__'):
 		checker_tp.__annotations__ = func.__annotations__
+	if hasattr(func, '__qualname__'):
+		checker_tp.__qualname__ = func.__qualname__
 	if clsm:
 		return classmethod(checker_tp)
 	elif stat:
@@ -355,17 +369,14 @@ def typechecked(func):
 
 
 def get_class_that_defined_method(meth):
-	if inspect.ismethod(meth):
-		for cls in inspect.getmro(meth.__self__.__class__):
-			if cls.__dict__.get(meth.__name__) is meth:
-				return cls
-		meth = meth.__func__ # fallback to __qualname__ parsing
-	if inspect.isfunction(meth):
+	if hasattr(meth, "im_class"):
+		return meth.im_class
+	elif hasattr(meth, "__qualname__"):
 		cls = getattr(inspect.getmodule(meth),
 				meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
 		if isinstance(cls, type):
 			return cls
-	return None # not required since None would have been implicitly returned anyway
+	raise ValueError(str(meth)+" is not a method.")
 
 def is_method(func):
 	func0 = _actualfunc(func)

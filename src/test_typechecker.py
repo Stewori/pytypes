@@ -135,6 +135,10 @@ class testClass2(testClass2Base):
 		# type: (int, Real) -> Union[str, Real]
 		return "-".join((str(a), str(b), self))
 
+	def testmeth2c(self, a, b):
+		# type: (int, Real) -> Union[str, Real]
+		return "-".join((str(a), str(b), self))
+
 	@typechecked
 	@override
 	def testmeth3(self, a, b):
@@ -271,6 +275,14 @@ class TestTypecheck(unittest.TestCase):
 	def test_various(self):
 		self.assertEqual(get_type_hints(testfunc), {'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
 		self.assertEqual(deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
+		tc2 = testClass2("bbb")
+		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth2c), testClass2)
+		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
+		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth2b), testClass2)
+		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
+		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth3), testClass2)
+		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth3), testClass2)
+		self.assertRaises(ValueError, lambda: typechecker.get_class_that_defined_method(testfunc))
 
 class TestOverride(unittest.TestCase):
 	def test_override(self):
