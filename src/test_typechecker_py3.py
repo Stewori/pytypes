@@ -138,6 +138,72 @@ class testClass3(testClass3Base):
 	def testmeth(self, a, b):
 		return "-".join((str(a), str(b), str(type(self))))
 
+
+def testClass2_defTimeCheck():
+	class testClass2b(testClass2Base):
+		def testmeth0(self, a: int, b: Real) -> str:
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth(self, a: int, b: Real) -> str:
+			return "-".join((str(a), str(b), self))
+	
+		def testmeth2c(self, a: int, b: Real) -> Union[str, Real]:
+			# type: (int, Real) -> Union[str, Real]
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth3(self, a: int, b: Real) -> str:
+			# type: (int, Real) -> str
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth3_err(self, a: int, b: Real) -> int:
+			# type: (int, Real) -> int
+			return "-".join((str(a), str(b), self))
+	
+		@override
+		def testmeth4(self, a, b):
+			return "-".join((str(a), str(b), self))
+	
+		@override
+		def testmeth5(self, a, b) -> str:
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		def testmeth_err(self, a: int, b: Real) -> int:
+			return "-".join((str(a), str(b), self))
+
+def testClass2_defTimeCheck2():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth2(self, a: str, b: Real) -> Union[str, int]:
+			return "-".join((str(a), str(b), self))
+
+def testClass2_defTimeCheck3():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth2b(self, a: int, b: Real) -> Union[str, Real]:
+			return "-".join((str(a), str(b), self))
+
+def testClass2_defTimeCheck4():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth6(self, a: int, b: Real) -> str:
+			return "-".join((str(a), str(b), self))
+
+
+def testClass3_defTimeCheck():
+	class testClass3b(testClass3Base):
+		@typechecked
+		@override
+		def testmeth(self, a, b):
+			return "-".join((str(a), str(b), str(type(self))))
+
+
 @typechecked
 def testfunc(a: int, b: Real, c: str) -> Tuple[int, Real]:
 	# type: (int, Real, str) -> Tuple[int, Real]

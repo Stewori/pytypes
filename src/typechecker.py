@@ -10,8 +10,10 @@ import typing
 from typing import Tuple, List, Union, Any
 import inspect
 import types
+import re
 
-check_override_on_class_definition_time = True
+check_override_at_runtime = False
+check_override_at_class_definition_time = True
 
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
@@ -172,72 +174,137 @@ def getargspecs(func):
 		return inspect.getargspec(func)
 
 def override(func):
-# 	if check_override_on_class_definition_time:
+	if check_override_at_class_definition_time:
+		# We need some trickery here, because details of the class are not yet available
+		# as it is just getting defined. Luckily we can get base-classes via inspect.stack():
 # 		print("check_override_on_class_definition_time...")
-# 		print(func)
-# 		print(is_method(func))
-# 		print(get_class_that_defined_method(func))
-# 		print("")
-	def checker_ov(*args, **kw):
-		argSpecs = getargspecs(func)
-		if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
-			if hasattr(args[0].__class__, func.__name__) and \
-					inspect.ismethod(getattr(args[0], func.__name__)):
-				ovmro = []
-				for mc in args[0].__class__.__mro__[1:]:
-					if hasattr(mc, func.__name__):
-						ovf = getattr(mc, func.__name__)
-						ovmro.append(mc)
-				if len(ovmro) == 0:
-					raise OverrideError("%s.%s.%s does not override any other method.\n"
-							% (func.__module__, args[0].__class__.__name__, func.__name__))
-				# Not yet support overloading
-				# Check arg-count compatibility
-				for ovcls in ovmro:
-					ovf = getattr(ovcls, func.__name__)
-					ovargs = getargspecs(ovf)
-					d1 = 0 if ovargs.defaults is None else len(ovargs.defaults)
-					d2 = 0 if argSpecs.defaults is None else len(argSpecs.defaults)
-					if len(ovargs.args)-d1 < len(argSpecs.args)-d2 or len(ovargs.args) > len(argSpecs.args):
-						raise OverrideError("%s.%s.%s cannot override %s.%s.%s:\n"
-								% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
-								+ "Mismatching argument count. Base-method: %i+%i   submethod: %i+%i"
-								% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
-				#check arg/res-type compatibility
-				argSig, resSig = _funcsigtypes(func, True)
-				if has_type_hints(func):
+		method = func
+
+		stack = inspect.stack()
+		try:
+			base_classes = re.search(r'class.+\((.+)\)\s*\:', stack[2][4][0]).group(1)
+		except IndexError:
+			raise OverrideError("@override was applied to a function, not a method: %s.%s.\n"
+					% (method.__module__, method.__name__))
+		meth_cls_name = stack[1][3]
+		meth_types = _get_types(method, is_classmethod(method), True)
+# 		print("overrides check "+str(method))
+# 		print("meth-type: "+str(meth_types))
+
+		# handle multiple inheritance
+		base_classes = [s.strip() for s in base_classes.split(',')]
+		if not base_classes:
+			raise ValueError('@override: unable to determine base class') 
+	
+		# stack[0]=overrides, stack[1]=inside class def'n, stack[2]=outside class def'n
+		derived_class_locals = stack[2][0].f_locals
+		derived_class_globals = stack[2][0].f_globals
+	
+		# replace each class name in base_classes with the actual class type
+		for i, base_class in enumerate(base_classes):
+			if '.' not in base_class:
+				if base_class in derived_class_locals:
+					base_classes[i] = derived_class_locals[base_class]
+				else:
+					base_classes[i] = derived_class_globals[base_class]
+			else:
+				components = base_class.split('.')
+				# obj is either a module or a class
+				if components[0] in derived_class_locals:
+					obj = derived_class_locals[components[0]]
+				else:
+					obj = derived_class_globals[components[0]]
+				for c in components[1:]:
+					assert(inspect.ismodule(obj) or inspect.isclass(obj))
+					obj = getattr(obj, c)
+				base_classes[i] = obj
+
+		found = False
+		for cls in base_classes:
+			if hasattr(cls, method.__name__):
+				found = True
+				if has_type_hints(method):
+					base_method = getattr(cls, method.__name__)
+					base_types = get_types(base_method)
+					if has_type_hints(base_method):
+						if not issubclass(base_types[0], meth_types[0]):
+							raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
+									% (method.__module__, meth_cls_name, method.__name__, base_method.__module__, cls.__name__, base_method.__name__)
+									+ "Incompatible argument types: %s is not a subtype of %s."
+									% (str(base_types[0]), str(meth_types[0])))
+						if not issubclass(meth_types[1], base_types[1]):
+							raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
+									% (method.__module__, meth_cls_name, method.__name__, base_method.__module__, cls.__name__, base_method.__name__)
+									+ "Incompatible result types: %s is not a subtype of %s."
+									% (str(meth_types[1]), str(base_types[1])))
+		if not found:
+			raise OverrideError("%s in %s does not override any other method.\n"
+					% (method.__name__, method.__module__))
+# 		return method
+
+	if check_override_at_runtime:
+		def checker_ov(*args, **kw):
+			argSpecs = getargspecs(func)
+			if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
+				if hasattr(args[0].__class__, func.__name__) and \
+						inspect.ismethod(getattr(args[0], func.__name__)):
+					ovmro = []
+					for mc in args[0].__class__.__mro__[1:]:
+						if hasattr(mc, func.__name__):
+							ovf = getattr(mc, func.__name__)
+							ovmro.append(mc)
+					if len(ovmro) == 0:
+						raise OverrideError("%s.%s.%s does not override any other method.\n"
+								% (func.__module__, args[0].__class__.__name__, func.__name__))
+					# Not yet support overloading
+					# Check arg-count compatibility
 					for ovcls in ovmro:
 						ovf = getattr(ovcls, func.__name__)
-						ovSig, ovResSig = _funcsigtypes(ovf, True)
-						if has_type_hints(ovf):
-							if not issubclass(ovSig, argSig):
-								raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
-										% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
-										+ "Incompatible argument types: %s is not a subtype of %s."
-										% (str(ovSig), str(argSig)))
-							if not issubclass(resSig, ovResSig):
-								raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
-										% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
-										+ "Incompatible result types: %s is not a subtype of %s."
-										% (str(resSig), str(ovResSig)))
+						ovargs = getargspecs(ovf)
+						d1 = 0 if ovargs.defaults is None else len(ovargs.defaults)
+						d2 = 0 if argSpecs.defaults is None else len(argSpecs.defaults)
+						if len(ovargs.args)-d1 < len(argSpecs.args)-d2 or len(ovargs.args) > len(argSpecs.args):
+							raise OverrideError("%s.%s.%s cannot override %s.%s.%s:\n"
+									% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
+									+ "Mismatching argument count. Base-method: %i+%i   submethod: %i+%i"
+									% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
+					#check arg/res-type compatibility
+					argSig, resSig = _funcsigtypes(func, True)
+					if has_type_hints(func):
+						for ovcls in ovmro:
+							ovf = getattr(ovcls, func.__name__)
+							ovSig, ovResSig = _funcsigtypes(ovf, True)
+							if has_type_hints(ovf):
+								if not issubclass(ovSig, argSig):
+									raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
+											% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
+											+ "Incompatible argument types: %s is not a subtype of %s."
+											% (str(ovSig), str(argSig)))
+								if not issubclass(resSig, ovResSig):
+									raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
+											% (func.__module__, args[0].__class__.__name__, func.__name__, ovf.__module__, ovcls.__name__, ovf.__name__)
+											+ "Incompatible result types: %s is not a subtype of %s."
+											% (str(resSig), str(ovResSig)))
+				else:
+					raise OverrideError("@override was applied to a non-method: %s.%s.\n"
+						% (func.__module__, func.__name__)
+						+ "that declares 'self' although not a method.")
 			else:
-				raise OverrideError("@override was applied to a non-method: %s.%s.\n"
-					% (func.__module__, func.__name__)
-					+ "that declares 'self' although not a method.")
-		else:
-			raise OverrideError("@override was applied to a function, not a method: %s.%s.\n"
-					% (func.__module__, func.__name__))
-		return func(*args, **kw)
-
-	checker_ov.ov_func = func
-	checker_ov.__func__ = func
-	checker_ov.__name__ = func.__name__ # What sorts of evil might this bring over us?
-	checker_ov.__module__ = func.__module__
-	if hasattr(func, '__annotations__'):
-		checker_ov.__annotations__ = func.__annotations__
-	if hasattr(func, '__qualname__'):
-		checker_ov.__qualname__ = func.__qualname__
-	return checker_ov
+				raise OverrideError("@override was applied to a function, not a method: %s.%s.\n"
+						% (func.__module__, func.__name__))
+			return func(*args, **kw)
+	
+		checker_ov.ov_func = func
+		checker_ov.__func__ = func
+		checker_ov.__name__ = func.__name__ # What sorts of evil might this bring over us?
+		checker_ov.__module__ = func.__module__
+		if hasattr(func, '__annotations__'):
+			checker_ov.__annotations__ = func.__annotations__
+		if hasattr(func, '__qualname__'):
+			checker_ov.__qualname__ = func.__qualname__
+		return checker_ov
+	else:
+		return func
 
 def _checkfunctype(tp, func, slf, func_class):
 	argSig, resSig = _funcsigtypes(func, slf)
@@ -390,7 +457,7 @@ def is_method(func):
 				# if first arg is called 'self' 
 				return True
 			else:
-				print("Warning: non-method declaring self "+func0.__name__)
+				print("Warning (is_method): non-method declaring self "+func0.__name__)
 	return False
 
 def is_class(obj):
@@ -409,11 +476,12 @@ def is_classmethod(meth):
 	return meth == getattr(meth.__self__, meth.__name__)
 
 def get_types(func):
-	clsm = is_classmethod(func)
+	return _get_types(func, is_classmethod(func), is_method(func))
+
+def _get_types(func, clsm, slf):
 	func0 = _actualfunc(func)
 
 	# check consistency regarding special case with 'self'-keyword
-	slf = is_method(func)
 	if not slf:
 		argNames = getargspecs(func0).args
 		if len(argNames) > 0:

@@ -7,6 +7,8 @@ Created on 25.08.2016
 import unittest
 import sys
 import typechecker
+typechecker.check_override_at_class_definition_time = False
+typechecker.check_override_at_runtime = True
 from typechecker import typechecked, override, get_types, get_type_hints, deep_type, \
 		InputTypeError, ReturnTypeError, OverrideError
 import typing; from typing import Tuple, List, Union, Any
@@ -188,6 +190,90 @@ class testClass3(testClass3Base):
 	def testmeth(self, a, b):
 		return "-".join((str(a), str(b), str(type(self))))
 
+
+def testClass2_defTimeCheck():
+	class testClass2b(testClass2Base):
+		def testmeth0(self,
+					a, # type: int
+					b  # type: Real
+					):
+			# type: (...) -> str
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth(self,
+					a, # type: int
+					b  # type: Real
+					):
+			# type: (...) -> str
+			return "-".join((str(a), str(b), self))
+	
+		def testmeth2c(self, a, b):
+			# type: (int, Real) -> Union[str, Real]
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth3(self, a, b):
+			# type: (int, Real) -> str
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		@override
+		def testmeth3_err(self, a, b):
+			# type: (int, Real) -> int
+			return "-".join((str(a), str(b), self))
+	
+		@override
+		def testmeth4(self, a, b):
+			return "-".join((str(a), str(b), self))
+	
+		@override
+		def testmeth5(self, a, b):
+			# type: (...) -> str
+			return "-".join((str(a), str(b), self))
+	
+		@typechecked
+		def testmeth_err(self, a, b):
+			# type: (int, Real) -> int
+			return "-".join((str(a), str(b), self))
+
+
+def testClass2_defTimeCheck2():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth2(self, a, b):
+			# type: (str, Real) -> Union[str, int]
+			return "-".join((str(a), str(b), self))
+
+
+def testClass2_defTimeCheck3():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth2b(self, a, b):
+			# type: (int, Real) -> Union[str, Real]
+			return "-".join((str(a), str(b), self))
+
+def testClass2_defTimeCheck4():
+	class testClass2b(testClass2Base):
+		@override
+		def testmeth6(self,
+					a, # type: int
+					b  # type: Real
+					):
+			# type: (...) -> str
+			return "-".join((str(a), str(b), self))
+
+
+def testClass3_defTimeCheck():
+	class testClass3b(testClass3Base):
+		@typechecked
+		@override
+		def testmeth(self, a, b):
+			return "-".join((str(a), str(b), str(type(self))))
+
+
 @typechecked
 def testfunc(a, # type: int
 			b,  # type: Real
@@ -209,11 +295,6 @@ def testfunc_err(
 def testfunc2(a, b, c):
 	# type: (int, Real, testClass) -> Tuple[int, float]
 	return a*a, a*b
-
-# @typechecked
-# def testfunc3(a: int, b: Real, c: str) -> Tuple[int, float]:
-# # type: (int, Real, str) -> Tuple[int, float]
-# 	return a*a, a*b
 
 @typechecked
 def testfunc4(a, b, c):
@@ -283,6 +364,10 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth3), testClass2)
 		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth3), testClass2)
 		self.assertRaises(ValueError, lambda: typechecker.get_class_that_defined_method(testfunc))
+		# old-style:
+		tc3 = testClass3()
+		self.assertEqual(typechecker.get_class_that_defined_method(tc3.testmeth), testClass3)
+		self.assertEqual(typechecker.get_class_that_defined_method(testClass3.testmeth), testClass3)
 
 class TestOverride(unittest.TestCase):
 	def test_override(self):
@@ -299,6 +384,16 @@ class TestOverride(unittest.TestCase):
 		self.assertEqual(tc2.testmeth4(1, 2.5), "1-2.5-uvwx")
 		self.assertEqual(tc2.testmeth5(1, 2.5), "1-2.5-uvwx")
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
+
+	def test_override_at_definition_time(self):
+		tmp = typechecker.check_override_at_class_definition_time
+		typechecker.check_override_at_class_definition_time = True
+		testClass2_defTimeCheck()
+		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck2())
+		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck3())
+		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
+		testClass3_defTimeCheck()
+		typechecker.check_override_at_class_definition_time = tmp
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
@@ -388,5 +483,55 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertEqual(tc2.testmeth5(1, 2.5), "1-2.5-uvwx")
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
+	def test_override_at_definition_time(self):
+		tmp = typechecker.check_override_at_class_definition_time
+		typechecker.check_override_at_class_definition_time = True
+		py3.testClass2_defTimeCheck()
+		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck2())
+		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck3())
+		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck4())
+		py3.testClass3_defTimeCheck()
+		typechecker.check_override_at_class_definition_time = tmp
+
+
+def testCl4():
+	class testClass4Base(str):
+		def testmeth(self, a, b):
+			# type: (int, int) -> Union[str, Real]
+			pass
+	
+	# 	def testmeth(self, a: int, b: Real) -> Union[str, int]:
+	# 		pass
+	
+	class testClass4(testClass4Base):
+# 		@override
+# 		def testmeth(self, a, b):
+# 			# type: (int, int) -> Union[str, int]
+# 			return "testMeth"
+
+		@override
+		def testmeth(self,
+					a, # type: int
+					b  # type: Real
+					):
+			# type: (...) -> Union[str, Real]
+			return "testMeth"
+	
+	# 	@typechecker.overrides
+	# 	def testmeth(self, a: int, b: Real) -> Union[str, Real]:
+	# 		return "testMeth"
+
+# @typechecker.overrides
+# def tf4():
+# 	print("tf4")
+
 if __name__ == '__main__':
+	#typechecker.check_override_at_class_definition_time = True
+	testCl4()
+# 	tc4 = testClass4()
+# 	print(tc4.testmeth(3, 2.3))
 	unittest.main()
+	#tc2 = testClass2("uvwx")
+	#tc2.testmeth2(1, 2.5)
+	#tc2.testmeth2b(3, 1.1)
+	print("done")
