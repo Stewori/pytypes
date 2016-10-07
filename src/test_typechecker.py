@@ -494,44 +494,5 @@ class TestOverride_Python3_5(unittest.TestCase):
 		typechecker.check_override_at_class_definition_time = tmp
 
 
-def testCl4():
-	class testClass4Base(str):
-		def testmeth(self, a, b):
-			# type: (int, int) -> Union[str, Real]
-			pass
-	
-	# 	def testmeth(self, a: int, b: Real) -> Union[str, int]:
-	# 		pass
-	
-	class testClass4(testClass4Base):
-# 		@override
-# 		def testmeth(self, a, b):
-# 			# type: (int, int) -> Union[str, int]
-# 			return "testMeth"
-
-		@override
-		def testmeth(self,
-					a, # type: int
-					b  # type: Real
-					):
-			# type: (...) -> Union[str, Real]
-			return "testMeth"
-	
-	# 	@typechecker.overrides
-	# 	def testmeth(self, a: int, b: Real) -> Union[str, Real]:
-	# 		return "testMeth"
-
-# @typechecker.overrides
-# def tf4():
-# 	print("tf4")
-
 if __name__ == '__main__':
-	#typechecker.check_override_at_class_definition_time = True
-	testCl4()
-# 	tc4 = testClass4()
-# 	print(tc4.testmeth(3, 2.3))
 	unittest.main()
-	#tc2 = testClass2("uvwx")
-	#tc2.testmeth2(1, 2.5)
-	#tc2.testmeth2b(3, 1.1)
-	print("done")
