@@ -10,9 +10,9 @@ import typechecker
 typechecker.check_override_at_class_definition_time = False
 typechecker.check_override_at_runtime = True
 from typechecker import typechecked, override, get_types, get_type_hints, deep_type, \
-		InputTypeError, ReturnTypeError, OverrideError
-import typing; from typing import Tuple, List, Union, Any
-from numbers import Real, Complex
+		InputTypeError, ReturnTypeError, OverrideError, no_type_check
+from typing import Tuple, List, Union, Any
+from numbers import Real
 import abc; from abc import abstractmethod
 
 class testClass(str):
@@ -191,6 +191,75 @@ class testClass3(testClass3Base):
 		return "-".join((str(a), str(b), str(type(self))))
 
 
+@typechecked
+class testClass4(str):
+	def testmeth(self, a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), self))
+
+	def testmeth_err(self, a, b):
+		# type: (int, Real) -> int
+		return "-".join((str(a), str(b), self))
+
+	@no_type_check
+	def testmeth_raw(self, a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), self))
+
+	def testmeth2(self,
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		return "-".join((str(a), str(b), self))
+
+	@classmethod
+	def testmeth_class(cls,
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		return "-".join((str(a), str(b), str(cls)))
+
+	@classmethod
+	def testmeth_class2(cls, a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), str(cls)))
+
+	@classmethod
+	def testmeth_class2_err(cls, a, b):
+		# type: (int, Real) -> int
+		return "-".join((str(a), str(b), str(cls)))
+
+	@staticmethod
+	def testmeth_static(
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		return "-".join((str(a), str(b), "static"))
+
+	@no_type_check
+	@staticmethod
+	def testmeth_static_raw(a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), "static"))
+
+	@no_type_check
+	@classmethod
+	def testmeth_class_raw(cls,
+				a, # type: int
+				b  # type: Real
+				):
+		# type: (...) -> str
+		return "-".join((str(a), str(b), str(cls)))
+
+	@staticmethod
+	def testmeth_static2(a, b):
+		# type: (int, Real) -> str
+		return "-".join((str(a), str(b), "static"))
+
+
 def testClass2_defTimeCheck():
 	class testClass2b(testClass2Base):
 		def testmeth0(self,
@@ -300,6 +369,7 @@ def testfunc2(a, b, c):
 def testfunc4(a, b, c):
 	return a*a, a*b
 
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, "abcd"), (9, 7.5))
@@ -369,6 +439,36 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(typechecker.get_class_that_defined_method(tc3.testmeth), testClass3)
 		self.assertEqual(typechecker.get_class_that_defined_method(testClass3.testmeth), testClass3)
 
+
+class TestTypecheck_class(unittest.TestCase):
+	def test_classmethod(self):
+		tc = testClass4("efghi")
+		self.assertEqual(tc.testmeth_class(23, 1.1), "23-1.1-<class '__main__.testClass4'>")
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
+		# Tests @no_type_check:
+		self.assertEqual(tc.testmeth_class_raw("23", 1.1), "23-1.1-<class '__main__.testClass4'>")
+		self.assertEqual(tc.testmeth_class2(23, 1.1), "23-1.1-<class '__main__.testClass4'>")
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
+		self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
+
+	def test_method(self):
+		tc = testClass4("ijklm")
+		self.assertEqual(tc.testmeth(1, 2.5), "1-2.5-ijklm")
+		self.assertRaises(InputTypeError, lambda: tc.testmeth(1, 2.5, 7))
+		self.assertRaises(ReturnTypeError, lambda: tc.testmeth_err(1, 2.5))
+		# Tests @no_type_check:
+		self.assertEqual(tc.testmeth_raw("1", 2.5), "1-2.5-ijklm")
+
+	def test_staticmethod(self):
+		tc = testClass4("efghj")
+		self.assertEqual(tc.testmeth_static(12, 0.7), "12-0.7-static")
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_static(12, [3]))
+		# Tests @no_type_check:
+		self.assertEqual(tc.testmeth_static_raw("12", 0.7), "12-0.7-static")
+		self.assertEqual(tc.testmeth_static2(11, 1.9), "11-1.9-static")
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ("a", "b"), 1.9))
+
+
 class TestOverride(unittest.TestCase):
 	def test_override(self):
 		tc2 = testClass2("uvwx")
@@ -394,6 +494,7 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
 		testClass3_defTimeCheck()
 		typechecker.check_override_at_class_definition_time = tmp
+
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')

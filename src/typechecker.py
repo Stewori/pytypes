@@ -15,6 +15,8 @@ import re
 check_override_at_runtime = False
 check_override_at_class_definition_time = True
 
+not_type_checked = set()
+
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
 class InputTypeError(TypeCheckError): pass
@@ -129,7 +131,6 @@ def _methargtype(obj):
 	return Tuple[tuple(deep_type(t) for t in obj[1:])]
 
 def has_type_hints(func):
-	# Todo: Respect @no_type_check etc
 	tpHints = typing.get_type_hints(func)
 	tpStr = _get_typestrings(func, False)
 	return not (tpStr[0] is None and (tpHints is None or not tpHints))
@@ -158,7 +159,7 @@ def _funcsigtypes(func, slf):
 				raise TypeCheckSpecificationError("%s.%s declares incompatible types:\n"
 					% (func.__module__, func.__name__)
 					+ "Via hints:   %s\nVia comment: %s"
-					% (str(resType), str(resType2)))
+					% (_type_str(resType), _type_str(resType2)))
 		return resType
 	res = _funcsigtypesfromstring(*tpStr, globals = globs)
 	return res
@@ -180,12 +181,12 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 			raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
 					% (method.__module__, class_name, method.__name__, base_method.__module__, base_class_name, base_method.__name__)
 					+ "Incompatible argument types: %s is not a subtype of %s."
-					% (str(base_types[0]), str(meth_types[0])))
+					% (_type_str(base_types[0]), _type_str(meth_types[0])))
 		if not issubclass(meth_types[1], base_types[1]):
 			raise OverrideError("%s.%s.%s cannot override %s.%s.%s.\n"
 					% (method.__module__, class_name, method.__name__, base_method.__module__, base_class_name, base_method.__name__)
 					+ "Incompatible result types: %s is not a subtype of %s."
-					% (str(meth_types[1]), str(base_types[1])))
+					% (_type_str(meth_types[1]), _type_str(base_types[1])))
 
 def _check_override_argspecs(method, argSpecs, class_name, base_method, base_class_name):
 	ovargs = getargspecs(base_method)
@@ -303,6 +304,9 @@ def override(func):
 	else:
 		return func
 
+def _type_str(tp):
+	return str(tp).replace("typing.", "")
+
 def _checkfunctype(tp, func, slf, func_class):
 	argSig, resSig = _funcsigtypes(func, slf)
 	if not issubclass(tp, argSig):
@@ -314,17 +318,17 @@ def _checkfunctype(tp, func, slf, func_class):
 				raise InputTypeError("%s.%s.%s called with incompatible types:\n"
 						% (func.__module__, func.im_class.__name__, func.__name__)
 						+ "Expected: %s\nGot:      %s"
-						% (str(argSig), str(tp)))
+						% (_type_str(argSig), _type_str(tp)))
 			else:
 				raise InputTypeError("classmethod %s.%s.%s called with incompatible types:\n"
 					% (func.__module__, func_class.__name__, func.__name__)
 					+ "Expected: %s\nGot:      %s"
-					% (str(argSig), str(tp)))
+					% (_type_str(argSig), _type_str(tp)))
 		else:
 			raise InputTypeError("%s.%s called with incompatible types:\n"
 					% (func.__module__, func.__name__)
 					+ "Expected: %s\nGot:      %s"
-					% (str(argSig), str(tp)))
+					% (_type_str(argSig), _type_str(tp)))
 	return resSig # provide this by-product for potential future use
 
 def _checkfuncresult(resSig, tp, func, slf, func_class):
@@ -334,17 +338,17 @@ def _checkfuncresult(resSig, tp, func, slf, func_class):
 				raise ReturnTypeError("%s.%s.%s returned incompatible type:\n"
 						% (func.__module__, func.im_class.__name__, func.__name__)
 						+ "Expected: %s\nGot:      %s"
-						% (str(resSig), str(tp)))
+						% (_type_str(resSig), _type_str(tp)))
 			else:
 				raise ReturnTypeError("classmethod %s.%s.%s returned incompatible type:\n"
 						% (func.__module__, func_class.__name__, func.__name__)
 						+ "Expected: %s\nGot:      %s"
-						% (str(resSig), str(tp)))
+						% (_type_str(resSig), _type_str(tp)))
 		else:
 			raise ReturnTypeError("%s.%s returned incompatible type:\n"
 					% (func.__module__, func.__name__)
 					+ "Expected: %s\nGot:      %s"
-					% (str(resSig), str(tp)))
+					% (_type_str(resSig), _type_str(tp)))
 
 def _actualfunc(func):
 	if type(func) == classmethod or type(func) == staticmethod:
@@ -357,7 +361,10 @@ def _actualfunc(func):
 	else:
 		return func
 
-def typechecked(func):
+def typechecked_func(func, force = False):
+	assert(inspect.isfunction(func) or inspect.ismethod(func) or inspect.ismethoddescriptor(func))
+	if not force and is_no_type_check(func):
+		return func
 	clsm = type(func) == classmethod
 	stat = type(func) == staticmethod
 	func0 = _actualfunc(func)
@@ -431,6 +438,60 @@ def typechecked(func):
 	else:
 		return checker_tp
 
+def typechecked_class(cls, force = False, force_recursive = False):
+	assert(inspect.isclass(cls))
+	if not force and is_no_type_check(cls):
+		return cls
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	keys = [key for key in cls.__dict__]
+	for key in keys:
+		obj = cls.__dict__[key]
+		if force_recursive or not is_no_type_check(obj):
+			if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+				setattr(cls, key, typechecked_func(obj, force_recursive))
+			elif inspect.isclass(obj):
+				setattr(cls, key, typechecked_class(obj, force_recursive, force_recursive))
+	return cls
+
+# Todo: Write tests for this
+def typechecked_module(md, force_recursive = False):
+	'''
+	Intended to typecheck modules that were not annotated with @typechecked without
+	modifying their code.
+	'''
+	assert(inspect.ismodule(md))
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	keys = [key for key in md.__dict__]
+	for key in keys:
+		obj = md.__dict__[key]
+		if force_recursive or not is_no_type_check(obj):
+			if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+				setattr(md, key, typechecked_func(obj, force_recursive))
+			elif inspect.isclass(obj):
+				setattr(md, key, typechecked_class(obj, force_recursive, force_recursive))
+
+def typechecked(obj):
+	if is_no_type_check(obj):
+		return obj
+	if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+		return typechecked_func(obj)
+	if inspect.isclass(obj):
+		return typechecked_class(obj)
+	return obj
+
+def no_type_check(obj):
+	try:
+		return typing.no_type_check(obj)
+	except(AttributeError):
+		not_type_checked.add(obj)
+		return obj
+
+def is_no_type_check(obj):
+	return (hasattr(obj, "__no_type_check__") and obj.__no_type_check__) or obj in not_type_checked
 
 def get_class_that_defined_method(meth):
 	if hasattr(meth, "im_class"):
