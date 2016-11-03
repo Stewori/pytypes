@@ -28,8 +28,7 @@ Next steps
 As of this writing pytypes doesn't yet support
 
 - method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
-- stub files: https://www.python.org/dev/peps/pep-0484/#stub-files
-- all constructs from typing (e.g. List, Tuple, Union, Any are supported, e.g. generics and callables are not yet)
+- some constructs from typing (e.g. List, Tuple, Union, Any are supported, e.g. generics and callables are not yet)
 
 
 License

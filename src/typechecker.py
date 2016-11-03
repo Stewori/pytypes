@@ -54,8 +54,7 @@ def _get_stub_module(module_filepath):
 		with open(module_filepath, stub_open_mode) as module_file:
 			with warnings.catch_warnings():
 				warnings.simplefilter("ignore")
-				stub_module = imp.load_module(
-											module_name, module_file, module_filepath, stub_descr)
+				stub_module = imp.load_module(module_name, module_file, module_filepath, stub_descr)
 				return stub_module
 	except SyntaxError:
 		return None
@@ -66,6 +65,35 @@ def _md5(fname):
 		for chunk in iter(lambda: f.read(4096), b""):
 			m.update(chunk)
 	return m.hexdigest()
+
+def _full_module_file_name_nosuffix(module_name):
+	module = sys.modules[module_name]
+	bn = os.path.basename(module.__file__).rpartition('.')[0]
+	if not (module.__package__ is None or module.__package__ == ''):
+		return module.__package__.replace('.', os.sep)+os.sep+bn
+	else:
+		return bn
+
+def _find_files(file_name, search_paths):
+	res = []
+	if os.path.isfile(file_name):
+		res.append(file_name)
+	if search_paths is None:
+		return res
+	for path in search_paths:
+		if not path.endswith(os.sep):
+			file_path = path+os.sep+file_name
+		else:
+			file_path = path+file_name
+		if os.path.isfile(file_path):
+			res.append(file_path)
+	return res
+
+def _find_stub_files(module_name):
+	full_name = _full_module_file_name_nosuffix(module_name)
+	file_name = full_name+'.pyi'
+	file_name2 = _plain_stub2_filename(file_name)
+	return _find_files(file_name, stub_path), _find_files(file_name2, stub_path)
 
 def _plain_stub2_filename(stub_file):
 	return stub_file.rpartition('.')[0]+'.pyi2'
@@ -105,16 +133,19 @@ def get_stub_module(func):
 	module = sys.modules[func.__module__]
 	assert(inspect.ismodule(module))
 	m_name = module.__name__
+	
+	if m_name.endswith('.pyi') or m_name.endswith('.pyi2'):
+		return None
 	m_key = m_name+str(id(module))
 	if m_key in stub_modules:
 		return stub_modules[m_key]
 	module_filepath = module.__file__.rpartition('.')[0]+'.pyi'
-	module_filepath2_plain = _plain_stub2_filename(module_filepath)
+	stub_files = _find_stub_files(m_name)
 	module_filepath2_gen = _gen_stub2_filename(module_filepath, module)
 	if not (sys.version_info.major >= 3 and sys.version_info.minor >= 5):
 		# Python version < 3.5, so try to use a Python 2-style stub.
 		# First look for a not-generated one:
-		if os.path.isfile(module_filepath2_plain):
+		for module_filepath2_plain in stub_files[1]:
 			stub_module = _get_stub_module(module_filepath2_plain)
 			if not stub_module is None:
 				stub_modules[m_key] = stub_module
@@ -124,22 +155,34 @@ def get_stub_module(func):
 			stub_module = _get_stub_module(module_filepath2_gen)
 			if not stub_module is None:
 				# A generated module might be outdated:
-				if _check_py2_stubmodule(module_filepath, stub_module):
-					stub_modules[m_key] = stub_module
-					return stub_module
+				# We only check this and attempt to re-create outdated stub-files
+				# for files found under stub_gen_dir.
+				for module_filepath in stub_files[0]:
+					if _check_py2_stubmodule(module_filepath, stub_module):
+						stub_modules[m_key] = stub_module
+						return stub_module
 				# Otherwise we let the code below re-create the module.
 				# Note that we cannot be in tmp-dir mode, since the pyi2-file
 				# would not have been kept in that case.
 	# Python >= 3.5 or no Python 2-style stub available, so try original stub:
-	if os.path.isfile(module_filepath):
+	# Simply try to load one of the stubs in search-folders:
+	for module_filepath in stub_files[0]:
 		stub_module = _get_stub_module(module_filepath)
 		if not stub_module is None:
 			stub_modules[m_key] = stub_module
 			return stub_module
-		elif not (sys.version_info.major >= 3 and sys.version_info.minor >= 5):
-			# Most likely the module-stub could not be loaded due to Python 3.5-syntax
-			# We try to use a local Python 3 version to generate a Python 2-style stub:
-			if _check_python3_5_version():
+	# Try Python2-style stubs in search-folders, even if running Python 3:
+	for module_filepath in stub_files[1]:
+		stub_module = _get_stub_module(module_filepath)
+		if not stub_module is None:
+			stub_modules[m_key] = stub_module
+			return stub_module
+	# Finally try to convert a Python3 stub to Python2-style:
+	if not (sys.version_info.major >= 3 and sys.version_info.minor >= 5):
+		# Most likely the module-stub could not be loaded due to Python 3.5-syntax
+		if _check_python3_5_version():
+			for module_filepath in stub_files[0]:
+				# We try to use a local Python 3 version to generate a Python 2-style stub:
 				_create_Python_2_stub(module_filepath, module_filepath2_gen)
 				if os.path.isfile(module_filepath2_gen):
 					stub_module = _get_stub_module(module_filepath2_gen)
@@ -150,10 +193,9 @@ def get_stub_module(func):
 					if not stub_module is None:
 						stub_modules[m_key] = stub_module
 						return stub_module
-				else:
-					# Todo: Raise warning instead
-					print("Stubfile creation failed: "+module_filepath2_gen)
-	
+				#else:
+				# Todo: Raise warning in verbose mode.
+				#	print("Stubfile creation failed: "+module_filepath2_gen)
 	# No stub-file available
 	stub_modules[m_key] = None
 	return None
@@ -281,11 +323,6 @@ def has_type_hints(func0):
 
 def _funcsigtypes(func0, slf):
 	# Check for stubfile
-# 	module = get_stub_module(func0)
-# 	if not module is None and hasattr(module, func0.__name__):
-# 		func = getattr(module, func0.__name__)
-# 	else:
-# 		func = func0
 	func = as_stub_func_if_any(_actualfunc(func0))
 
 	tpHints = typing.get_type_hints(func)
@@ -300,7 +337,6 @@ def _funcsigtypes(func0, slf):
 	globs = sys.modules[func.__module__].__dict__
 	if not tpHints is None and tpHints:
 		# We're running Python 3
-		#argNames = inspect.getfullargspec(_actualfunc(func)).args
 		argNames = inspect.getfullargspec(func).args
 		if slf:
 			argNames = argNames[1:]
@@ -363,7 +399,6 @@ def override(func):
 	if check_override_at_class_definition_time:
 		# We need some trickery here, because details of the class are not yet available
 		# as it is just getting defined. Luckily we can get base-classes via inspect.stack():
-# 		print("check_override_on_class_definition_time...")
 
 		stack = inspect.stack()
 		try:
