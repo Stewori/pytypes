@@ -22,6 +22,12 @@ All described features of pytypes were carefully implemented such that they are 
 It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development. If a function or method is type-annotated in Python 2.7 and 3.5 style at the same time pytypes automatically asserts equality of the annotations.
 
 
+Why write another runtime typecheck-decorator?
+----------------------------------------------
+
+There have been earlier approaches for runtime-typechecking. However, most of them predate PEP 484 or lack some crucial features like support for Python 2.7 and support for stub files. Also none of them features a typechecking override decorator. There were separate approaches for override-decorators, but these usually don't consider PEP 484 at all. Given all these facts, we decided that it's time for a new runtime typechecking framework, designed to support PEP 484 from the roots, including its extensive features like (Python 2.7-style-)type comments and stub files.
+
+
 Next steps
 ----------
 
@@ -29,6 +35,7 @@ As of this writing pytypes doesn't yet support
 
 - method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
 - some constructs from typing (e.g. List, Tuple, Union, Any are supported, e.g. generics and callables are not yet)
+- numeric tower does not yet work like described in PEP 484
 
 
 License

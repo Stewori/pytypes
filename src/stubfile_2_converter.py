@@ -49,7 +49,10 @@ def signature(func):
 	argstr = ', '.join(tpc.getargspecs(func)[0])
 	return 'def '+func.__name__+'('+argstr+'):'
 
-def _write_func(func, lines, inc = 0):
+def _write_func(func, lines, inc = 0, decorators = None):
+	if not decorators is None:
+		for dec in decorators:
+			lines.append(inc*indent+'@'+dec)
 	lines.append(inc*indent+signature(func))
 	lines.append((inc+1)*indent+typecomment(func))
 	lines.append((inc+1)*indent+'pass')
@@ -62,17 +65,34 @@ def _write_class(clss, lines, inc = 0):
 	_print("write class: "+str(clss))
 	anyElement = False
 	lines.append(signature_class(clss))
-	mb = inspect.getmembers(clss, lambda t: inspect.isfunction(t) or inspect.isclass(t))
+	mb = inspect.getmembers(clss, lambda t: inspect.isfunction(t) or \
+			inspect.isclass(t) or inspect.ismethoddescriptor(t))
+	# todo: Care for overload-decorator
 	for elem in mb:
 		if elem[0] in clss.__dict__:
-			if inspect.isfunction(clss.__dict__[elem[0]]):
+			el = clss.__dict__[elem[0]]
+			if inspect.isfunction(el):
 				lines.append('')
-				_write_func(clss.__dict__[elem[0]], lines, inc+1)
+				_write_func(el, lines, inc+1)
 				anyElement = True
-			elif inspect.isclass(clss.__dict__[elem[0]]):
+			elif inspect.isclass(el):
 				lines.append('')
-				_write_class(clss.__dict__[elem[0]], lines, inc+1)
+				_write_class(el, lines, inc+1)
 				anyElement = True
+			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
+				lines.append('')
+				_write_func(el.__func__, lines, inc+1, ['staticmethod'])
+				anyElement = True
+
+	# classmethods are not obtained via inspect.getmembers.
+	# We have to look into __dict__ for that.
+	for key in clss.__dict__:
+		attr = getattr(clss, key)
+		if inspect.ismethod(attr):
+			lines.append('')
+			_write_func(attr, lines, inc+1, ['classmethod'])
+			anyElement = True
+
 	if not anyElement:
 		lines.append((inc+1)*indent+'pass')
 
@@ -97,7 +117,6 @@ def convert(in_file, out_file = None):
 		os.makedirs(directory)
 
 	with open(out_file, 'w') as out_file_handle:
-		out_file_handle.write
 		lines = ["'''",
 				'Python 2.7-compliant stubfile of ',
 				in_file,
@@ -112,12 +131,12 @@ def convert(in_file, out_file = None):
 		for func in funcs:
 			lines.append('')
 			_write_func(func, lines)
-	
+
 		for cl in cls:
 			if not (hasattr(numbers, cl.__name__) or hasattr(typing, cl.__name__)):
 				lines.append('\n')
 				_write_class(cl, lines)
-	
+
 		for i in range(len(lines)):
 			_print(lines[i])
 			lines[i] = lines[i]+'\n'
