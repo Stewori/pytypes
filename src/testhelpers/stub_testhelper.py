@@ -50,10 +50,3 @@ class class2(class1):
 	def meth2b(self, b):
 	# actually class1_py2 -> str
 		return str(b)
-
-
-# print tpc.get_type_hints(foo_module.testfunc1)
-# hints = get_type_hints(testfunc1)
-# print(hints)
-# print(hints['b'].__name__)
-# print(testfunc1(1, 7))

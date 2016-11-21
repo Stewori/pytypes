@@ -7,7 +7,7 @@ Created on 20.08.2016
 import sys, typing, inspect, types, re, os, imp, subprocess
 import warnings, tempfile, hashlib, atexit
 from typing import Tuple, List, Union, Any
-from inspect import isclass
+from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 
 enabled = False
 def set_enabled(flag = True):
@@ -59,7 +59,7 @@ def _create_Python_2_stub(module_filepath, out_file = None):
 	subprocess.call([python3_5_executable, conv_script, '-s', '-o', out_file, module_filepath], env = {})
 
 def _match_classes(stub_module, original_module):
-	classes = [cl[1] for cl in inspect.getmembers(original_module, inspect.isclass)]
+	classes = [cl[1] for cl in inspect.getmembers(original_module, isclass)]
 	for cl in classes:
 		if hasattr(stub_module, cl.__name__):
 			# Todo: What if stub_file uses slots? (unlikely (?))
@@ -152,7 +152,7 @@ def _check_py2_stubmodule(pyi_file, pyi2_module):
 
 def get_stub_module(func):
 	module = sys.modules[func.__module__]
-	assert(inspect.ismodule(module))
+	assert(ismodule(module))
 	m_name = module.__name__
 	
 	if m_name.endswith('.pyi') or m_name.endswith('.pyi2'):
@@ -338,7 +338,7 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None):
 	if not module is None:
 		if hasattr(module, func0.__name__):
 			return getattr(module, func0.__name__)
-		elif not decorated_func is None and inspect.ismethod(decorated_func):
+		elif not decorated_func is None and ismethod(decorated_func):
 			cls = get_class_that_defined_method(decorated_func)
 			if hasattr(module, cls.__name__):
 				cls2 = getattr(module, cls.__name__)
@@ -497,7 +497,7 @@ def override(func):
 				else:
 					obj = derived_class_globals[components[0]]
 				for c in components[1:]:
-					assert(inspect.ismodule(obj) or inspect.isclass(obj))
+					assert(ismodule(obj) or isclass(obj))
 					obj = getattr(obj, c)
 				base_classes[i] = obj
 
@@ -519,7 +519,7 @@ def override(func):
 			argSpecs = getargspecs(func)
 			if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
 				if hasattr(args[0].__class__, func.__name__) and \
-						inspect.ismethod(getattr(args[0], func.__name__)):
+						ismethod(getattr(args[0], func.__name__)):
 					ovmro = []
 					for mc in args[0].__class__.__mro__[1:]:
 						if hasattr(mc, func.__name__):
@@ -561,7 +561,7 @@ def override(func):
 def _type_str(tp):
 	tp = _match_stub_type(tp)
 	impl = ('__builtin__', 'builtins')
-	if inspect.isclass(tp) and not hasattr(typing, tp.__name__):
+	if isclass(tp) and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]
 			if not (module.__package__ is None or module.__package__ == ''):
@@ -641,7 +641,7 @@ def _actualfunc(func):
 def typechecked_func(func, force = False):
 	if not enabled:
 		return func
-	assert(inspect.isfunction(func) or inspect.ismethod(func) or inspect.ismethoddescriptor(func))
+	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func))
 	if not force and is_no_type_check(func):
 		return func
 	clsm = type(func) == classmethod
@@ -664,7 +664,7 @@ def typechecked_func(func, force = False):
 				tp = _methargtype(args)
 			elif argNames[0] == 'self':
 				if hasattr(args[0].__class__, func0.__name__) and \
-						inspect.ismethod(getattr(args[0], func0.__name__)):
+						ismethod(getattr(args[0], func0.__name__)):
 					tp = _methargtype(args)
 					slf = True
 				else:
@@ -727,7 +727,7 @@ def typechecked_func(func, force = False):
 def typechecked_class(cls, force = False, force_recursive = False):
 	if not enabled:
 		return cls
-	assert(inspect.isclass(cls))
+	assert(isclass(cls))
 	if not force and is_no_type_check(cls):
 		return cls
 	# To play it safe we avoid to modify the dict while iterating over it,
@@ -737,9 +737,9 @@ def typechecked_class(cls, force = False, force_recursive = False):
 	for key in keys:
 		obj = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+			if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
 				setattr(cls, key, typechecked_func(obj, force_recursive))
-			elif inspect.isclass(obj):
+			elif isclass(obj):
 				setattr(cls, key, typechecked_class(obj, force_recursive, force_recursive))
 	return cls
 
@@ -751,7 +751,7 @@ def typechecked_module(md, force_recursive = False):
 	'''
 	if not enabled:
 		return md
-	assert(inspect.ismodule(md))
+	assert(ismodule(md))
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
 	# For this we don't use keys() because of Python 3.
@@ -759,9 +759,9 @@ def typechecked_module(md, force_recursive = False):
 	for key in keys:
 		obj = md.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+			if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
 				setattr(md, key, typechecked_func(obj, force_recursive))
-			elif inspect.isclass(obj):
+			elif isclass(obj):
 				setattr(md, key, typechecked_class(obj, force_recursive, force_recursive))
 
 def typechecked(obj):
@@ -769,9 +769,9 @@ def typechecked(obj):
 		return obj
 	if is_no_type_check(obj):
 		return obj
-	if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+	if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
 		return typechecked_func(obj)
-	if inspect.isclass(obj):
+	if isclass(obj):
 		return typechecked_class(obj)
 	return obj
 
@@ -790,8 +790,8 @@ def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack,
 		val = getattr(module_or_class, _actualfunc(staticmeth).__name__)
 		if _unchecked_backend(staticmeth) is _unchecked_backend(val):
 			return stack
-	classes = [cl[1] for cl in inspect.getmembers(module_or_class, inspect.isclass)]
-	mod_name = module_or_class.__module__ if inspect.isclass(module_or_class) \
+	classes = [cl[1] for cl in inspect.getmembers(module_or_class, isclass)]
+	mod_name = module_or_class.__module__ if isclass(module_or_class) \
 			else module_or_class.__name__
 	for cl in classes:
 		if cl.__module__ == mod_name and not cl in rec_set:
@@ -804,8 +804,8 @@ def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack,
 	return None
 
 def _get_class_nesting_list_py2(cls, module_or_class, stack, rec_set):
-	classes = [cl[1] for cl in inspect.getmembers(module_or_class, inspect.isclass)]
-	mod_name = module_or_class.__module__ if inspect.isclass(module_or_class) \
+	classes = [cl[1] for cl in inspect.getmembers(module_or_class, isclass)]
+	mod_name = module_or_class.__module__ if isclass(module_or_class) \
 			else module_or_class.__name__
 	for cl in classes:
 		if cl.__module__ == mod_name and not cl in rec_set:
@@ -867,7 +867,7 @@ def is_method(func):
 	argNames = getargspecs(func0).args
 	if len(argNames) > 0:
 		if argNames[0] == 'self':
-			if inspect.ismethod(func):
+			if ismethod(func):
 				return True
 			elif sys.version_info.major >= 3:
 				# In Python3 there are no unbound methods, so we count as method,
@@ -884,7 +884,7 @@ def is_class(obj):
 		return isinstance(obj, (types.TypeType, types.ClassType))
 
 def is_classmethod(meth):
-	if not inspect.ismethod(meth):
+	if not ismethod(meth):
 		return False
 	if not is_class(meth.__self__):
 		return False
