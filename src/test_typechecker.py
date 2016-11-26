@@ -11,7 +11,7 @@ typechecker.check_override_at_class_definition_time = False
 typechecker.check_override_at_runtime = True
 from typechecker import typechecked, override, get_types, get_type_hints, deep_type, \
 		InputTypeError, ReturnTypeError, OverrideError, no_type_check
-from typing import Tuple, List, Union, Any
+import typing; from typing import Tuple, List, Union, Any
 from numbers import Real
 import abc; from abc import abstractmethod
 
@@ -74,6 +74,13 @@ class testClass(str):
 	def testmeth_static2(a, b):
 		# type: (int, Real) -> str
 		return '-'.join((str(a), str(b), 'static'))
+
+	@typechecked
+	def testmeth_forward(self, a, b):
+		# type: (int, testClass2) -> int
+		assert b.__class__ is testClass2
+		return len(str(a)+str(b)+str(self))
+
 
 class testClass2Base(str):
 	def testmeth(self, a, b):
@@ -174,6 +181,7 @@ class testClass2(testClass2Base):
 	def testmeth_err(self, a, b):
 		# type: (int, Real) -> int
 		return '-'.join((str(a), str(b), self))
+
 
 class testClass3Base():
 	__metaclass__  = abc.ABCMeta
@@ -393,6 +401,13 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(tc2.testmeth(1, 2.5), '1-2.5-ijkl')
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth(1, 2.5, 7))
 		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth_err(1, 2.5))
+
+	def test_method_forward(self):
+		tc = testClass('ijkl2')
+		tc2 = testClass2('ijkl3')
+		self.assertEqual(tc.testmeth_forward(5, tc2), 11)
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, 7))
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, tc))
 
 	def test_staticmethod(self):
 		tc = testClass('efgh')
@@ -697,6 +712,14 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(tc2.testmeth(1, 2.5), '1-2.5-ijkl')
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth(1, 2.5, 7))
 		self.assertRaises(ReturnTypeError, lambda: tc2.testmeth_err(1, 2.5))
+
+	def test_method_forward_py3(self):
+		tc = py3.testClass('ijkl2')
+		tc2 = py3.testClass2('ijkl3')
+		self.assertEqual(tc.testmeth_forward(5, tc2), 11)
+		self.assertEqual(typing.get_type_hints(tc.testmeth_forward), get_type_hints(tc.testmeth_forward))
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, 7))
+		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, tc))
 
 	def test_staticmethod_py3(self):
 		tc = py3.testClass('efgh')

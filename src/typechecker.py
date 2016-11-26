@@ -547,9 +547,11 @@ def override(func):
 			return func(*args, **kw)
 	
 		checker_ov.ov_func = func
-		checker_ov.__func__ = func
+		if hasattr(func, '__func__'):
+			checker_ov.__func__ = func.__func__
 		checker_ov.__name__ = func.__name__ # What sorts of evil might this bring over us?
 		checker_ov.__module__ = func.__module__
+		checker_ov.__globals__.update(func.__globals__)
 		if hasattr(func, '__annotations__'):
 			checker_ov.__annotations__ = func.__annotations__
 		if hasattr(func, '__qualname__'):
@@ -710,9 +712,11 @@ def typechecked_func(func, force = False):
 		return res
 
 	checker_tp.ch_func = func
-	checker_tp.__func__ = func
+	if hasattr(func, '__func__'):
+		checker_tp.__func__ = func.__func__
 	checker_tp.__name__ = func0.__name__ # What sorts of evil might this bring over us?
 	checker_tp.__module__ = func0.__module__
+	checker_tp.__globals__.update(func0.__globals__)
 	if hasattr(func, '__annotations__'):
 		checker_tp.__annotations__ = func.__annotations__
 	if hasattr(func, '__qualname__'):

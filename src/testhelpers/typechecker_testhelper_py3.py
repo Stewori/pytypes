@@ -54,6 +54,12 @@ class testClass(str):
 	def testmeth_static2(a: int, b: Real) -> str:
 		return "-".join((str(a), str(b), "static"))
 
+	@typechecked
+	def testmeth_forward(self, a: int, b: 'testClass2') -> int:
+		assert b.__class__ is testClass2
+		return len(str(a)+str(b)+str(self))
+
+
 class testClass2Base(str):
 	def testmeth(self, a: int, b: Real) -> Union[str, int]:
 		pass
