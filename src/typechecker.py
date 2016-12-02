@@ -42,6 +42,15 @@ stub_gen_dir = None
 
 _delayed_checks = []
 
+# Monkeypatch typing.Generic to circumvent type-erasure:
+_Generic__new__ = typing.Generic.__new__
+def __Generic__new__(cls, *args, **kwds):
+	res = _Generic__new__(cls, args, kwds)
+	res.__gentype__ = cls
+	return res
+typing.Generic.__new__ = __Generic__new__
+
+# Monkeypatch import to process forward-declarations after module loading finished:
 savimp = builtins.__import__
 def newimp(name, *x):
 	res = savimp(name, *x)
@@ -383,6 +392,8 @@ def _deep_type(obj, checked):
 		return res
 	else:
 		checked.append(obj)
+	if hasattr(obj, '__gentype__'):
+		return obj.__gentype__
 	if res == tuple:
 		res = Tuple[tuple(_deep_type(t, checked) for t in obj)]
 	elif res == list:
@@ -640,9 +651,12 @@ def override(func):
 	else:
 		return func
 
+def no_type_erasure(func):
+	pass
+
 def _type_str(tp):
 	tp = _match_stub_type(tp)
-	impl = ('__builtin__', 'builtins')
+	impl = ('__builtin__', 'builtins', '__main__')
 	if isclass(tp) and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]
@@ -653,7 +667,11 @@ def _type_str(tp):
 				pck = tp.__module__+'.'
 		else:
 			pck = ''
-		return pck+tp.__name__
+		prm = ''
+		if hasattr(tp, '__args__'):
+			params = [_type_str(param) for param in tp.__args__]
+			prm = '['+', '.join(params)+']'
+		return pck+tp.__name__+prm
 	elif hasattr(tp, '__args__'):
 		params = [_type_str(param) for param in tp.__args__]
 		return tp.__name__+'['+', '.join(params)+']'
