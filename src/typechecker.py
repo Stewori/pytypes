@@ -375,17 +375,23 @@ def _match_stub_type(stub_type):
 	return res
 
 def deep_type(obj):
-	# todo: Protect from cycles
+	return _deep_type(obj, [])
+
+def _deep_type(obj, checked):
 	res = type(obj)
+	if obj in checked:
+		return res
+	else:
+		checked.append(obj)
 	if res == tuple:
-		res = Tuple[tuple(deep_type(t) for t in obj)]
+		res = Tuple[tuple(_deep_type(t, checked) for t in obj)]
 	elif res == list:
-		res = List[Union[tuple(deep_type(t) for t in obj)]]
+		res = List[Union[tuple(_deep_type(t, checked) for t in obj)]]
 	elif res == dict:
-		res = Dict[Union[tuple(deep_type(t) for t in obj.keys())],
-				Union[tuple(deep_type(t) for t in obj.values())]]
+		res = Dict[Union[tuple(_deep_type(t, checked) for t in obj.keys())],
+				Union[tuple(_deep_type(t, checked) for t in obj.values())]]
 	elif res == set:
-		res = Set[Union[tuple(deep_type(t) for t in obj)]]
+		res = Set[Union[tuple(_deep_type(t, checked) for t in obj)]]
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
 		# For old-style instances return the actual class:
 		return obj.__class__
