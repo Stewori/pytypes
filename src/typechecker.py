@@ -6,7 +6,7 @@ Created on 20.08.2016
 
 import sys, typing, inspect, types, re, os, imp, subprocess
 import warnings, tempfile, hashlib, atexit
-from typing import Tuple, List, Union, Any
+from typing import Tuple, List, Set, Dict, Union, Any
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 
 if sys.version_info.major >= 3:
@@ -375,11 +375,17 @@ def _match_stub_type(stub_type):
 	return res
 
 def deep_type(obj):
+	# todo: Protect from cycles
 	res = type(obj)
 	if res == tuple:
 		res = Tuple[tuple(deep_type(t) for t in obj)]
 	elif res == list:
 		res = List[Union[tuple(deep_type(t) for t in obj)]]
+	elif res == dict:
+		res = Dict[Union[tuple(deep_type(t) for t in obj.keys())],
+				Union[tuple(deep_type(t) for t in obj.values())]]
+	elif res == set:
+		res = Set[Union[tuple(deep_type(t) for t in obj)]]
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
 		# For old-style instances return the actual class:
 		return obj.__class__
@@ -642,6 +648,9 @@ def _type_str(tp):
 		else:
 			pck = ''
 		return pck+tp.__name__
+	elif hasattr(tp, '__args__'):
+		params = [_type_str(param) for param in tp.__args__]
+		return tp.__name__+'['+', '.join(params)+']'
 	elif hasattr(tp, '__tuple_params__'):
 		tpl_params = [_type_str(param) for param in tp.__tuple_params__]
 		return 'Tuple['+', '.join(tpl_params)+']'
