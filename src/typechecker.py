@@ -9,6 +9,11 @@ import warnings, tempfile, hashlib, atexit
 from typing import Tuple, List, Union, Any
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 
+if sys.version_info.major >= 3:
+	import builtins
+else:
+	import __builtin__ as builtins
+
 enabled = False
 def set_enabled(flag = True):
 	global enabled
@@ -34,6 +39,58 @@ stub_path = []
 
 # Directory to collect generated stubs. If None, tempfile.gettempdir() is used.
 stub_gen_dir = None
+
+_delayed_checks = []
+
+savimp = builtins.__import__
+def newimp(name, *x):
+	res = savimp(name, *x)
+	_run_delayed_checks(True, name)
+	return res
+builtins.__import__ = newimp
+
+class _DelayedCheck():
+	def __init__(self, func, method, class_name, base_method, base_class_name, exc_info):
+		self.func = func
+		self.method = method
+		self.class_name = class_name
+		self.base_method = base_method
+		self.base_class_name = base_class_name
+		self.exc_info = exc_info
+		self.raising_module_name = func.__module__
+
+	def run_check(self, raise_NameError = False):
+		if raise_NameError:
+			meth_types = _funcsigtypes(self.func, True)
+			_check_override_types(self.method, meth_types, self.class_name,
+					self.base_method, self.base_class_name)
+		else:
+			try:
+				meth_types = _funcsigtypes(self.func, True)
+				_check_override_types(self.method, meth_types, self.class_name,
+						self.base_method, self.base_class_name)
+			except NameError:
+				pass
+
+
+def _run_delayed_checks(raise_NameError = False, module_name = None):
+	global _delayed_checks
+	if module_name is None:
+		to_run = _delayed_checks
+		_delayed_checks = []
+	else:
+		new_delayed_checks = []
+		to_run = []
+		for check in _delayed_checks:
+			if check.raising_module_name == module_name:
+				to_run.append(check)
+			else:
+				new_delayed_checks.append(check)
+		_delayed_checks = new_delayed_checks
+	for check in to_run:
+		check.run_check(raise_NameError)
+
+atexit.register(_run_delayed_checks, True)
 
 class TypeCheckError(Exception): pass
 class TypeCheckSpecificationError(Exception): pass
@@ -375,7 +432,11 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None):
 
 def has_type_hints(func0):
 	func = as_stub_func_if_any(_actualfunc(func0), func0)
-	tpHints = typing.get_type_hints(func)
+	try:
+		tpHints = typing.get_type_hints(func)
+	except NameError:
+		# Some typehint caused this NameError, so typhints are present in some form
+		return True
 	tpStr = _get_typestrings(func, False)
 	return not ((tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints))
 
@@ -502,15 +563,21 @@ def override(func):
 				base_classes[i] = obj
 
 		found = False
-		meth_types = _funcsigtypes(func, True) if has_type_hints(func) else None
 		argSpecs = getargspecs(func)
 		for cls in base_classes:
 			if hasattr(cls, func.__name__):
 				found = True
 				base_method = getattr(cls, func.__name__)
 				_check_override_argspecs(func, argSpecs, meth_cls_name, base_method, cls.__name__)
-				if not meth_types is None:
-					_check_override_types(func, meth_types, meth_cls_name, base_method, cls.__name__)
+				if has_type_hints(func):
+					#meth_types = _funcsigtypes(func, True)
+						#method, meth_types, class_name, base_method, base_class_name
+					try:
+						_check_override_types(func, _funcsigtypes(func, True), meth_cls_name,
+								base_method, cls.__name__)
+					except NameError:
+						_delayed_checks.append(_DelayedCheck(func, func, meth_cls_name, base_method,
+								cls.__name__, sys.exc_info()))
 		if not found:
 			raise _no_base_method_error(func)
 
@@ -556,6 +623,7 @@ def override(func):
 			checker_ov.__annotations__ = func.__annotations__
 		if hasattr(func, '__qualname__'):
 			checker_ov.__qualname__ = func.__qualname__
+		# Todo: Check what other attributes might be needed (e.g. by debuggers).
 		return checker_ov
 	else:
 		return func
@@ -566,7 +634,8 @@ def _type_str(tp):
 	if isclass(tp) and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]
-			if not (module.__package__ is None or module.__package__ == ''):
+			if not (module.__package__ is None or module.__package__ == ''
+					or tp.__module__.startswith(module.__package__)):
 				pck = module.__package__+'.'+tp.__module__+'.'
 			else:
 				pck = tp.__module__+'.'
@@ -721,6 +790,7 @@ def typechecked_func(func, force = False):
 		checker_tp.__annotations__ = func.__annotations__
 	if hasattr(func, '__qualname__'):
 		checker_tp.__qualname__ = func.__qualname__
+	# Todo: Check what other attributes might be needed (e.g. by debuggers).
 	if clsm:
 		return classmethod(checker_tp)
 	elif stat:

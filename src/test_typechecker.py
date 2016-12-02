@@ -5,7 +5,11 @@ Created on 25.08.2016
 '''
 
 import unittest, sys, os
-sys.path.append(os.path.dirname(sys.modules['__main__'].__file__)+os.sep+'testhelpers')
+maindir = os.path.dirname(sys.modules['__main__'].__file__)
+if maindir == '':
+	sys.path.append('testhelpers')
+else:
+	sys.path.append(maindir+os.sep+'testhelpers')
 import typechecker
 typechecker.check_override_at_class_definition_time = False
 typechecker.check_override_at_runtime = True
@@ -83,6 +87,8 @@ class testClass(str):
 
 
 class testClass2Base(str):
+	# actually methods here should be abstract
+
 	def testmeth(self, a, b):
 		# type: (int, Real) -> Union[str, int]
 		pass
@@ -115,6 +121,12 @@ class testClass2Base(str):
 				b  # type: Real
 				):
 		# type: (...) -> str
+		pass
+
+	# testmeth6 intentionally not defined
+
+	def testmeth7(self, a):
+		# type:(int) -> testClass2
 		pass
 
 class testClass2(testClass2Base):
@@ -342,7 +354,6 @@ def testClass2_defTimeCheck4():
 			# type: (...) -> str
 			return '-'.join((str(a), str(b), self))
 
-
 def testClass3_defTimeCheck():
 	class testClass3b(testClass3Base):
 		@typechecked
@@ -508,6 +519,20 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck3())
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
 		testClass3_defTimeCheck()
+		typechecker.check_override_at_class_definition_time = tmp
+	
+	def test_override_at_definition_time_with_forward_decl(self):
+		tmp = typechecker.check_override_at_class_definition_time
+		typechecker.check_override_at_class_definition_time = True
+		import override_testhelper # shall not raise error
+		def _test_err():
+			import override_testhelper_err
+		def _test_err2():
+			import override_testhelper_err2
+
+		self.assertRaises(OverrideError, _test_err)
+		self.assertRaises(NameError, _test_err2)
+
 		typechecker.check_override_at_class_definition_time = tmp
 
 
@@ -787,6 +812,20 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck3())
 		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck4())
 		py3.testClass3_defTimeCheck()
+		typechecker.check_override_at_class_definition_time = tmp
+
+	def test_override_at_definition_time_with_forward_decl(self):
+		tmp = typechecker.check_override_at_class_definition_time
+		typechecker.check_override_at_class_definition_time = True
+		import override_testhelper_py3 # shall not raise error
+		def _test_err_py3():
+			import override_testhelper_err_py3
+		def _test_err2_py3():
+			import override_testhelper_err2_py3
+
+		self.assertRaises(OverrideError, _test_err_py3)
+		self.assertRaises(NameError, _test_err2_py3)
+
 		typechecker.check_override_at_class_definition_time = tmp
 
 
