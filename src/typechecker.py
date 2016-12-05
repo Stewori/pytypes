@@ -6,7 +6,7 @@ Created on 20.08.2016
 
 import sys, typing, inspect, types, re, os, imp, subprocess
 import warnings, tempfile, hashlib, atexit
-from typing import Tuple, List, Set, Dict, Union, Any
+from typing import Tuple, List, Set, Dict, Union, Any, Sequence
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 
 if sys.version_info.major >= 3:
@@ -49,6 +49,15 @@ def __Generic__new__(cls, *args, **kwds):
 	res.__gentype__ = cls
 	return res
 typing.Generic.__new__ = __Generic__new__
+
+# Monkeypatch typing.GenericMeta.__subclasscheck to work properly with Tuples:
+_GenericMeta__subclasscheck__ = typing.GenericMeta.__subclasscheck__
+def __GenericMeta__subclasscheck__(self, cls):
+	if isinstance(cls, typing.TupleMeta):
+		if _GenericMeta__subclasscheck__(self, Sequence[Union[cls.__tuple_params__]]):
+			return True
+	return _GenericMeta__subclasscheck__(self, cls)
+typing.GenericMeta.__subclasscheck__ = __GenericMeta__subclasscheck__
 
 # Monkeypatch import to process forward-declarations after module loading finished:
 savimp = builtins.__import__
