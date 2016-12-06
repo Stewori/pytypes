@@ -223,3 +223,17 @@ def testfunc_err(a: int, b: Real, c: str) -> Tuple[str, Real]:
 @typechecked
 def testfunc2(a: int, b: Real, c: testClass) -> Tuple[int, float]:
 	return a*a, a*b
+
+@typechecked
+def testfunc_None_ret(a: int, b: Real) -> None:
+	pass
+
+@typechecked
+def testfunc_None_ret_err(a: int, b: Real) -> None:
+	# type: (int, Real) -> None
+	# (asserting compatibility between different annotation formats)
+	return 7
+
+@typechecked
+def testfunc_None_arg(a: int, b: None) -> int:
+	return a*a

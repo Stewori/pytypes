@@ -50,7 +50,7 @@ def __Generic__new__(cls, *args, **kwds):
 	return res
 typing.Generic.__new__ = __Generic__new__
 
-# Monkeypatch typing.GenericMeta.__subclasscheck to work properly with Tuples:
+# Monkeypatch typing.GenericMeta.__subclasscheck__ to work properly with Tuples:
 _GenericMeta__subclasscheck__ = typing.GenericMeta.__subclasscheck__
 def __GenericMeta__subclasscheck__(self, cls):
 	if isinstance(cls, typing.TupleMeta):
@@ -363,6 +363,7 @@ def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(), se
 # 		useEllipsis = False
 	resString = typestring[splt+2:].strip()
 	if selfType is None:
+		# Note: Tuple constructor automatically normalizes None to NoneType
 		tpl = Tuple[eval(argString, globals)]
 	else:
 		argTypes = [selfType]
@@ -370,7 +371,17 @@ def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(), se
 		tpl =  Tuple[tuple(argTypes)]
 # 	if useEllipsis:
 # 		tpl.__tuple_use_ellipsis__ = True
-	return tpl, eval(resString, globals)
+
+	# Normalize occurrence of None to type(None).
+	# (Doing this in pre-eval manner/text-mode is easier than going
+	#  through maybe nested type-vars, etc)
+	# To avoid that this creates type(type(None)) if type(None) is already in place:
+	resString = resString.replace('type(None)', 'None')
+	resString = resString.replace('None', 'type(None)')	
+	
+	resType = eval(resString, globals)
+	return tpl, resType
+
 
 def _match_stub_type(stub_type):
 	if not (sys.version_info.major >= 3):
@@ -496,8 +507,9 @@ def _funcsigtypes(func0, slf, func_class = None):
 		argNames = inspect.getfullargspec(func).args
 		if slf:
 			argNames = argNames[1:]
+		retTp = tpHints['return'] if 'return' in tpHints else Any
 		resType = (Tuple[tuple((tpHints[t] if t in tpHints else Any) for t in argNames)],
-				tpHints['return'])
+				retTp if not retTp is None else type(None))
 		if not (tpStr is None or tpStr[0] is None):
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
 			if resType != resType2:

@@ -388,6 +388,20 @@ def testfunc2(a, b, c):
 def testfunc4(a, b, c):
 	return a*a, a*b
 
+@typechecked
+def testfunc_None_ret(a, b):
+	# type: (int, Real) -> None
+	pass
+
+@typechecked
+def testfunc_None_ret_err(a, b):
+	# type: (int, Real) -> None
+	return 7
+
+@typechecked
+def testfunc_None_arg(a, b):
+	# type: (int, None) -> int
+	return a*a
 
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
@@ -398,6 +412,10 @@ class TestTypecheck(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: testfunc2(12, 2.5, 'abcd'))
 		self.assertRaises(ReturnTypeError, lambda: testfunc_err(12, 2.5, 'abcd'))
 		self.assertEqual(testfunc4(12, 3.5, tc), (144, 42.0))
+		self.assertIsNone(testfunc_None_ret(2, 3.0))
+		self.assertEqual(testfunc_None_arg(4, None), 16)
+		self.assertRaises(InputTypeError, lambda: testfunc_None_arg(4, 'vvv'))
+		self.assertRaises(ReturnTypeError, lambda: testfunc_None_ret_err(2, 3.0))
 
 	def test_classmethod(self):
 		tc = testClass('efgh')
@@ -721,6 +739,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(py3.testfunc2(12, 3.5, tc), (144, 42.0))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc2(12, 2.5, 'abcd'))
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_err(12, 2.5, 'abcd'))
+		self.assertIsNone(py3.testfunc_None_ret(2, 3.0))
+		self.assertEqual(py3.testfunc_None_arg(4, None), 16)
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_None_arg(4, 'vvv'))
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_None_ret_err(2, 3.0))
 
 	def test_classmethod_py3(self):
 		tc = py3.testClass('efgh')
