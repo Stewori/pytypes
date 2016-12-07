@@ -406,6 +406,7 @@ def testfunc_None_arg(a, b):
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertEqual(testfunc(7, b=12.5, c='cdef'), (49, 87.5))
 		self.assertRaises(InputTypeError, lambda: testfunc('string', 2.5, 'abcd'))
 		tc = testClass('efgh')
 		self.assertEqual(testfunc2(12, 3.5, tc), (144, 42.0))
@@ -734,6 +735,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
 	def test_function_py3(self):
 		self.assertEqual(py3.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertEqual(py3.testfunc(7, 12.5, c='cdef'), (49, 87.5))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc('string', 2.5, 'abcd'))
 		tc = py3.testClass('efgh')
 		self.assertEqual(py3.testfunc2(12, 3.5, tc), (144, 42.0))

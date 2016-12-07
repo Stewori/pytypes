@@ -628,11 +628,16 @@ def override(func):
 	if check_override_at_runtime:
 		def checker_ov(*args, **kw):
 			argSpecs = getargspecs(func)
+			
+			args_kw = args
+			if len(kw) > 0:
+				args_kw = tuple([t for t in args] + [kw[name] for name in argSpecs.args[len(args):]])
+			
 			if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
-				if hasattr(args[0].__class__, func.__name__) and \
-						ismethod(getattr(args[0], func.__name__)):
+				if hasattr(args_kw[0].__class__, func.__name__) and \
+						ismethod(getattr(args_kw[0], func.__name__)):
 					ovmro = []
-					for mc in args[0].__class__.__mro__[1:]:
+					for mc in args_kw[0].__class__.__mro__[1:]:
 						if hasattr(mc, func.__name__):
 							ovf = getattr(mc, func.__name__)
 							ovmro.append(mc)
@@ -642,13 +647,13 @@ def override(func):
 					# Check arg-count compatibility
 					for ovcls in ovmro:
 						ovf = getattr(ovcls, func.__name__)
-						_check_override_argspecs(func, argSpecs, args[0].__class__.__name__, ovf, ovcls.__name__)
+						_check_override_argspecs(func, argSpecs, args_kw[0].__class__.__name__, ovf, ovcls.__name__)
 					# Check arg/res-type compatibility
 					meth_types = _funcsigtypes(func, True)
 					if has_type_hints(func):
 						for ovcls in ovmro:
 							ovf = getattr(ovcls, func.__name__)
-							_check_override_types(func, meth_types, args[0].__class__.__name__, ovf, ovcls.__name__)
+							_check_override_types(func, meth_types, args_kw[0].__class__.__name__, ovf, ovcls.__name__)
 				else:
 					raise OverrideError('@override was applied to a non-method: %s.%s.\n'
 						% (func.__module__, func.__name__)
@@ -781,31 +786,36 @@ def typechecked_func(func, force = False):
 	def checker_tp(*args, **kw):
 		# check consistency regarding special case with 'self'-keyword
 		slf = False
+
+		args_kw = args
 		argNames = getargspecs(func0).args
+		if len(kw) > 0:
+			args_kw = tuple([t for t in args] + [kw[name] for name in argNames[len(args):]])
+
 		if len(argNames) > 0:
 			if clsm:
 				if argNames[0] != 'cls':
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
-				tp = _methargtype(args)
+				tp = _methargtype(args_kw)
 			elif argNames[0] == 'self':
-				if hasattr(args[0].__class__, func0.__name__) and \
-						ismethod(getattr(args[0], func0.__name__)):
-					tp = _methargtype(args)
+				if hasattr(args_kw[0].__class__, func0.__name__) and \
+						ismethod(getattr(args_kw[0], func0.__name__)):
+					tp = _methargtype(args_kw)
 					slf = True
 				else:
 					print('Warning: non-method declaring self '+func0.__name__)
-					tp = deep_type(args)
+					tp = deep_type(args_kw)
 			else:
-				tp = deep_type(args)
+				tp = deep_type(args_kw)
 		else:
-			tp = deep_type(args)
+			tp = deep_type(args_kw)
 			
 		if checkParents:
 			if not slf:
 				raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
-					% (func0.__module__, args[0].__class__.__name__, func0.__name__))
+					% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
 			toCheck = []
-			for cls in args[0].__class__.__mro__:
+			for cls in args_kw[0].__class__.__mro__:
 				if hasattr(cls, func0.__name__):
 					ffunc = getattr(cls, func0.__name__)
 					if has_type_hints(_actualfunc(ffunc)):
@@ -815,9 +825,9 @@ def typechecked_func(func, force = False):
 
 		parent_class = None
 		if slf:
-			parent_class = args[0].__class__
+			parent_class = args_kw[0].__class__
 		elif clsm:
-			parent_class = args[0]
+			parent_class = args_kw[0]
 
 		resSigs = []
 		for ffunc in toCheck:
