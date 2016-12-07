@@ -673,8 +673,10 @@ def override(func):
 		if hasattr(func, '__qualname__'):
 			checker_ov.__qualname__ = func.__qualname__
 		# Todo: Check what other attributes might be needed (e.g. by debuggers).
+		checker_ov._check_parent_types = True
 		return checker_ov
 	else:
+		func._check_parent_types = True
 		return func
 
 def no_type_erasure(func):
@@ -778,8 +780,9 @@ def typechecked_func(func, force = False):
 	stat = type(func) == staticmethod
 	func0 = _actualfunc(func)
 
-	if hasattr(func, 'ov_func'):
-		checkParents = True
+	#if hasattr(func, 'ov_func'):
+	if hasattr(func, '_check_parent_types'):
+		checkParents = func._check_parent_types
 	else:
 		checkParents = False
 

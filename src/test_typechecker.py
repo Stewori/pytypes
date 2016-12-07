@@ -105,6 +105,10 @@ class testClass2Base(str):
 		# type: (int, Real) -> Union[str, int]
 		pass
 
+	def testmeth3b(self, a, b):
+		# type: (int, Real) -> Union[str, int]
+		pass
+
 	def testmeth3_err(self, a, b):
 		# type: (int, Real) -> Union[str, int]
 		pass
@@ -310,6 +314,11 @@ def testClass2_defTimeCheck():
 	
 		@typechecked
 		@override
+		def testmeth3b(self, a, b):
+			return '-'.join((str(a), str(b), self))
+
+		@typechecked
+		@override
 		def testmeth3_err(self, a, b):
 			# type: (int, Real) -> int
 			return '-'.join((str(a), str(b), self))
@@ -328,6 +337,7 @@ def testClass2_defTimeCheck():
 			# type: (int, Real) -> int
 			return '-'.join((str(a), str(b), self))
 
+	return testClass2b()
 
 def testClass2_defTimeCheck2():
 	class testClass2b(testClass2Base):
@@ -533,7 +543,8 @@ class TestOverride(unittest.TestCase):
 	def test_override_at_definition_time(self):
 		tmp = typechecker.check_override_at_class_definition_time
 		typechecker.check_override_at_class_definition_time = True
-		testClass2_defTimeCheck()
+		tc2 = testClass2_defTimeCheck()
+		self.assertRaises(InputTypeError, lambda: tc2.testmeth3b(1, '2.5'))
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck2())
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck3())
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
