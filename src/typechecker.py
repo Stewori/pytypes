@@ -68,25 +68,25 @@ def newimp(name, *x):
 builtins.__import__ = newimp
 
 class _DelayedCheck():
-	def __init__(self, func, method, class_name, base_method, base_class_name, exc_info):
+	def __init__(self, func, method, class_name, base_method, base_class, exc_info):
 		self.func = func
 		self.method = method
 		self.class_name = class_name
 		self.base_method = base_method
-		self.base_class_name = base_class_name
+		self.base_class = base_class
 		self.exc_info = exc_info
 		self.raising_module_name = func.__module__
 
 	def run_check(self, raise_NameError = False):
 		if raise_NameError:
-			meth_types = _funcsigtypes(self.func, True)
+			meth_types = _funcsigtypes(self.func, True, self.base_class)
 			_check_override_types(self.method, meth_types, self.class_name,
-					self.base_method, self.base_class_name)
+					self.base_method, self.base_class)
 		else:
 			try:
-				meth_types = _funcsigtypes(self.func, True)
+				meth_types = _funcsigtypes(self.func, True, self.base_class)
 				_check_override_types(self.method, meth_types, self.class_name,
-						self.base_method, self.base_class_name)
+						self.base_method, self.base_class)
 			except NameError:
 				pass
 
@@ -483,6 +483,16 @@ def has_type_hints(func0):
 	tpStr = _get_typestrings(func, False)
 	return not ((tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints))
 
+def _make_invalid_type_msg(descr, func_name, tp):
+	msg = 'Invalid %s in %s:\n    %s is not a type.' % (descr, func_name, str(tp))
+	if isinstance(tp, tuple):
+		mask = '\n  You might rather want to use typing.Tuple:\n      Tuple[%s]'
+		try:
+			msg += mask % (', '.join(_type_str(t) for t in tp))
+		except:
+			msg += mask % (', '.join(str(t) for t in tp))
+	return msg
+
 def _funcsigtypes(func0, slf, func_class = None):
 	# Check for stubfile
 	func = as_stub_func_if_any(_actualfunc(func0), func0, func_class)
@@ -517,8 +527,28 @@ def _funcsigtypes(func0, slf, func_class = None):
 					% (func.__module__, func.__name__)
 					+ 'Via hints:   %s\nVia comment: %s'
 					% (_type_str(resType), _type_str(resType2)))
+		try:
+			typing._type_check(resType[0], '') # arg types
+		except TypeError:
+			raise TypeError(_make_invalid_type_msg('arg types',
+					_fully_qualified_func_name(func, slf, func_class), resType[0]))
+		try:
+			typing._type_check(resType[1], '') # return type
+		except TypeError:
+			raise TypeError(_make_invalid_type_msg('return type',
+					_fully_qualified_func_name(func, slf, func_class), resType[1]))
 		return resType
 	res = _funcsigtypesfromstring(*tpStr, globals = globs)
+	try:
+		typing._type_check(res[0], '') # arg types
+	except TypeError:
+		raise TypeError(_make_invalid_type_msg('arg types',
+				_fully_qualified_func_name(func, slf, func_class), res[0]))
+	try:
+		typing._type_check(res[1], '') # return type
+	except TypeError:
+		raise TypeError(_make_invalid_type_msg('return type',
+				_fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
 def getargspecs(func):
@@ -531,18 +561,28 @@ def getargspecs(func):
 	else:
 		return inspect.getargspec(func)
 
-def _check_override_types(method, meth_types, class_name, base_method, base_class_name):
-	base_types = _match_stub_type(_funcsigtypes(base_method, True))
+def _check_override_types(method, meth_types, class_name, base_method, base_class):
+	base_types = _match_stub_type(_funcsigtypes(base_method, True, base_class))
 	meth_types = _match_stub_type(meth_types)
 	if has_type_hints(base_method):
 		if not issubclass(base_types[0], meth_types[0]):
-			raise OverrideError('%s.%s.%s cannot override %s.%s.%s.\n'
-					% (method.__module__, class_name, method.__name__, base_method.__module__, base_class_name, base_method.__name__)
+			fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
+			fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
+			assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
+			assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
+
+			raise OverrideError('%s cannot override %s.\n'
+					% (fq_name_child, fq_name_parent)
 					+ 'Incompatible argument types: %s is not a subtype of %s.'
 					% (_type_str(base_types[0]), _type_str(meth_types[0])))
 		if not issubclass(meth_types[1], base_types[1]):
-			raise OverrideError('%s.%s.%s cannot override %s.%s.%s.\n'
-					% (method.__module__, class_name, method.__name__, base_method.__module__, base_class_name, base_method.__name__)
+			fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
+			fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
+			assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
+			assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
+
+			raise OverrideError('%s cannot override %s.\n'
+					% (fq_name_child, fq_name_parent)
 					+ 'Incompatible result types: %s is not a subtype of %s.'
 					% (_type_str(meth_types[1]), _type_str(base_types[1])))
 
@@ -614,14 +654,12 @@ def override(func):
 				base_method = getattr(cls, func.__name__)
 				_check_override_argspecs(func, argSpecs, meth_cls_name, base_method, cls.__name__)
 				if has_type_hints(func):
-					#meth_types = _funcsigtypes(func, True)
-						#method, meth_types, class_name, base_method, base_class_name
 					try:
-						_check_override_types(func, _funcsigtypes(func, True), meth_cls_name,
-								base_method, cls.__name__)
+						_check_override_types(func, _funcsigtypes(func, True, cls), meth_cls_name,
+								base_method, cls)
 					except NameError:
 						_delayed_checks.append(_DelayedCheck(func, func, meth_cls_name, base_method,
-								cls.__name__, sys.exc_info()))
+								cls, sys.exc_info()))
 		if not found:
 			raise _no_base_method_error(func)
 
@@ -649,11 +687,11 @@ def override(func):
 						ovf = getattr(ovcls, func.__name__)
 						_check_override_argspecs(func, argSpecs, args_kw[0].__class__.__name__, ovf, ovcls.__name__)
 					# Check arg/res-type compatibility
-					meth_types = _funcsigtypes(func, True)
+					meth_types = _funcsigtypes(func, True, args_kw[0].__class__)
 					if has_type_hints(func):
 						for ovcls in ovmro:
 							ovf = getattr(ovcls, func.__name__)
-							_check_override_types(func, meth_types, args_kw[0].__class__.__name__, ovf, ovcls.__name__)
+							_check_override_types(func, meth_types, args_kw[0].__class__.__name__, ovf, ovcls)
 				else:
 					raise OverrideError('@override was applied to a non-method: %s.%s.\n'
 						% (func.__module__, func.__name__)
@@ -710,9 +748,33 @@ def _type_str(tp):
 		# Todo: Care for other special types from typing where necessary.
 		return str(tp).replace('typing.', '')
 
+def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
+	func0 = _actualfunc(func)
+	# Todo: separate classmethod/static method prefix from qualified_func_name
+	if slf_or_clsm:
+		# Todo: This can be simplified
+		if (not func_class is None) and (not type(func) is classmethod) \
+				and (not is_classmethod(func)):
+			func = getattr(func_class, func.__name__)
+		if ((not cls_name is None) or hasattr(func, 'im_class')) and not is_classmethod(func):
+			return ('%s.%s.%s') % (func0.__module__,
+					cls_name if not cls_name is None else get_class_qualname(func.im_class),
+					func0.__name__)
+		else:
+			assert (not func_class is None or not cls_name is None)
+			prefix = 'classmethod ' if is_classmethod(func) else ''
+			return (prefix+'%s.%s.%s') % (func0.__module__,
+					cls_name if not cls_name is None else get_class_qualname(func_class),
+					func0.__name__)
+	elif type(func) == staticmethod:
+		return ('static method %s.%s') % (func0.__module__,
+				get_staticmethod_qualname(func))
+	else:
+		return ('%s.%s') % (func0.__module__, func0.__name__)
+
 def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text):
 	_cmp_msg_format = 'Expected: %s\nReceived: %s'
-	func0 = _actualfunc(func)
+	fq_func_name = _fully_qualified_func_name(func, slf, func_class)
 	if slf:
 		#Todo: Clarify if an @override-induced check caused this
 		# Todo: Python3 misconcepts method as classmethod here, because it doesn't
@@ -720,24 +782,16 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 		if not func_class is None and not type(func) is classmethod:
 			func = getattr(func_class, func.__name__)
 		if hasattr(func, 'im_class'):
-			return ('%s.%s.%s '+incomp_text+':\n') \
-				% (func0.__module__, get_class_qualname(func.im_class), func0.__name__) \
-				+ _cmp_msg_format \
+			return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (_type_str(expected_tp), _type_str(tp))
 		else:
-			return ('classmethod %s.%s.%s '+incomp_text+':\n') \
-				% (func0.__module__, get_class_qualname(func_class), func0.__name__) \
-				+ _cmp_msg_format \
+			return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (_type_str(expected_tp), _type_str(tp))
 	elif type(func) == staticmethod:
-		return ('static method %s.%s '+incomp_text+':\n') \
-				% (func0.__module__, get_staticmethod_qualname(func)) \
-				+ _cmp_msg_format \
+		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (_type_str(expected_tp), _type_str(tp))
 	else:
-		return ('%s.%s '+incomp_text+':\n') \
-				% (func0.__module__, func0.__name__) \
-				+ _cmp_msg_format \
+		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (_type_str(expected_tp), _type_str(tp))
 
 def _checkfunctype(tp, func, slf, func_class):
@@ -780,7 +834,6 @@ def typechecked_func(func, force = False):
 	stat = type(func) == staticmethod
 	func0 = _actualfunc(func)
 
-	#if hasattr(func, 'ov_func'):
 	if hasattr(func, '_check_parent_types'):
 		checkParents = func._check_parent_types
 	else:
@@ -994,6 +1047,8 @@ def get_class_qualname(cls):
 	return cls.__name__
 
 def get_class_that_defined_method(meth):
+	if is_classmethod(meth):
+		return meth.__self__
 	if hasattr(meth, 'im_class'):
 		return meth.im_class
 	elif hasattr(meth, '__qualname__'):
@@ -1046,7 +1101,15 @@ def _get_types(func, clsm, slf):
 			if clsm:
 				if argNames[0] != 'cls':
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
-	args, res = _funcsigtypes(func, slf or clsm)
+	clss = None
+	if slf or clsm:
+		if slf:
+			assert is_method(func)
+		if clsm:
+			assert is_classmethod(func)
+		clss = get_class_that_defined_method(func)
+		assert hasattr(clss, func.__name__)
+	args, res = _funcsigtypes(func, slf or clsm, clss)
 	return _match_stub_type(args), _match_stub_type(res)
 
 def get_type_hints(func):

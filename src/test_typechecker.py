@@ -31,6 +31,7 @@ class testClass(str):
 				b  # type: Real
 				):
 		# type: (...) -> str
+		'''34'''
 		return '-'.join((str(a), str(b), self))
 
 	@typechecked
@@ -95,6 +96,7 @@ class testClass2Base(str):
 
 	def testmeth2(self, a, b):
 		# type: (int, Real) -> Union[str, int]
+		'''99'''
 		pass
 
 	def testmeth2b(self, a, b):
@@ -153,6 +155,7 @@ class testClass2(testClass2Base):
 	@override
 	def testmeth2(self, a, b):
 		# type: (str, Real) -> Union[str, int]
+		'''158'''
 		return '-'.join((str(a), str(b), self))
 
 	@override
@@ -235,6 +238,7 @@ class testClass4(str):
 				b  # type: Real
 				):
 		# type: (...) -> str
+		'''241'''
 		return '-'.join((str(a), str(b), self))
 
 	@classmethod
@@ -344,6 +348,7 @@ def testClass2_defTimeCheck2():
 		@override
 		def testmeth2(self, a, b):
 			# type: (str, Real) -> Union[str, int]
+			'''351'''
 			return '-'.join((str(a), str(b), self))
 
 
