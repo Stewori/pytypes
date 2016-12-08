@@ -710,6 +710,7 @@ def override(func):
 			checker_ov.__annotations__ = func.__annotations__
 		if hasattr(func, '__qualname__'):
 			checker_ov.__qualname__ = func.__qualname__
+		checker_ov.__doc__ = func.__doc__
 		# Todo: Check what other attributes might be needed (e.g. by debuggers).
 		checker_ov._check_parent_types = True
 		return checker_ov
@@ -910,6 +911,7 @@ def typechecked_func(func, force = False):
 		checker_tp.__annotations__ = func.__annotations__
 	if hasattr(func, '__qualname__'):
 		checker_tp.__qualname__ = func.__qualname__
+	checker_tp.__doc__ = func.__doc__
 	# Todo: Check what other attributes might be needed (e.g. by debuggers).
 	if clsm:
 		return classmethod(checker_tp)
