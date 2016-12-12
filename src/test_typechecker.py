@@ -89,6 +89,9 @@ class testClass(str):
 class testClass2Base(str):
 	# actually methods here should be abstract
 
+	def __repr__(self):
+		return super(testClass2Base, self).__repr__()
+
 	def testmeth(self, a, b):
 		# type: (int, Real) -> Union[str, int]
 		pass
@@ -134,6 +137,10 @@ class testClass2Base(str):
 		pass
 
 class testClass2(testClass2Base):
+	@override
+	def __repr__(self, a): # Should fail because of arg-mismatch
+		return super(testClass2, self).__repr__()
+
 	def testmeth0(self,
 				a, # type: int
 				b  # type: Real
@@ -197,6 +204,12 @@ class testClass2(testClass2Base):
 	def testmeth_err(self, a, b):
 		# type: (int, Real) -> int
 		return '-'.join((str(a), str(b), self))
+
+
+class testClass2_init_ov(testClass2Base):
+	@override
+	def __init__(self): # should fail because of invalid use of @override
+		pass
 
 
 class testClass3Base():
@@ -337,7 +350,7 @@ def testClass2_defTimeCheck():
 			# type: (int, Real) -> int
 			return '-'.join((str(a), str(b), self))
 
-	return testClass2b()
+	return testClass2b('blah')
 
 def testClass2_defTimeCheck2():
 	class testClass2b(testClass2Base):
@@ -530,6 +543,8 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2(1, 2.5))
 		self.assertRaises(OverrideError, lambda: tc2.testmeth2b(3, 1.1))
 		self.assertRaises(OverrideError, lambda: tc2.testmeth6(1, 2.5))
+		self.assertRaises(OverrideError, lambda: tc2.__repr__()) # i.e. no builtins-issue
+		self.assertRaises(OverrideError, lambda: testClass2_init_ov())
 
 	def test_override_typecheck(self):
 		tc2 = testClass2('uvwx')

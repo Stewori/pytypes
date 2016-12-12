@@ -568,8 +568,8 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 		if not issubclass(base_types[0], meth_types[0]):
 			fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
 			fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
-			assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
-			assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
+			#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
+			#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
 
 			raise OverrideError('%s cannot override %s.\n'
 					% (fq_name_child, fq_name_parent)
@@ -578,21 +578,26 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 		if not issubclass(meth_types[1], base_types[1]):
 			fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
 			fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
-			assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
-			assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
+			#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
+			#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
 
 			raise OverrideError('%s cannot override %s.\n'
 					% (fq_name_child, fq_name_parent)
 					+ 'Incompatible result types: %s is not a subtype of %s.'
 					% (_type_str(meth_types[1]), _type_str(base_types[1])))
 
-def _check_override_argspecs(method, argSpecs, class_name, base_method, base_class_name):
+def _check_override_argspecs(method, argSpecs, class_name, base_method, base_class):
 	ovargs = getargspecs(base_method)
 	d1 = 0 if ovargs.defaults is None else len(ovargs.defaults)
 	d2 = 0 if argSpecs.defaults is None else len(argSpecs.defaults)
 	if len(ovargs.args)-d1 < len(argSpecs.args)-d2 or len(ovargs.args) > len(argSpecs.args):
-		raise OverrideError('%s.%s.%s cannot override %s.%s.%s:\n'
-				% (method.__module__, class_name, method.__name__, base_method.__module__, base_method.__name__, base_class_name)
+		fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
+		fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
+		#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
+		#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
+
+		raise OverrideError('%s cannot override %s:\n'
+				% (fq_name_child, fq_name_parent)
 				+ 'Mismatching argument count. Base-method: %i+%i   submethod: %i+%i'
 				% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
 
@@ -607,26 +612,39 @@ def _function_instead_of_method_error(method):
 def override(func):
 	if not enabled:
 		return func
+	# notes:
+	# - don't use @override on __init__ (raise warning? Error for now!),
+	#   because __init__ is not intended to be called after creation
+	# - @override applies typechecking to every match in mro, because class might be used as
+	#   replacement for each class in its mro. So each must be compatible.
+	# - @override does not/cannot check signature of builtin ancestors (for now).
+	# - @override starts checking only at its declaration level. If in a subclass an @override
+	#   annotated method is not s.t. @override any more.
+	#   This is difficult to achieve in case of a call to super. Runtime-override checking
+	#   would use the subclass-self and thus unintentionally would also check the submethod's
+	#   signature. We actively avoid this here.
 	if check_override_at_class_definition_time:
 		# We need some trickery here, because details of the class are not yet available
 		# as it is just getting defined. Luckily we can get base-classes via inspect.stack():
-
 		stack = inspect.stack()
 		try:
 			base_classes = re.search(r'class.+\((.+)\)\s*\:', stack[2][4][0]).group(1)
 		except IndexError:
 			raise _function_instead_of_method_error(func)
 		meth_cls_name = stack[1][3]
-
+		if func.__name__ == '__init__':
+			raise OverrideError(
+					'Invalid use of @override in %s:\n  @override must not be applied to __init__.'
+					% _fully_qualified_func_name(func, True, None, meth_cls_name))
 		# handle multiple inheritance
 		base_classes = [s.strip() for s in base_classes.split(',')]
 		if not base_classes:
 			raise ValueError('@override: unable to determine base class') 
-	
+
 		# stack[0]=overrides, stack[1]=inside class def'n, stack[2]=outside class def'n
 		derived_class_locals = stack[2][0].f_locals
 		derived_class_globals = stack[2][0].f_globals
-	
+
 		# replace each class name in base_classes with the actual class type
 		for i, base_class in enumerate(base_classes):
 			if '.' not in base_class:
@@ -646,13 +664,26 @@ def override(func):
 					obj = getattr(obj, c)
 				base_classes[i] = obj
 
-		found = False
+		mro_set = set() # contains everything in would-be-mro, however in unspecified order
+		mro_pool = [base_classes]
+# 		for base_cls in base_classes:
+# 			if not is_builtin_type(base_cls):
+# 				mro_set.add(base_cls)
+# 				mro_pool.append(base_cls.__bases__)
+		while len(mro_pool) > 0:
+			lst = mro_pool.pop()
+			for base_cls in lst:
+				if not is_builtin_type(base_cls):
+					mro_set.add(base_cls)
+					mro_pool.append(base_cls.__bases__)
+
+		base_method_exists = False
 		argSpecs = getargspecs(func)
-		for cls in base_classes:
+		for cls in mro_set:
 			if hasattr(cls, func.__name__):
-				found = True
+				base_method_exists = True
 				base_method = getattr(cls, func.__name__)
-				_check_override_argspecs(func, argSpecs, meth_cls_name, base_method, cls.__name__)
+				_check_override_argspecs(func, argSpecs, meth_cls_name, base_method, cls)
 				if has_type_hints(func):
 					try:
 						_check_override_types(func, _funcsigtypes(func, True, cls), meth_cls_name,
@@ -660,38 +691,52 @@ def override(func):
 					except NameError:
 						_delayed_checks.append(_DelayedCheck(func, func, meth_cls_name, base_method,
 								cls, sys.exc_info()))
-		if not found:
+		if not base_method_exists:
 			raise _no_base_method_error(func)
 
 	if check_override_at_runtime:
 		def checker_ov(*args, **kw):
 			argSpecs = getargspecs(func)
-			
+
 			args_kw = args
 			if len(kw) > 0:
 				args_kw = tuple([t for t in args] + [kw[name] for name in argSpecs.args[len(args):]])
-			
+
 			if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
 				if hasattr(args_kw[0].__class__, func.__name__) and \
 						ismethod(getattr(args_kw[0], func.__name__)):
+					actual_class = args_kw[0].__class__
+					if _actualfunc(getattr(args_kw[0], func.__name__)) != func:
+						for acls in args_kw[0].__class__.__mro__:
+							if not is_builtin_type(acls):
+								if hasattr(acls, func.__name__) and func.__name__ in acls.__dict__ and \
+										_actualfunc(acls.__dict__[func.__name__]) == func:
+									actual_class = acls
+					if func.__name__ == '__init__':
+						raise OverrideError(
+								'Invalid use of @override in %s:\n    @override must not be applied to __init__.'
+								% _fully_qualified_func_name(func, True, actual_class))
 					ovmro = []
-					for mc in args_kw[0].__class__.__mro__[1:]:
+					base_method_exists = False
+					for mc in actual_class.__mro__[1:]:
 						if hasattr(mc, func.__name__):
 							ovf = getattr(mc, func.__name__)
-							ovmro.append(mc)
-					if len(ovmro) == 0:
+							base_method_exists = True
+							if not is_builtin_type(mc):
+								ovmro.append(mc)
+					if not base_method_exists:
 						raise _no_base_method_error(func)
 					# Not yet support overloading
 					# Check arg-count compatibility
 					for ovcls in ovmro:
 						ovf = getattr(ovcls, func.__name__)
-						_check_override_argspecs(func, argSpecs, args_kw[0].__class__.__name__, ovf, ovcls.__name__)
+						_check_override_argspecs(func, argSpecs, actual_class.__name__, ovf, ovcls)
 					# Check arg/res-type compatibility
 					meth_types = _funcsigtypes(func, True, args_kw[0].__class__)
 					if has_type_hints(func):
 						for ovcls in ovmro:
 							ovf = getattr(ovcls, func.__name__)
-							_check_override_types(func, meth_types, args_kw[0].__class__.__name__, ovf, ovcls)
+							_check_override_types(func, meth_types, actual_class.__name__, ovf, ovcls)
 				else:
 					raise OverrideError('@override was applied to a non-method: %s.%s.\n'
 						% (func.__module__, func.__name__)
@@ -1089,6 +1134,9 @@ def is_classmethod(meth):
 	if not hasattr(meth.__self__, meth.__name__):
 		return False
 	return meth == getattr(meth.__self__, meth.__name__)
+
+def is_builtin_type(tp):
+	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
 def get_types(func):
 	return _get_types(func, is_classmethod(func), is_method(func))
