@@ -136,9 +136,10 @@ class testClass2Base(str):
 		# type:(int) -> testClass2
 		pass
 
+
 class testClass2(testClass2Base):
 	@override
-	def __repr__(self, a): # Should fail because of arg-mismatch
+	def __repr__(self, a): # Should fail because of arg-count mismatch
 		return super(testClass2, self).__repr__()
 
 	def testmeth0(self,
@@ -350,7 +351,7 @@ def testClass2_defTimeCheck():
 			# type: (int, Real) -> int
 			return '-'.join((str(a), str(b), self))
 
-	return testClass2b('blah')
+	return testClass2b()
 
 def testClass2_defTimeCheck2():
 	class testClass2b(testClass2Base):
@@ -383,6 +384,12 @@ def testClass3_defTimeCheck():
 		@override
 		def testmeth(self, a, b):
 			return '-'.join((str(a), str(b), str(type(self))))
+
+def testClass2_defTimeCheck_init_ov():
+	class testClass2_defTime_init_ov(testClass2Base):
+		@override
+		def __init__(self): # should fail because of invalid use of @override
+			pass
 
 
 @typechecked
@@ -564,9 +571,12 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck3())
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
 		testClass3_defTimeCheck()
+		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck_init_ov())
 		typechecker.check_override_at_class_definition_time = tmp
 	
 	def test_override_at_definition_time_with_forward_decl(self):
+		# This can only be sufficiently tested at import-time, so
+		# we import helper-modules during this test.
 		tmp = typechecker.check_override_at_class_definition_time
 		typechecker.check_override_at_class_definition_time = True
 		import override_testhelper # shall not raise error

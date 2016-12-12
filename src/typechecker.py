@@ -573,8 +573,8 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 
 			raise OverrideError('%s cannot override %s.\n'
 					% (fq_name_child, fq_name_parent)
-					+ 'Incompatible argument types: %s is not a subtype of %s.'
-					% (_type_str(base_types[0]), _type_str(meth_types[0])))
+					+ 'Incompatible argument types: %s is not a supertype of %s.'
+					% (_type_str(meth_types[0]), _type_str(base_types[0])))
 		if not issubclass(meth_types[1], base_types[1]):
 			fq_name_child = _fully_qualified_func_name(method, True, None, class_name)
 			fq_name_parent = _fully_qualified_func_name(base_method, True, base_class)
@@ -666,10 +666,6 @@ def override(func):
 
 		mro_set = set() # contains everything in would-be-mro, however in unspecified order
 		mro_pool = [base_classes]
-# 		for base_cls in base_classes:
-# 			if not is_builtin_type(base_cls):
-# 				mro_set.add(base_cls)
-# 				mro_pool.append(base_cls.__bases__)
 		while len(mro_pool) > 0:
 			lst = mro_pool.pop()
 			for base_cls in lst:
