@@ -16,6 +16,9 @@ def set_checking_enabled(flag = True):
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
 assert(set_checking_enabled())
 
+check_override_at_runtime = False
+check_override_at_class_definition_time = True
+
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
 # Search-path for stubfiles.
@@ -41,6 +44,19 @@ def __GenericMeta__subclasscheck__(self, cls):
 	return _GenericMeta__subclasscheck__(self, cls)
 GenericMeta.__subclasscheck__ = __GenericMeta__subclasscheck__
 
+class TypeCheckError(Exception): pass
+class InputTypeError(TypeCheckError): pass
+class ReturnTypeError(TypeCheckError): pass
+class OverrideError(TypeCheckError): pass
+
+# We import some public API for central access:
+from .type_util import deep_type, is_builtin_type, has_type_hints, \
+		type_str, get_types, get_type_hints
+from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
+		get_class_that_defined_method, is_method, is_class, is_classmethod
+from .stubfile_manager import get_stub_module, as_stub_func_if_any
+from .typechecker import typechecked, typechecked_module, no_type_check, \
+		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError
 
 # Some exemplary overrides for this modules's global settings:
 

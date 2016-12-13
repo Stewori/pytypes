@@ -5,7 +5,6 @@ Created on 12.12.2016
 '''
 
 import pytypes, subprocess, hashlib, sys, os, types, inspect
-from typing import Tuple, List, Set, Dict, Union, Any, Sequence
 
 def _check_python3_5_version():
 	try:
@@ -54,35 +53,6 @@ def getargspecs(func):
 		return inspect.getfullargspec(func) # Python 3
 	else:
 		return inspect.getargspec(func)
-
-def deep_type(obj):
-	return _deep_type(obj, [])
-
-def _deep_type(obj, checked):
-	res = type(obj)
-	if obj in checked:
-		return res
-	else:
-		checked.append(obj)
-	if hasattr(obj, '__gentype__'):
-		return obj.__gentype__
-	if res == tuple:
-		res = Tuple[tuple(_deep_type(t, checked) for t in obj)]
-	elif res == list:
-		res = List[Union[tuple(_deep_type(t, checked) for t in obj)]]
-	elif res == dict:
-		res = Dict[Union[tuple(_deep_type(t, checked) for t in obj.keys())],
-				Union[tuple(_deep_type(t, checked) for t in obj.values())]]
-	elif res == set:
-		res = Set[Union[tuple(_deep_type(t, checked) for t in obj)]]
-	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
-		# For old-style instances return the actual class:
-		return obj.__class__
-	return res
-
-def _methargtype(obj):
-	assert(type(obj) == tuple)
-	return Tuple[tuple(deep_type(t) for t in obj[1:])]
 
 def _unchecked_backend(func):
 	if hasattr(func, 'ov_func'):
@@ -210,9 +180,6 @@ def is_classmethod(meth):
 	if not hasattr(meth.__self__, meth.__name__):
 		return False
 	return meth == getattr(meth.__self__, meth.__name__)
-
-def is_builtin_type(tp):
-	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
 def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 	func0 = _actualfunc(func)

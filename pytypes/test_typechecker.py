@@ -12,11 +12,11 @@ if maindir == '':
 	sys.path.append('testhelpers')
 else:
 	sys.path.append(maindir+os.sep+'testhelpers')
-import typechecker, util
-typechecker.check_override_at_class_definition_time = False
-typechecker.check_override_at_runtime = True
-from typechecker import typechecked, override, get_types, get_type_hints, \
-		InputTypeError, ReturnTypeError, OverrideError, no_type_check
+import pytypes
+pytypes.check_override_at_class_definition_time = False
+pytypes.check_override_at_runtime = True
+from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
+		InputTypeError, ReturnTypeError, OverrideError
 import typing; from typing import Tuple, List, Union, Any
 from numbers import Real
 import abc; from abc import abstractmethod
@@ -501,20 +501,22 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
 
 	def test_various(self):
-		self.assertEqual(get_type_hints(testfunc), {'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
-		self.assertEqual(util.deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
+		self.assertEqual(get_type_hints(testfunc),
+				{'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
+		self.assertEqual(pytypes.deep_type(('abc', [3, 'a', 7], 4.5)),
+				Tuple[str, List[Union[int, str]], float])
 		tc2 = testClass2('bbb')
-		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth2c), testClass2)
-		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
-		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth2b), testClass2)
-		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
-		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth3), testClass2)
-		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth3), testClass2)
-		self.assertRaises(ValueError, lambda: util.get_class_that_defined_method(testfunc))
+		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth2c), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth2b), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth3), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth3), testClass2)
+		self.assertRaises(ValueError, lambda: pytypes.get_class_that_defined_method(testfunc))
 		# old-style:
 		tc3 = testClass3()
-		self.assertEqual(util.get_class_that_defined_method(tc3.testmeth), testClass3)
-		self.assertEqual(util.get_class_that_defined_method(testClass3.testmeth), testClass3)
+		self.assertEqual(pytypes.get_class_that_defined_method(tc3.testmeth), testClass3)
+		self.assertEqual(pytypes.get_class_that_defined_method(testClass3.testmeth), testClass3)
 
 
 class TestTypecheck_class(unittest.TestCase):
@@ -565,8 +567,8 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
 	def test_override_at_definition_time(self):
-		tmp = typechecker.check_override_at_class_definition_time
-		typechecker.check_override_at_class_definition_time = True
+		tmp = pytypes.check_override_at_class_definition_time
+		pytypes.check_override_at_class_definition_time = True
 		tc2 = testClass2_defTimeCheck()
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3b(1, '2.5'))
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck2())
@@ -574,13 +576,13 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck4())
 		testClass3_defTimeCheck()
 		self.assertRaises(OverrideError, lambda: testClass2_defTimeCheck_init_ov())
-		typechecker.check_override_at_class_definition_time = tmp
+		pytypes.check_override_at_class_definition_time = tmp
 	
 	def test_override_at_definition_time_with_forward_decl(self):
 		# This can only be sufficiently tested at import-time, so
 		# we import helper-modules during this test.
-		tmp = typechecker.check_override_at_class_definition_time
-		typechecker.check_override_at_class_definition_time = True
+		tmp = pytypes.check_override_at_class_definition_time
+		pytypes.check_override_at_class_definition_time = True
 		import override_testhelper # shall not raise error
 		def _test_err():
 			import override_testhelper_err
@@ -590,7 +592,7 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, _test_err)
 		self.assertRaises(NameError, _test_err2)
 
-		typechecker.check_override_at_class_definition_time = tmp
+		pytypes.check_override_at_class_definition_time = tmp
 
 
 class TestStubfile(unittest.TestCase):
@@ -840,7 +842,8 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_various_py3(self):
 		self.assertEqual(get_type_hints(testfunc),
 				{'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
-		self.assertEqual(util.deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
+		self.assertEqual(pytypes.deep_type(('abc', [3, 'a', 7], 4.5)),
+				Tuple[str, List[Union[int, str]], float])
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -867,18 +870,18 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
 	def test_override_at_definition_time(self):
-		tmp = typechecker.check_override_at_class_definition_time
-		typechecker.check_override_at_class_definition_time = True
+		tmp = pytypes.check_override_at_class_definition_time
+		pytypes.check_override_at_class_definition_time = True
 		py3.testClass2_defTimeCheck()
 		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck2())
 		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck3())
 		self.assertRaises(OverrideError, lambda: py3.testClass2_defTimeCheck4())
 		py3.testClass3_defTimeCheck()
-		typechecker.check_override_at_class_definition_time = tmp
+		pytypes.check_override_at_class_definition_time = tmp
 
 	def test_override_at_definition_time_with_forward_decl(self):
-		tmp = typechecker.check_override_at_class_definition_time
-		typechecker.check_override_at_class_definition_time = True
+		tmp = pytypes.check_override_at_class_definition_time
+		pytypes.check_override_at_class_definition_time = True
 		import override_testhelper_py3 # shall not raise error
 		def _test_err_py3():
 			import override_testhelper_err_py3
@@ -888,7 +891,7 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertRaises(OverrideError, _test_err_py3)
 		self.assertRaises(NameError, _test_err2_py3)
 
-		typechecker.check_override_at_class_definition_time = tmp
+		pytypes.check_override_at_class_definition_time = tmp
 
 
 if __name__ == '__main__':
