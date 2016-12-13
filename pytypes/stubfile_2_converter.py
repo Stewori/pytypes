@@ -19,6 +19,9 @@ it as override of the pyi-file when running on Python 2.7.
 import sys, os, imp, inspect, numbers, typing
 import typechecker as tpc
 from typing import Any
+if __name__ == '__main__':
+	sys.path.append(sys.path[0]+os.sep+'..')
+from pytypes import util
 
 
 silent = False
@@ -99,7 +102,7 @@ def _write_class(clss, lines, inc = 0):
 def convert(in_file, out_file = None):
 	_print('in_file: '+in_file)
 	assert(os.path.isfile(in_file))
-	checksum = tpc._md5(in_file)
+	checksum = util._md5(in_file)
 	if out_file is None:
 		out_file = in_file+'2'
 	_print('out_file: '+out_file)

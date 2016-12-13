@@ -5,15 +5,17 @@ Created on 25.08.2016
 '''
 
 import unittest, sys, os
+if __name__ == '__main__':
+	sys.path.append(sys.path[0]+os.sep+'..')
 maindir = os.path.dirname(sys.modules['__main__'].__file__)
 if maindir == '':
 	sys.path.append('testhelpers')
 else:
 	sys.path.append(maindir+os.sep+'testhelpers')
-import typechecker
+import typechecker, util
 typechecker.check_override_at_class_definition_time = False
 typechecker.check_override_at_runtime = True
-from typechecker import typechecked, override, get_types, get_type_hints, deep_type, \
+from typechecker import typechecked, override, get_types, get_type_hints, \
 		InputTypeError, ReturnTypeError, OverrideError, no_type_check
 import typing; from typing import Tuple, List, Union, Any
 from numbers import Real
@@ -500,19 +502,19 @@ class TestTypecheck(unittest.TestCase):
 
 	def test_various(self):
 		self.assertEqual(get_type_hints(testfunc), {'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
-		self.assertEqual(deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
+		self.assertEqual(util.deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
 		tc2 = testClass2('bbb')
-		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth2c), testClass2)
-		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
-		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth2b), testClass2)
-		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
-		self.assertEqual(typechecker.get_class_that_defined_method(tc2.testmeth3), testClass2)
-		self.assertEqual(typechecker.get_class_that_defined_method(testClass2.testmeth3), testClass2)
-		self.assertRaises(ValueError, lambda: typechecker.get_class_that_defined_method(testfunc))
+		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth2c), testClass2)
+		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
+		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth2b), testClass2)
+		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
+		self.assertEqual(util.get_class_that_defined_method(tc2.testmeth3), testClass2)
+		self.assertEqual(util.get_class_that_defined_method(testClass2.testmeth3), testClass2)
+		self.assertRaises(ValueError, lambda: util.get_class_that_defined_method(testfunc))
 		# old-style:
 		tc3 = testClass3()
-		self.assertEqual(typechecker.get_class_that_defined_method(tc3.testmeth), testClass3)
-		self.assertEqual(typechecker.get_class_that_defined_method(testClass3.testmeth), testClass3)
+		self.assertEqual(util.get_class_that_defined_method(tc3.testmeth), testClass3)
+		self.assertEqual(util.get_class_that_defined_method(testClass3.testmeth), testClass3)
 
 
 class TestTypecheck_class(unittest.TestCase):
@@ -838,7 +840,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_various_py3(self):
 		self.assertEqual(get_type_hints(testfunc),
 				{'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
-		self.assertEqual(deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
+		self.assertEqual(util.deep_type(('abc', [3, 'a', 7], 4.5)), Tuple[str, List[Union[int, str]], float])
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
