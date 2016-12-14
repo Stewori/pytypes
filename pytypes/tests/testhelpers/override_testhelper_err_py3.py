@@ -1,21 +1,19 @@
 '''
 Created on 01.12.2016
 
-This file causes NameErrors if forward-declarations
-of Types are not supported properly.
+Designed to cause an OverrideError on import.
 (unless typechecker.check_override_at_runtime == False)
 
 @author: Stefan Richthofer
-
-todo: involve something like [str, int, 'TestClass2']
 '''
-from typechecker import override
+
+from pytypes import override
 
 class TestClass():
 	def test_meth0(self, a: int) -> str:
 		pass
 
-	def test_meth1(self, a: 'TestArg2') -> str:
+	def test_meth1(self, a: 'TestArg1') -> str:
 		pass
 
 	def test_meth2(self, a: int) -> 'TestResult1':
@@ -27,7 +25,7 @@ class TestClass2(TestClass):
 		pass
 
 	@override
-	def test_meth1(self, a: 'TestArg1') -> str:
+	def test_meth1(self, a: 'TestArg2') -> str:
 		pass
 
 	@override

@@ -1,19 +1,19 @@
 '''
 Created on 01.12.2016
 
-Designed to cause an OverrideError on import.
+Designed to cause a NameError on import.
 (unless typechecker.check_override_at_runtime == False)
 
 @author: Stefan Richthofer
 '''
 
-from typechecker import override
+from pytypes import override
 
 class TestClass():
 	def test_meth0(self, a: int) -> str:
 		pass
 
-	def test_meth1(self, a: 'TestArg1') -> str:
+	def test_meth1(self, a: 'TestArg2') -> str:
 		pass
 
 	def test_meth2(self, a: int) -> 'TestResult1':
@@ -25,7 +25,7 @@ class TestClass2(TestClass):
 		pass
 
 	@override
-	def test_meth1(self, a: 'TestArg2') -> str:
+	def test_meth1(self, a: 'TestArg1') -> str:
 		pass
 
 	@override
@@ -38,7 +38,7 @@ class TestClass3(TestClass):
 		pass
 
 	@override
-	def test_meth2(self, a: int) -> 'TestResult2':
+	def test_meth2(self, a: int) -> 'TestResultt2':
 		pass
 
 class TestArg1():

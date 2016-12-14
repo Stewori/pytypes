@@ -35,11 +35,12 @@ def _match_classes(stub_module, original_module):
 
 def _get_stub_module(module_filepath, original_module):
 	module_name = os.path.basename(module_filepath)
+	pck = original_module.__name__.rsplit('.', 1)[0]
 	try:
 		with open(module_filepath) as module_file:
 			with warnings.catch_warnings():
 				warnings.simplefilter('ignore')
-				stub_module = imp.load_module(module_name, module_file, module_filepath, stub_descr)
+				stub_module = imp.load_module(pck+'.'+module_name, module_file, module_filepath, stub_descr)
 				if sys.version_info.major >= 3:
 					_match_classes(stub_module, original_module)
 				return stub_module

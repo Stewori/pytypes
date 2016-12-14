@@ -4,10 +4,11 @@ Created on 13.12.2016
 @author: Stefan Richthofer
 '''
 
-import sys, types, inspect, util
+import sys, types, inspect
 import typing; from typing import Tuple, Dict, List, Set, Union, Any
-from stubfile_manager import _match_stub_type, as_stub_func_if_any
-from typecomment_parser import _get_typestrings, _funcsigtypesfromstring
+from .stubfile_manager import _match_stub_type, as_stub_func_if_any
+from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
+from . import util
 
 def deep_type(obj):
 	return _deep_type(obj, [])
@@ -146,7 +147,7 @@ def _funcsigtypes(func0, slf, func_class = None):
 	if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
 		globs = {}
 		globs.update(sys.modules[func.__module__].__dict__)
-		globs.update(sys.modules[func.__module__.rsplit('.')[0]].__dict__)
+		globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
 	else:
 		globs = sys.modules[func.__module__].__dict__
 	if not tpHints is None and tpHints:

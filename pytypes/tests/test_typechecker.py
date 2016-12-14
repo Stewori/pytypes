@@ -6,12 +6,12 @@ Created on 25.08.2016
 
 import unittest, sys, os
 if __name__ == '__main__':
-	sys.path.append(sys.path[0]+os.sep+'..')
-maindir = os.path.dirname(sys.modules['__main__'].__file__)
-if maindir == '':
-	sys.path.append('testhelpers')
-else:
-	sys.path.append(maindir+os.sep+'testhelpers')
+	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
+# maindir = os.path.dirname(sys.modules['__main__'].__file__)
+# if maindir == '':
+# 	sys.path.append('tests'+os.sep+'testhelpers')
+# else:
+# 	sys.path.append(maindir+os.sep+'testhelpers')
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -583,11 +583,11 @@ class TestOverride(unittest.TestCase):
 		# we import helper-modules during this test.
 		tmp = pytypes.check_override_at_class_definition_time
 		pytypes.check_override_at_class_definition_time = True
-		import override_testhelper # shall not raise error
+		from pytypes.tests.testhelpers import override_testhelper # shall not raise error
 		def _test_err():
-			import override_testhelper_err
+			from pytypes.tests.testhelpers import override_testhelper_err
 		def _test_err2():
-			import override_testhelper_err2
+			from pytypes.tests.testhelpers import override_testhelper_err2
 
 		self.assertRaises(OverrideError, _test_err)
 		self.assertRaises(NameError, _test_err2)
@@ -618,7 +618,7 @@ class TestStubfile(unittest.TestCase):
 	'''
 
 	def test_plain_2_7_stub(self):
-		import stub_testhelper_py2 as stub_py2
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
 
 		# Test function:
 		self.assertEqual(stub_py2.testfunc1_py2(1, 7), 'testfunc1_1 -- 7')
@@ -686,14 +686,14 @@ class TestStubfile(unittest.TestCase):
 		hints = get_type_hints(cl2.meth2b_py2)
 		self.assertEqual(hints['b'], stub_py2.class1_py2)
 		self.assertTrue(cl2.meth2b_py2(cl1).startswith(
-				'<stub_testhelper_py2.class1_py2'))
+				'<pytypes.tests.testhelpers.stub_testhelper_py2.class1_py2'))
 		self.assertRaises(InputTypeError, lambda: cl2.meth2b_py2('cl1'))
 
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
 	def test_plain_3_5_stub(self):
-		import stub_testhelper as stub_py3
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
 
 		# Test function:
 		self.assertEqual(stub_py3.testfunc1(1, 7), 'testfunc1_1 -- 7')
@@ -761,7 +761,7 @@ class TestStubfile(unittest.TestCase):
 		hints = get_type_hints(cl2.meth2b)
 		self.assertEqual(hints['b'], stub_py3.class1)
 		self.assertTrue(cl2.meth2b(cl1).startswith(
-				'<stub_testhelper.class1 object at '))
+				'<pytypes.tests.testhelpers.stub_testhelper.class1 object at '))
 		self.assertRaises(InputTypeError, lambda: cl2.meth2b('cl1'))
 
 
@@ -771,7 +771,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		global py3
-		import typechecker_testhelper_py3 as py3
+		from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
 
 	def test_function_py3(self):
 		self.assertEqual(py3.testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -789,10 +789,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_classmethod_py3(self):
 		tc = py3.testClass('efgh')
 		self.assertEqual(tc.testmeth_class(23, 1.1),
-				"23-1.1-<class 'typechecker_testhelper_py3.testClass'>")
+				"23-1.1-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass'>")
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
 		self.assertEqual(tc.testmeth_class2(23, 1.1),
-				"23-1.1-<class 'typechecker_testhelper_py3.testClass'>")
+				"23-1.1-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass'>")
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
 		self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
 
@@ -820,7 +820,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_abstract_override_py3(self):
 		tc3 = py3.testClass3()
 		self.assertEqual(tc3.testmeth(1, 2.5),
-				"1-2.5-<class 'typechecker_testhelper_py3.testClass3'>")
+				"1-2.5-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass3'>")
 
 	def test_get_types_py3(self):
 		tc = py3.testClass('mnop')
@@ -852,7 +852,7 @@ class TestOverride_Python3_5(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		global py3
-		import typechecker_testhelper_py3 as py3
+		from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
 
 	def test_override_py3(self):
 		tc2 = py3.testClass2('uvwx')
@@ -882,11 +882,11 @@ class TestOverride_Python3_5(unittest.TestCase):
 	def test_override_at_definition_time_with_forward_decl(self):
 		tmp = pytypes.check_override_at_class_definition_time
 		pytypes.check_override_at_class_definition_time = True
-		import override_testhelper_py3 # shall not raise error
+		from pytypes.tests.testhelpers import override_testhelper_py3 # shall not raise error
 		def _test_err_py3():
-			import override_testhelper_err_py3
+			from pytypes.tests.testhelpers import override_testhelper_err_py3
 		def _test_err2_py3():
-			import override_testhelper_err2_py3
+			from pytypes.tests.testhelpers import override_testhelper_err2_py3
 
 		self.assertRaises(OverrideError, _test_err_py3)
 		self.assertRaises(NameError, _test_err2_py3)
@@ -896,3 +896,13 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
+# 	from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+# 	cl2 = stub_py2.class2_py2()
+# 	print cl2
+# 	hints = get_type_hints(cl2.meth2b_py2)
+# 	print hints
+# 	print stub_py2.class1_py2
+	#self.assertEqual(hints['b'], stub_py2.class1_py2)
+	#stub_py2.testfunc1_py2(1, 7)
+	#stub_testhelper_py2.testfunc1_py2(1, 7)
+	#print stub_py2.testfunc1_py2

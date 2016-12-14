@@ -4,7 +4,7 @@ Created on 08.11.2016
 @author: Stefan Richthofer
 '''
 
-from typechecker import typechecked #, get_type_hints
+from pytypes import typechecked #, get_type_hints
 
 @typechecked
 def testfunc1_py2(a, b):

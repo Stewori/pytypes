@@ -1,13 +1,13 @@
 '''
 Created on 01.12.2016
 
-Designed to cause an OverrideError on import.
+This file causes NameErrors if forward-declarations
+of Types are not supported properly.
 (unless typechecker.check_override_at_runtime == False)
 
 @author: Stefan Richthofer
 '''
-
-from typechecker import override
+from pytypes import override
 
 class TestClass():
 	def test_meth0(self, a):
@@ -15,7 +15,7 @@ class TestClass():
 		pass
 
 	def test_meth1(self, a):
-		# type: (TestArg1) -> str
+		# type: (TestArg2) -> str
 		pass
 
 	def test_meth2(self, a):
@@ -30,7 +30,7 @@ class TestClass2(TestClass):
 
 	@override
 	def test_meth1(self, a):
-		# type: (TestArg2) -> str
+		# type: (TestArg1) -> str
 		pass
 
 	@override

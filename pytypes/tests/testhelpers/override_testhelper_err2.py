@@ -1,13 +1,13 @@
 '''
 Created on 01.12.2016
 
-This file causes NameErrors if forward-declarations
-of Types are not supported properly.
+Designed to cause a NameError on import.
 (unless typechecker.check_override_at_runtime == False)
 
 @author: Stefan Richthofer
 '''
-from typechecker import override
+
+from pytypes import override
 
 class TestClass():
 	def test_meth0(self, a):
@@ -60,7 +60,7 @@ class TestClass3(TestClass):
 	def test_meth1(self,
 				a # type: TestArg1
 				):
-		# type: (...) -> str
+		# type: (...) -> strr
 		pass
 
 	@override

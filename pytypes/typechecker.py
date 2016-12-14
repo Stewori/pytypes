@@ -6,11 +6,11 @@ Created on 20.08.2016
 
 import sys, typing, inspect, re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
-from pytypes.stubfile_manager import _match_stub_type
-from pytypes.type_util import type_str, has_type_hints, is_builtin_type, \
+from .stubfile_manager import _match_stub_type
+from .type_util import type_str, has_type_hints, is_builtin_type, \
 		_methargtype, deep_type, _funcsigtypes
-import pytypes; from pytypes import util, \
-		InputTypeError, ReturnTypeError, OverrideError
+from . import util, InputTypeError, ReturnTypeError, OverrideError
+import pytypes
 
 if sys.version_info.major >= 3:
 	import builtins
@@ -62,7 +62,7 @@ def _run_delayed_checks(raise_NameError = False, module_name = None):
 		new_delayed_checks = []
 		to_run = []
 		for check in _delayed_checks:
-			if check.raising_module_name == module_name:
+			if check.raising_module_name.startswith(module_name):
 				to_run.append(check)
 			else:
 				new_delayed_checks.append(check)

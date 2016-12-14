@@ -1,13 +1,15 @@
 '''
 Created on 01.12.2016
 
-Designed to cause a NameError on import.
+This file causes NameErrors if forward-declarations
+of Types are not supported properly.
 (unless typechecker.check_override_at_runtime == False)
 
 @author: Stefan Richthofer
-'''
 
-from typechecker import override
+todo: involve something like [str, int, 'TestClass2']
+'''
+from pytypes import override
 
 class TestClass():
 	def test_meth0(self, a: int) -> str:
@@ -38,7 +40,7 @@ class TestClass3(TestClass):
 		pass
 
 	@override
-	def test_meth2(self, a: int) -> 'TestResultt2':
+	def test_meth2(self, a: int) -> 'TestResult2':
 		pass
 
 class TestArg1():

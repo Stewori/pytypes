@@ -4,10 +4,10 @@ Created on 12.09.2016
 @author: Stefan Richthofer
 '''
 
-from typechecker import typechecked, override
-from typing import Tuple, List, Union, Any
+from pytypes import typechecked, override
+from typing import Tuple, Union
 import abc; from abc import abstractmethod
-from numbers import Real, Complex
+from numbers import Real
 
 class testClass(str):
 	@typechecked
