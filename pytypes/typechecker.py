@@ -7,8 +7,8 @@ Created on 20.08.2016
 import sys, typing, inspect, re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type
-from .type_util import type_str, has_type_hints, is_builtin_type, \
-		_methargtype, deep_type, _funcsigtypes
+from .type_util import type_str, has_type_hints, is_builtin_type, deep_type, \
+		_funcsigtypes, _issubclass, _isinstance, _checkinstance
 from . import util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
@@ -76,7 +76,7 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 	base_types = _match_stub_type(_funcsigtypes(base_method, True, base_class))
 	meth_types = _match_stub_type(meth_types)
 	if has_type_hints(base_method):
-		if not issubclass(base_types[0], meth_types[0]):
+		if not _issubclass(base_types[0], meth_types[0]):
 			fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
 			fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
 			#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
@@ -86,7 +86,7 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 					% (fq_name_child, fq_name_parent)
 					+ 'Incompatible argument types: %s is not a supertype of %s.'
 					% (type_str(meth_types[0]), type_str(base_types[0])))
-		if not issubclass(meth_types[1], base_types[1]):
+		if not _issubclass(meth_types[1], base_types[1]):
 			fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
 			fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
 			#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
@@ -292,17 +292,19 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (type_str(expected_tp), type_str(tp))
 
-def _checkfunctype(tp, func, slf, func_class):
+def _checkfunctype(check_val, func, slf, func_class):
 	argSig, resSig = _funcsigtypes(func, slf, func_class)
-	if not issubclass(tp, _match_stub_type(argSig)):
-		raise InputTypeError(_make_type_error_message(tp, func, slf, func_class,
-				argSig, 'called with incompatible types'))
+	if not _isinstance(check_val, _match_stub_type(argSig)):
+		# todo: constrain deep_type-depth
+		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
+				slf, func_class, argSig, 'called with incompatible types'))
 	return _match_stub_type(resSig) # provide this by-product for potential future use
 
-def _checkfuncresult(resSig, tp, func, slf, func_class):
-	if not issubclass(tp, _match_stub_type(resSig)):
-		raise ReturnTypeError(_make_type_error_message(tp, func, slf, func_class,
-				resSig, 'returned incompatible type'))
+def _checkfuncresult(resSig, check_val, func, slf, func_class):
+	if not _isinstance(check_val, _match_stub_type(resSig)):
+		# todo: constrain deep_type-depth
+		raise ReturnTypeError(_make_type_error_message(deep_type(check_val), func,
+				slf, func_class, resSig, 'returned incompatible type'))
 
 def typechecked_func(func, force = False):
 	if not pytypes.checking_enabled:
@@ -332,19 +334,19 @@ def typechecked_func(func, force = False):
 			if clsm:
 				if argNames[0] != 'cls':
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
-				tp = _methargtype(args_kw)
+				check_args = args_kw[1:] # omit self
 			elif argNames[0] == 'self':
 				if hasattr(args_kw[0].__class__, func0.__name__) and \
 						ismethod(getattr(args_kw[0], func0.__name__)):
-					tp = _methargtype(args_kw)
+					check_args = args_kw[1:] # omit self
 					slf = True
 				else:
 					print('Warning: non-method declaring self '+func0.__name__)
-					tp = deep_type(args_kw)
+					check_args = args_kw
 			else:
-				tp = deep_type(args_kw)
+				check_args = args_kw
 		else:
-			tp = deep_type(args_kw)
+			check_args = args_kw
 			
 		if checkParents:
 			if not slf:
@@ -367,17 +369,16 @@ def typechecked_func(func, force = False):
 
 		resSigs = []
 		for ffunc in toCheck:
-			resSigs.append(_checkfunctype(tp, ffunc, slf or clsm, parent_class))
+			resSigs.append(_checkfunctype(check_args, ffunc, slf or clsm, parent_class))
 
 		# perform backend-call:
 		if clsm or stat:
 			res = func.__func__(*args, **kw)
 		else:
 			res = func(*args, **kw)
-		
-		tp = deep_type(res)
+
 		for i in range(len(resSigs)):
-			_checkfuncresult(resSigs[i], tp, toCheck[i], slf or clsm, parent_class)
+			_checkfuncresult(resSigs[i], res, toCheck[i], slf or clsm, parent_class)
 		return res
 
 	checker_tp.ch_func = func

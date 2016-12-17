@@ -5,7 +5,8 @@ Created on 12.09.2016
 '''
 
 from pytypes import typechecked, override
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, Generator, TypeVar, \
+		Generic, Iterable, Sequence, Callable, List
 import abc; from abc import abstractmethod
 from numbers import Real
 
@@ -237,3 +238,46 @@ def testfunc_None_ret_err(a: int, b: Real) -> None:
 @typechecked
 def testfunc_None_arg(a: int, b: None) -> int:
 	return a*a
+
+def testfunc_Dict_arg(a: int, b: Dict[str, Union[int, str]]) -> None:
+	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
+
+def testfunc_Dict_ret(a: str) -> Dict[str, Union[int, str]]:
+	return {a: len(a), 2*a: a}
+
+def testfunc_Dict_ret_err(a: int) -> Dict[str, Union[int, str]]:
+	return {a: str(a), 2*a: a}
+
+def testfunc_Seq_arg(a: Sequence[Tuple[int, str]]) -> int:
+	return len(a)
+
+def testfunc_Seq_ret_List(a: int, b: str) -> Sequence[Union[int, str]]:
+	return [a, b]
+
+def testfunc_Seq_ret_Tuple(a: int, b: str) -> Sequence[Union[int, str]]:
+	return a, b
+
+def testfunc_Seq_ret_err(a: int, b: str) -> Sequence[Union[int, str]]:
+	return {a: str(a), b: str(b)}
+
+def testfunc_Iter_arg(a: Iterable[int], b: str) -> List[int]:
+	return [r for r in a]
+
+def testfunc_Iter_ret() -> Iterable[int]:
+	return range(22)
+
+def testfunc_Iter_ret_err() -> Iterable[str]:
+	return range(22)
+
+def testfunc_Callable_arg(a: Callable[[str, int], str], b: str) -> str:
+	return a(b, len(b))
+
+def testfunc_Callable_ret(a: int, b: str) -> Callable[[str, int], str]:
+	
+	def m(x: str, y: int) -> str:
+		return x+str(y)+b*a
+
+	return m
+
+def testfunc_Callable_ret_err() -> Callable[[str, int], str]:
+	return 5

@@ -7,17 +7,14 @@ Created on 25.08.2016
 import unittest, sys, os
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
-# maindir = os.path.dirname(sys.modules['__main__'].__file__)
-# if maindir == '':
-# 	sys.path.append('tests'+os.sep+'testhelpers')
-# else:
-# 	sys.path.append(maindir+os.sep+'testhelpers')
 import pytypes
+from pytypes.type_util import deep_type
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
 		InputTypeError, ReturnTypeError, OverrideError
-import typing; from typing import Tuple, List, Union, Any
+import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
+		Generic, Iterable, Sequence, Callable
 from numbers import Real
 import abc; from abc import abstractmethod
 
@@ -434,6 +431,83 @@ def testfunc_None_ret_err(a, b):
 def testfunc_None_arg(a, b):
 	# type: (int, None) -> int
 	return a*a
+
+def testfunc_Dict_arg(a, b):
+	# type: (int, Dict[str, Union[int, str]]) -> None
+	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
+
+def testfunc_Dict_ret(a):
+	# type: (str) -> Dict[str, Union[int, str]]
+	return {a: len(a), 2*a: a}
+
+def testfunc_Dict_ret_err(a):
+	# type: (int) -> Dict[str, Union[int, str]]
+	return {a: str(a), 2*a: a}
+
+def testfunc_Seq_arg(a):
+	# type: (Sequence[Tuple[int, str]]) -> int
+	return len(a)
+
+def testfunc_Seq_ret_List(a, b):
+	# type: (int, str) -> Sequence[Union[int, str]]
+	return [a, b]
+
+def testfunc_Seq_ret_Tuple(a, b):
+	# type: (int, str) -> Sequence[Union[int, str]]
+	return a, b
+
+def testfunc_Seq_ret_err(a, b):
+	# type: (int, str) -> Sequence[Union[int, str]]
+	return {a: str(a), b: str(b)}
+
+def testfunc_Iter_arg(a, b):
+	# type: (Iterable[int], str) -> List[int]
+	return [r for r in a]
+
+def testfunc_Iter_ret():
+	# type: () -> Iterable[int]
+	return range(22)
+
+def testfunc_Iter_ret_err():
+	# type: () -> Iterable[str]
+	return range(22)
+
+def testfunc_Callable_arg(a, b):
+	# type: (Callable[[str, int], str], str) -> str
+	return a(b, len(b))
+
+def testfunc_Callable_ret(a, b):
+	# type: (int, str) -> Callable[[str, int], str]
+	
+	def m(x, y):
+		# type: (str, int) -> str
+		return x+str(y)+b*a
+
+	return m
+
+# Todo: Test regarding wrong-typed Callables
+def testfunc_Callable_ret_err():
+	# type: () -> Callable[[str, int], str]
+	return 5
+
+def testfunc_Generator_arg():
+	pass
+
+def testfunc_Generator_ret():
+	pass
+
+def testfunc_Generator_ret_err():
+	pass
+
+def testfunc_Generic_arg():
+	pass
+
+def testfunc_Generic_ret():
+	pass
+
+def testfunc_Generic_ret_err():
+	pass
+
 
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
@@ -896,13 +970,3 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
-# 	from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
-# 	cl2 = stub_py2.class2_py2()
-# 	print cl2
-# 	hints = get_type_hints(cl2.meth2b_py2)
-# 	print hints
-# 	print stub_py2.class1_py2
-	#self.assertEqual(hints['b'], stub_py2.class1_py2)
-	#stub_py2.testfunc1_py2(1, 7)
-	#stub_testhelper_py2.testfunc1_py2(1, 7)
-	#print stub_py2.testfunc1_py2

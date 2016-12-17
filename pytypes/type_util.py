@@ -35,10 +35,6 @@ def _deep_type(obj, checked):
 		return obj.__class__
 	return res
 
-def _methargtype(obj):
-	assert(type(obj) == tuple)
-	return Tuple[tuple(deep_type(t) for t in obj[1:])]
-
 def is_builtin_type(tp):
 	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
@@ -189,3 +185,15 @@ def _funcsigtypes(func0, slf, func_class = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
+def _issubclass(sub, super):
+	# Will be a Python 3.6 workable version soon
+	return issubclass(sub, super)
+
+def _isinstance(obj, cls):
+	# Will be a Python 3.6 workable version soon
+	return _issubclass(deep_type(obj), cls)
+
+def _checkinstance(obj, cls):
+	# Later this will (optionally) turn some types into a checked
+	# version, e.g. generators or callables
+	return obj if _isinstance(obj, cls) else None
