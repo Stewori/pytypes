@@ -6,7 +6,7 @@ Created on 12.09.2016
 
 from pytypes import typechecked, override
 from typing import Tuple, Union, Dict, Generator, TypeVar, \
-		Generic, Iterable, Sequence, Callable, List
+		Generic, Iterable, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
 from numbers import Real
 
@@ -281,3 +281,28 @@ def testfunc_Callable_ret(a: int, b: str) -> Callable[[str, int], str]:
 
 def testfunc_Callable_ret_err() -> Callable[[str, int], str]:
 	return 5
+
+@typechecked
+def testfunc_Generator() -> Generator[int, Union[str, None], float]:
+	s = yield
+	while not s is None:
+		if s == 'fail':
+			s = yield 'bad yield'
+		elif s == 'ret':
+			return 7.5
+		elif s == 'ret_fail':
+			return 'bad return'
+		s = yield len(s)
+
+@typechecked
+def testfunc_Generator_arg(gen: Generator[int, Union[str, None], Any]) -> List[int]:
+	# should raise error because of illegal use of typing.Generator
+	lst = ('ab', 'nmrs', 'u')
+	res = [gen.send(x) for x in lst]
+	return res
+
+@typechecked
+def testfunc_Generator_ret() -> Generator[int, Union[str, None], Any]:
+	# should raise error because of illegal use of typing.Generator
+	res = testfunc_Generator()
+	return res

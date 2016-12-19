@@ -4,15 +4,14 @@ Created on 25.08.2016
 @author: Stefan Richthofer
 '''
 
-import unittest, sys, os
+import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
 import pytypes
-from pytypes.type_util import deep_type
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
-		InputTypeError, ReturnTypeError, OverrideError
+		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Sequence, Callable
 from numbers import Real
@@ -490,14 +489,29 @@ def testfunc_Callable_ret_err():
 	# type: () -> Callable[[str, int], str]
 	return 5
 
-def testfunc_Generator_arg():
-	pass
+@typechecked
+def testfunc_Generator():
+	# type: () -> Generator[int, Union[str, None], Any]
+	s = yield
+	while not s is None:
+		if s == 'fail':
+			s = yield 'bad yield'
+		s = yield len(s)
 
+@typechecked
+def testfunc_Generator_arg(gen):
+	# type: (Generator[int, Union[str, None], Any]) -> List[int]
+	# should raise error because of illegal use of typing.Generator
+	lst = ('ab', 'nmrs', 'u')
+	res = [gen.send(x) for x in lst]
+	return res
+
+@typechecked
 def testfunc_Generator_ret():
-	pass
-
-def testfunc_Generator_ret_err():
-	pass
+	# type: () -> Generator[int, Union[str, None], Any]
+	# should raise error because of illegal use of typing.Generator
+	res = testfunc_Generator()
+	return res
 
 def testfunc_Generic_arg():
 	pass
@@ -573,6 +587,19 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_generator(self):
+		test_gen = testfunc_Generator()
+		self.assertIsNone(test_gen.send(None))
+		self.assertEqual(test_gen.send('abc'), 3)
+		self.assertEqual(test_gen.send('ddffd'), 5)
+		self.assertRaises(InputTypeError, lambda: test_gen.send(7))
+		test_gen2 = testfunc_Generator()
+		self.assertIsNone(test_gen2.next() if hasattr(test_gen2, 'next') else test_gen2.__next__())
+		self.assertEqual(test_gen2.send('defg'), 4)
+		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
+		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_arg(test_gen))
+		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
 
 	def test_various(self):
 		self.assertEqual(get_type_hints(testfunc),
@@ -912,6 +939,30 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_generator_py3(self):
+		test_gen = py3.testfunc_Generator()
+		self.assertIsNone(test_gen.send(None))
+		self.assertEqual(test_gen.send('abc'), 3)
+		self.assertEqual(test_gen.send('ddffd'), 5)
+		self.assertRaises(InputTypeError, lambda: test_gen.send(7))
+		test_gen2 = py3.testfunc_Generator()
+		self.assertIsNone(test_gen2.__next__())
+		self.assertEqual(test_gen2.send('defg'), 4)
+		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
+		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_arg(test_gen))
+		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
+		test_gen3 = py3.testfunc_Generator()
+		self.assertIsNone(test_gen3.send(None))
+		self.assertEqual(test_gen3.send('abcxyz'), 6)
+		with warnings.catch_warnings():
+			warnings.simplefilter('ignore')
+			# Causes deprecation warning:
+			self.assertRaises(StopIteration, lambda: test_gen3.send('ret'))
+		test_gen4 = py3.testfunc_Generator()
+		self.assertIsNone(test_gen4.send(None))
+		self.assertEqual(test_gen4.send('abcdefgh'), 8)
+		self.assertRaises(ReturnTypeError, lambda: test_gen4.send('ret_fail'))
 
 	def test_various_py3(self):
 		self.assertEqual(get_type_hints(testfunc),

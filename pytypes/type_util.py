@@ -5,10 +5,11 @@ Created on 13.12.2016
 '''
 
 import sys, types, inspect
-import typing; from typing import Tuple, Dict, List, Set, Union, Any
+import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
+import pytypes
 
 def deep_type(obj):
 	return _deep_type(obj, [])
@@ -193,7 +194,82 @@ def _isinstance(obj, cls):
 	# Will be a Python 3.6 workable version soon
 	return _issubclass(deep_type(obj), cls)
 
-def _checkinstance(obj, cls):
-	# Later this will (optionally) turn some types into a checked
-	# version, e.g. generators or callables
-	return obj if _isinstance(obj, cls) else None
+def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
+	_cmp_msg_format = 'Expected: %s\nReceived: %s'
+	# todo: obtain fully qualified generator name
+	return gen.__name__+' '+incomp_text+':\n'+_cmp_msg_format \
+				% (type_str(expected_tp), type_str(tp))
+
+def generator_checker_py3(gen, yield_type, send_type, return_type):
+	initialized = False
+	sn = None
+	try:
+		while True:
+			a = gen.send(sn)
+			if initialized or not a is None:
+				if not yield_type is Any and not _isinstance(a, yield_type):
+					raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
+							yield_type, 'has incompatible yield type'))
+			initialized = True
+			sn = yield a
+			if not send_type is Any and not _isinstance(sn, send_type):
+				raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
+						send_type, 'has incompatible send type'))
+	except StopIteration as st:
+		# Python 3:
+		# todo: Check if st.value is always defined (i.e. as None if not present)
+		if not return_type is Any and not _isinstance(st.value, return_type):
+				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(st.value), gen,
+						return_type, 'has incompatible return type'))
+		raise st
+
+def generator_checker_py2(gen, yield_type, send_type):
+	initialized = False
+	sn = None
+	while True:
+		a = gen.send(sn)
+		if initialized or not a is None:
+			if not yield_type is Any and not _isinstance(a, yield_type):
+				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
+						yield_type, 'has incompatible yield type'))
+		initialized  = True
+		sn = yield a
+		if not send_type is Any and not _isinstance(sn, send_type):
+			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
+					send_type, 'has incompatible send type'))
+
+def _checkinstance(obj, cls, is_args, func):
+	# todo: Complete this function
+	if hasattr(cls, '__tuple_params__'):
+		if len(obj) != len(cls.__tuple_params__):
+			return False, obj
+		lst = []
+		if isinstance(obj, tuple):
+			for i in range(len(obj)):
+				res, obj2 = _checkinstance(obj[i], cls.__tuple_params__[i], is_args, func)
+				if not res:
+					return False, obj
+				else:
+					lst.append(obj2)
+			return True, tuple(lst)
+		else:
+			return False, obj
+	# Tthis (optionally) turns some types into a checked version, e.g. generators or callables (todo)
+	if pytypes.check_generators and hasattr(cls, '__origin__') and cls.__origin__ is Generator:
+		if is_args or not inspect.isgeneratorfunction(func):
+			# todo: Insert fully qualified function name
+			raise pytypes.TypeCheckError(
+					'typing.Generator must only be used as result type of generator functions.')
+		if isinstance(obj, types.GeneratorType):
+			if obj.__name__.startswith('generator_checker_py'):
+				return True, obj
+			if sys.version_info.major == 2:
+				wrgen = generator_checker_py2(obj, cls.__args__[0], cls.__args__[1])
+			else:
+				wrgen = generator_checker_py3(obj, cls.__args__[0], cls.__args__[1], cls.__args__[2])
+				#wrgen.__name__ = obj.__name__
+				wrgen.__qualname__ = obj.__qualname__
+			return True, wrgen
+		else:
+			return False, obj
+	return _isinstance(obj, cls), obj

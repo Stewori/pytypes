@@ -292,19 +292,30 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (type_str(expected_tp), type_str(tp))
 
-def _checkfunctype(check_val, func, slf, func_class):
+def _checkfunctype(check_val, func, slf, func_class, make_checked_val = False):
 	argSig, resSig = _funcsigtypes(func, slf, func_class)
-	if not _isinstance(check_val, _match_stub_type(argSig)):
+	if make_checked_val:
+		result, checked_val = _checkinstance(check_val, _match_stub_type(argSig), True, func)
+	else:
+		result = _isinstance(check_val, _match_stub_type(argSig))
+		checked_val = None
+	if not result:
 		# todo: constrain deep_type-depth
 		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
 				slf, func_class, argSig, 'called with incompatible types'))
-	return _match_stub_type(resSig) # provide this by-product for potential future use
+	return checked_val, _match_stub_type(resSig) # provide this by-product for potential future use
 
-def _checkfuncresult(resSig, check_val, func, slf, func_class):
-	if not _isinstance(check_val, _match_stub_type(resSig)):
+def _checkfuncresult(resSig, check_val, func, slf, func_class, make_checked_val = False):
+	if make_checked_val:
+		result, checked_val = _checkinstance(check_val, _match_stub_type(resSig), False, func)
+	else:
+		result = _isinstance(check_val, _match_stub_type(resSig))
+		checked_val = None
+	if not result:
 		# todo: constrain deep_type-depth
 		raise ReturnTypeError(_make_type_error_message(deep_type(check_val), func,
 				slf, func_class, resSig, 'returned incompatible type'))
+	return checked_val
 
 def typechecked_func(func, force = False):
 	if not pytypes.checking_enabled:
@@ -368,18 +379,29 @@ def typechecked_func(func, force = False):
 			parent_class = args_kw[0]
 
 		resSigs = []
-		for ffunc in toCheck:
-			resSigs.append(_checkfunctype(check_args, ffunc, slf or clsm, parent_class))
+		checked_val, resSig = _checkfunctype(check_args, toCheck[0], slf or clsm, parent_class, True)
+		resSigs.append(resSig)
+		for ffunc in toCheck[1:]:
+			resSigs.append(_checkfunctype(check_args, ffunc, slf or clsm, parent_class)[1])
 
 		# perform backend-call:
 		if clsm or stat:
-			res = func.__func__(*args, **kw)
+			#res = func.__func__(*args, **kw)
+			if len(args_kw) != len(checked_val):
+				res = func.__func__(args[0], *checked_val)
+			else:
+				res = func.__func__(*checked_val)
 		else:
-			res = func(*args, **kw)
+			#res = func(*args, **kw)
+			if len(args_kw) != len(checked_val):
+				res = func(args[0], *checked_val)
+			else:
+				res = func(*checked_val)
 
-		for i in range(len(resSigs)):
+		checked_res = _checkfuncresult(resSigs[0], res, toCheck[0], slf or clsm, parent_class, True)
+		for i in range(1, len(resSigs)):
 			_checkfuncresult(resSigs[i], res, toCheck[i], slf or clsm, parent_class)
-		return res
+		return checked_res
 
 	checker_tp.ch_func = func
 	if hasattr(func, '__func__'):
