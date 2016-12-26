@@ -19,6 +19,7 @@ assert(set_checking_enabled())
 check_override_at_runtime = False
 check_override_at_class_definition_time = True
 
+check_callables = True
 check_generators = True
 
 python3_5_executable = 'python3' # Must be >= 3.5.0

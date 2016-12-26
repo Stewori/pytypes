@@ -4,7 +4,7 @@ Created on 12.09.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked, override
+import pytypes; from pytypes import typechecked, override
 from typing import Tuple, Union, Dict, Generator, TypeVar, \
 		Generic, Iterable, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
@@ -55,8 +55,11 @@ class testClass(str):
 	def testmeth_static2(a: int, b: Real) -> str:
 		return "-".join((str(a), str(b), "static"))
 
+	# Using not the fully qualified name can screw up typing.get_type_hints
+	# under certain circumstances.
+	# Todo: Investigate! pytypes.get_type_hints seems to be robust.
 	@typechecked
-	def testmeth_forward(self, a: int, b: 'testClass2') -> int:
+	def testmeth_forward(self, a: int, b: 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass2') -> int:
 		assert b.__class__ is testClass2
 		return len(str(a)+str(b)+str(self))
 
@@ -269,9 +272,15 @@ def testfunc_Iter_ret() -> Iterable[int]:
 def testfunc_Iter_ret_err() -> Iterable[str]:
 	return range(22)
 
+@typechecked
 def testfunc_Callable_arg(a: Callable[[str, int], str], b: str) -> str:
 	return a(b, len(b))
 
+@typechecked
+def testfunc_Callable_call_err(a: Callable[[str, int], str], b: str) -> str:
+	return a(b, b)
+
+@typechecked
 def testfunc_Callable_ret(a: int, b: str) -> Callable[[str, int], str]:
 	
 	def m(x: str, y: int) -> str:
@@ -279,8 +288,18 @@ def testfunc_Callable_ret(a: int, b: str) -> Callable[[str, int], str]:
 
 	return m
 
+@typechecked
 def testfunc_Callable_ret_err() -> Callable[[str, int], str]:
 	return 5
+
+def pclb(s: str, i: int) -> str:
+	return '_'+s+'*'*i
+
+def pclb2(s: str, i: str) -> str:
+	return '_'+s+'*'*i
+
+def pclb3(s: str, i: int) -> int:
+	return '_'+s+'*'*i
 
 @typechecked
 def testfunc_Generator() -> Generator[int, Union[str, None], float]:

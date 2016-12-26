@@ -471,10 +471,17 @@ def testfunc_Iter_ret_err():
 	# type: () -> Iterable[str]
 	return range(22)
 
+@typechecked
 def testfunc_Callable_arg(a, b):
 	# type: (Callable[[str, int], str], str) -> str
 	return a(b, len(b))
 
+@typechecked
+def testfunc_Callable_call_err(a, b):
+	# type: (Callable[[str, int], str], str) -> str
+	return a(b, b)
+
+@typechecked
 def testfunc_Callable_ret(a, b):
 	# type: (int, str) -> Callable[[str, int], str]
 	
@@ -485,6 +492,7 @@ def testfunc_Callable_ret(a, b):
 	return m
 
 # Todo: Test regarding wrong-typed Callables
+@typechecked
 def testfunc_Callable_ret_err():
 	# type: () -> Callable[[str, int], str]
 	return 5
@@ -587,6 +595,31 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_callable(self):
+		def clb(s, i):
+			# type: (str, int) -> str
+			return '_'+s+'*'*i
+		
+		def clb2(s, i):
+			# type: (str, str) -> str
+			return '_'+s+'*'*i
+		
+		def clb3(s, i):
+			# type: (str, int) -> int
+			return '_'+s+'*'*i
+
+		self.assertEqual(testfunc_Callable_arg(clb, 'pqrs'), '_pqrs****')
+		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: testfunc_Callable_call_err(clb, 'tuvw'))
+		self.assertEqual(testfunc_Callable_arg(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError,
+				lambda: testfunc_Callable_call_err(lambda s, i: '__'+s+'-'*i, 'tuvw'))
+		fnc = testfunc_Callable_ret(5, 'qvwx')
+		self.assertEqual(fnc.__class__.__name__, 'function')
+		self.assertEqual(fnc.__name__, 'm')
+		self.assertRaises(ReturnTypeError, lambda: testfunc_Callable_ret_err())
 
 	def test_generator(self):
 		test_gen = testfunc_Generator()
@@ -939,6 +972,19 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_callable_py3(self):
+		self.assertEqual(py3.testfunc_Callable_arg(py3.pclb, 'pqrs'), '_pqrs****')
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_call_err(py3.pclb, 'tuvw'))
+		self.assertEqual(py3.testfunc_Callable_arg(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError,
+				lambda: py3.testfunc_Callable_call_err(lambda s, i: '__'+s+'-'*i, 'tuvw'))
+		fnc = py3.testfunc_Callable_ret(5, 'qvwx')
+		self.assertEqual(fnc.__class__.__name__, 'function')
+		self.assertEqual(fnc.__name__, 'm')
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Callable_ret_err())
 
 	def test_generator_py3(self):
 		test_gen = py3.testfunc_Generator()

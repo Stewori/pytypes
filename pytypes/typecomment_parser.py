@@ -49,11 +49,12 @@ def _get_typestrings(obj, slf):
 	res = _parse_typecomment_oneline(srclines[funcstart])
 	if not res is None:
 		return res, result[1:] if slf else result
-	if len(srclines) > funcstart+1 and srclines[funcstart+1].strip()[0] == '#':
-		res= _parse_typecomment_oneline(srclines[funcstart+1]), result[1:] if slf else result
-		return res
-	else:
-		return None, result[1:] if slf else result
+	if len(srclines) > funcstart+1:
+		strp = srclines[funcstart+1].strip()
+		if len(strp) > 0 and strp[0] == '#':
+			res = _parse_typecomment_oneline(srclines[funcstart+1]), result[1:] if slf else result
+			return res
+	return None, result[1:] if slf else result
 
 def _isargsellipsis(argStr):
 	return argStr[1:-1].strip() == '...'

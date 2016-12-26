@@ -4,12 +4,12 @@ Created on 20.08.2016
 @author: Stefan Richthofer
 '''
 
-import sys, typing, inspect, re, atexit
+import sys, typing, types, inspect, re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type
 from .type_util import type_str, has_type_hints, is_builtin_type, deep_type, \
-		_funcsigtypes, _issubclass, _isinstance, _checkinstance
-from . import util, InputTypeError, ReturnTypeError, OverrideError
+		_funcsigtypes, _issubclass, _isinstance
+from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
 if sys.version_info.major >= 3:
@@ -292,18 +292,84 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (type_str(expected_tp), type_str(tp))
 
-def _checkfunctype(check_val, func, slf, func_class, make_checked_val = False):
-	argSig, resSig = _funcsigtypes(func, slf, func_class)
+def _checkinstance(obj, cls, is_args, func, force = False):
+	# todo: Complete this function
+	if hasattr(cls, '__tuple_params__'):
+		if len(obj) != len(cls.__tuple_params__):
+			return False, obj
+		lst = []
+		if isinstance(obj, tuple):
+			for i in range(len(obj)):
+				res, obj2 = _checkinstance(obj[i], cls.__tuple_params__[i], is_args, func)
+				if not res:
+					return False, obj
+				else:
+					lst.append(obj2)
+			return True, tuple(lst)
+		else:
+			return False, obj
+	# This (optionally) turns some types into a checked version, e.g. generators or callables
+	if hasattr(cls, '__class__') and cls.__class__ is typing.CallableMeta:
+		# todo: Let pytypes somehow create a Callable-scoped error message,
+		# e.g. instead of
+		#	Expected: Tuple[Callable[[str, int], str], str]
+		#	Received: Tuple[function, str]
+		# make
+		#	Expected: Tuple[Callable[[str, int], str], str]
+		#	Received: Tuple[Callable[[str, str], str], str]
+		if not hasattr(obj, '__call__'):
+			return False, obj
+		if type_util.has_type_hints(obj):
+			# Todo: Move or port this to _isInstance
+			slf_or_cls = util.is_method(obj) or util.is_classmethod(obj)
+			parent_cls = util.get_class_that_defined_method(obj) if slf_or_cls else None
+			argSig, resSig = _funcsigtypes(obj, slf_or_cls, parent_cls)
+			argSig = _match_stub_type(argSig)
+			resSig = _match_stub_type(resSig)
+			if not _issubclass(typing.Tuple[cls.__args__], argSig):
+				return False, obj
+			if not _issubclass(resSig, cls.__result__):
+				return False, obj
+		if pytypes.check_callables:
+			# Todo: Only this part shall reside in _checkInstance
+			# Todo: Invent something to avoid stacking of type checkers
+			# Note that these might check different type-aspects. With IntersectionTypes one day
+			# we can merge them into one checker. Maybe cheecker should already support this?
+			return True, typechecked_func(obj, force, typing.Tuple[cls.__args__], cls.__result__)
+		return True, obj
+	if pytypes.check_generators and hasattr(cls, '__origin__') and \
+			cls.__origin__ is typing.Generator:
+		if is_args or not inspect.isgeneratorfunction(func):
+			# todo: Insert fully qualified function name
+			# Todo: Move or port this to _isInstance (?)
+			raise pytypes.TypeCheckError(
+					'typing.Generator must only be used as result type of generator functions.')
+		if isinstance(obj, types.GeneratorType):
+			if obj.__name__.startswith('generator_checker_py'):
+				return True, obj
+			if sys.version_info.major == 2:
+				wrgen = type_util.generator_checker_py2(obj, cls.__args__[0], cls.__args__[1])
+			else:
+				wrgen =type_util. generator_checker_py3(obj, cls.__args__[0], cls.__args__[1],
+						cls.__args__[2])
+				#wrgen.__name__ = obj.__name__
+				wrgen.__qualname__ = obj.__qualname__
+			return True, wrgen
+		else:
+			return False, obj
+	return _isinstance(obj, cls), obj
+
+def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False):
 	if make_checked_val:
-		result, checked_val = _checkinstance(check_val, _match_stub_type(argSig), True, func)
+		result, checked_val = _checkinstance(check_val, argSig, True, func)
 	else:
-		result = _isinstance(check_val, _match_stub_type(argSig))
+		result = _isinstance(check_val, argSig)
 		checked_val = None
 	if not result:
 		# todo: constrain deep_type-depth
 		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
 				slf, func_class, argSig, 'called with incompatible types'))
-	return checked_val, _match_stub_type(resSig) # provide this by-product for potential future use
+	return checked_val
 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, make_checked_val = False):
 	if make_checked_val:
@@ -317,7 +383,7 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, make_checked_val 
 				slf, func_class, resSig, 'returned incompatible type'))
 	return checked_val
 
-def typechecked_func(func, force = False):
+def typechecked_func(func, force = False, argType = None, resType = None):
 	if not pytypes.checking_enabled:
 		return func
 	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func))
@@ -379,20 +445,34 @@ def typechecked_func(func, force = False):
 			parent_class = args_kw[0]
 
 		resSigs = []
-		checked_val, resSig = _checkfunctype(check_args, toCheck[0], slf or clsm, parent_class, True)
+		if argType is None or resType is None:
+			argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm, parent_class)
+			if argType is None:
+				argSig = _match_stub_type(argSig)
+			else:
+				argSig = argType
+			if resType is None:
+				resSig = _match_stub_type(resSig)
+			else:
+				resSig = resType
+		else:
+			argSig, resSig = argType, resType
+		checked_val = _checkfunctype(argSig, check_args,
+				toCheck[0], slf or clsm, parent_class, True)
 		resSigs.append(resSig)
 		for ffunc in toCheck[1:]:
-			resSigs.append(_checkfunctype(check_args, ffunc, slf or clsm, parent_class)[1])
+			argSig, resSig = _funcsigtypes(ffunc, slf or clsm, parent_class)
+			_checkfunctype(_match_stub_type(argSig), check_args, ffunc,
+					slf or clsm, parent_class)
+			resSigs.append(_match_stub_type(resSig))
 
 		# perform backend-call:
 		if clsm or stat:
-			#res = func.__func__(*args, **kw)
 			if len(args_kw) != len(checked_val):
 				res = func.__func__(args[0], *checked_val)
 			else:
 				res = func.__func__(*checked_val)
 		else:
-			#res = func(*args, **kw)
 			if len(args_kw) != len(checked_val):
 				res = func(args[0], *checked_val)
 			else:
@@ -422,7 +502,7 @@ def typechecked_func(func, force = False):
 	else:
 		return checker_tp
 
-def typechecked_class(cls, force = False, force_recursive = False):
+def typechecked_class(cls, force = False, force_recursive = False, argType = None, resType = None):
 	if not pytypes.checking_enabled:
 		return cls
 	assert(isclass(cls))

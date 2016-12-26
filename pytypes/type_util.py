@@ -5,7 +5,7 @@ Created on 13.12.2016
 '''
 
 import sys, types, inspect
-import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator
+import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator, Callable
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
@@ -69,7 +69,10 @@ def type_str(tp):
 		return pck+tp.__name__+prm
 	elif hasattr(tp, '__args__'):
 		params = [type_str(param) for param in tp.__args__]
-		return tp.__name__+'['+', '.join(params)+']'
+		if hasattr(tp, '__result__'):
+			return tp.__name__+'[['+', '.join(params)+'], '+type_str(tp.__result__)+']'
+		else:
+			return tp.__name__+'['+', '.join(params)+']'
 	elif hasattr(tp, '__tuple_params__'):
 		tpl_params = [type_str(param) for param in tp.__tuple_params__]
 		return 'Tuple['+', '.join(tpl_params)+']'
@@ -237,39 +240,3 @@ def generator_checker_py2(gen, yield_type, send_type):
 		if not send_type is Any and not _isinstance(sn, send_type):
 			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
 					send_type, 'has incompatible send type'))
-
-def _checkinstance(obj, cls, is_args, func):
-	# todo: Complete this function
-	if hasattr(cls, '__tuple_params__'):
-		if len(obj) != len(cls.__tuple_params__):
-			return False, obj
-		lst = []
-		if isinstance(obj, tuple):
-			for i in range(len(obj)):
-				res, obj2 = _checkinstance(obj[i], cls.__tuple_params__[i], is_args, func)
-				if not res:
-					return False, obj
-				else:
-					lst.append(obj2)
-			return True, tuple(lst)
-		else:
-			return False, obj
-	# Tthis (optionally) turns some types into a checked version, e.g. generators or callables (todo)
-	if pytypes.check_generators and hasattr(cls, '__origin__') and cls.__origin__ is Generator:
-		if is_args or not inspect.isgeneratorfunction(func):
-			# todo: Insert fully qualified function name
-			raise pytypes.TypeCheckError(
-					'typing.Generator must only be used as result type of generator functions.')
-		if isinstance(obj, types.GeneratorType):
-			if obj.__name__.startswith('generator_checker_py'):
-				return True, obj
-			if sys.version_info.major == 2:
-				wrgen = generator_checker_py2(obj, cls.__args__[0], cls.__args__[1])
-			else:
-				wrgen = generator_checker_py3(obj, cls.__args__[0], cls.__args__[1], cls.__args__[2])
-				#wrgen.__name__ = obj.__name__
-				wrgen.__qualname__ = obj.__qualname__
-			return True, wrgen
-		else:
-			return False, obj
-	return _isinstance(obj, cls), obj
