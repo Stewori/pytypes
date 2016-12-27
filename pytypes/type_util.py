@@ -189,7 +189,24 @@ def _funcsigtypes(func0, slf, func_class = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
+def _issubclass_Dict(sub, super):
+	# Todo: Add support for general Mapping
+	if hasattr(sub, '__origin__'):
+		if not issubclass(sub.__origin__, Dict):
+			return False
+		# Todo: Key type is actually invariant (why?)
+		if not _issubclass(super.__args__[0], sub.__args__[0]):
+			return False
+		if not _issubclass(sub.__args__[1], super.__args__[1]):
+			return False
+		return True
+	return issubclass(sub, super)
+
 def _issubclass(sub, super):
+	if hasattr(super, '__origin__'):
+		# ALternative: if super.__extra__ is dict:
+		if super.__origin__ is Dict:
+			return _issubclass_Dict(sub, super)
 	# Will be a Python 3.6 workable version soon
 	return issubclass(sub, super)
 

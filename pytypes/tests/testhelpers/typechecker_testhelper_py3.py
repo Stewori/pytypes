@@ -242,33 +242,43 @@ def testfunc_None_ret_err(a: int, b: Real) -> None:
 def testfunc_None_arg(a: int, b: None) -> int:
 	return a*a
 
+@typechecked
 def testfunc_Dict_arg(a: int, b: Dict[str, Union[int, str]]) -> None:
 	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
 
+@typechecked
 def testfunc_Dict_ret(a: str) -> Dict[str, Union[int, str]]:
 	return {a: len(a), 2*a: a}
 
+@typechecked
 def testfunc_Dict_ret_err(a: int) -> Dict[str, Union[int, str]]:
 	return {a: str(a), 2*a: a}
 
+@typechecked
 def testfunc_Seq_arg(a: Sequence[Tuple[int, str]]) -> int:
 	return len(a)
 
+@typechecked
 def testfunc_Seq_ret_List(a: int, b: str) -> Sequence[Union[int, str]]:
 	return [a, b]
 
+@typechecked
 def testfunc_Seq_ret_Tuple(a: int, b: str) -> Sequence[Union[int, str]]:
 	return a, b
 
+@typechecked
 def testfunc_Seq_ret_err(a: int, b: str) -> Sequence[Union[int, str]]:
 	return {a: str(a), b: str(b)}
 
+@typechecked
 def testfunc_Iter_arg(a: Iterable[int], b: str) -> List[int]:
 	return [r for r in a]
 
+@typechecked
 def testfunc_Iter_ret() -> Iterable[int]:
 	return range(22)
 
+@typechecked
 def testfunc_Iter_ret_err() -> Iterable[str]:
 	return range(22)
 

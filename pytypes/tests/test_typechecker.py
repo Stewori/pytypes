@@ -13,7 +13,7 @@ pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
 		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-		Generic, Iterable, Sequence, Callable
+		Generic, Iterable, Sequence, Callable, Mapping
 from numbers import Real
 import abc; from abc import abstractmethod
 
@@ -431,42 +431,52 @@ def testfunc_None_arg(a, b):
 	# type: (int, None) -> int
 	return a*a
 
+@typechecked
 def testfunc_Dict_arg(a, b):
 	# type: (int, Dict[str, Union[int, str]]) -> None
 	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
 
+@typechecked
 def testfunc_Dict_ret(a):
 	# type: (str) -> Dict[str, Union[int, str]]
 	return {a: len(a), 2*a: a}
 
+@typechecked
 def testfunc_Dict_ret_err(a):
 	# type: (int) -> Dict[str, Union[int, str]]
 	return {a: str(a), 2*a: a}
 
+@typechecked
 def testfunc_Seq_arg(a):
 	# type: (Sequence[Tuple[int, str]]) -> int
 	return len(a)
 
+@typechecked
 def testfunc_Seq_ret_List(a, b):
 	# type: (int, str) -> Sequence[Union[int, str]]
 	return [a, b]
 
+@typechecked
 def testfunc_Seq_ret_Tuple(a, b):
 	# type: (int, str) -> Sequence[Union[int, str]]
 	return a, b
 
+@typechecked
 def testfunc_Seq_ret_err(a, b):
 	# type: (int, str) -> Sequence[Union[int, str]]
 	return {a: str(a), b: str(b)}
 
+@typechecked
 def testfunc_Iter_arg(a, b):
 	# type: (Iterable[int], str) -> List[int]
 	return [r for r in a]
 
+@typechecked
 def testfunc_Iter_ret():
 	# type: () -> Iterable[int]
 	return range(22)
 
+@typechecked
 def testfunc_Iter_ret_err():
 	# type: () -> Iterable[str]
 	return range(22)
@@ -595,6 +605,14 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_dict(self):
+		self.assertIsNone(testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
+		self.assertIsNone(testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
+		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
+		self.assertEqual(testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
+		self.assertRaises(ReturnTypeError, lambda: testfunc_Dict_ret_err(6))
 
 	def test_callable(self):
 		def clb(s, i):
@@ -972,6 +990,14 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_dict_py3(self):
+		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
+		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
+		self.assertEqual(py3.testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Dict_ret_err(6))
 
 	def test_callable_py3(self):
 		self.assertEqual(py3.testfunc_Callable_arg(py3.pclb, 'pqrs'), '_pqrs****')
