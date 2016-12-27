@@ -474,12 +474,12 @@ def testfunc_Iter_arg(a, b):
 @typechecked
 def testfunc_Iter_ret():
 	# type: () -> Iterable[int]
-	return range(22)
+	return [1, 2, 3, 4, 5]
 
 @typechecked
 def testfunc_Iter_ret_err():
 	# type: () -> Iterable[str]
-	return range(22)
+	return [1, 2, 3, 4, 5]
 
 @typechecked
 def testfunc_Callable_arg(a, b):
@@ -609,11 +609,25 @@ class TestTypecheck(unittest.TestCase):
 	def test_sequence(self):
 		self.assertEqual(testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
 		self.assertEqual(testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
 		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
 		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
 		self.assertEqual(testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
 		self.assertEqual(testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
 		self.assertRaises(ReturnTypeError, lambda: testfunc_Seq_ret_err(29, 'def'))
+
+	def test_iterable(self):
+		self.assertEqual(testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
+		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
+		self.assertEqual(testfunc_Iter_arg([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
+		res = testfunc_Iter_arg({9, 8, 7, 6}, 'vwxy'); res.sort()
+		self.assertEqual(res, [6, 7, 8, 9])
+		res = testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		self.assertEqual(res, [16, 17, 18, 19])
+		self.assertEqual(testfunc_Iter_ret(), [1, 2, 3, 4, 5])
+		self.assertRaises(ReturnTypeError, lambda: testfunc_Iter_ret_err())
 
 	def test_dict(self):
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
@@ -1000,14 +1014,28 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
 
-	def test_sequence(self):
+	def test_sequence_py3(self):
 		self.assertEqual(py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
 		self.assertEqual(py3.testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
 		self.assertEqual(py3.testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
 		self.assertEqual(py3.testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Seq_ret_err(29, 'def'))
+
+	def test_iterable_py3(self):
+		self.assertEqual(py3.testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
+		self.assertEqual(py3.testfunc_Iter_arg([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
+		res = py3.testfunc_Iter_arg({9, 8, 7, 6}, 'vwxy'); res.sort()
+		self.assertEqual(res, [6, 7, 8, 9])
+		res = py3.testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		self.assertEqual(res, [16, 17, 18, 19])
+		self.assertEqual(py3.testfunc_Iter_ret(), [1, 2, 3, 4, 5])
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Iter_ret_err())
 
 	def test_dict_py3(self):
 		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))

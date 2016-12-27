@@ -276,11 +276,11 @@ def testfunc_Iter_arg(a: Iterable[int], b: str) -> List[int]:
 
 @typechecked
 def testfunc_Iter_ret() -> Iterable[int]:
-	return range(22)
+	return [1, 2, 3, 4, 5]
 
 @typechecked
 def testfunc_Iter_ret_err() -> Iterable[str]:
-	return range(22)
+	return [1, 2, 3, 4, 5]
 
 @typechecked
 def testfunc_Callable_arg(a: Callable[[str, int], str], b: str) -> str:

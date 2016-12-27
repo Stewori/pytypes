@@ -190,45 +190,67 @@ def _funcsigtypes(func0, slf, func_class = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
-def _issubclass_Dict(sub, sper):
+def _issubclass_Dict(subclass, superclass):
 	# Todo: Add support for general Mapping
-	if hasattr(sub, '__origin__'):
-		if not issubclass(sub.__origin__, Dict):
+	if isinstance(subclass, GenericMeta):
+		if not issubclass(subclass.__origin__, Dict):
 			return False
 		# Todo: Key type is actually invariant (why?)
-		if not _issubclass(sper.__args__[0], sub.__args__[0]):
+		if not _issubclass(superclass.__args__[0], subclass.__args__[0]):
 			return False
-		if not _issubclass(sub.__args__[1], sper.__args__[1]):
+		if not _issubclass(subclass.__args__[1], superclass.__args__[1]):
 			return False
 		return True
-	return issubclass(sub, sper)
+	return issubclass(subclass, superclass)
 
-def _issubclass_Generic(cls, sper):
-	if cls is Any:
+def _find_Generic_super_origin(subclass, superclass):
+	stack = [subclass]
+	while len(stack) > 0:
+		bs = stack.pop()
+		if isinstance(bs, GenericMeta):
+			if (bs.__origin__ is superclass.__origin__):
+				return bs
+			stack.extend(bs.__bases__)
+	return None
+
+def _select_Generic_superclass_parameters(subclass, superclass):
+	if subclass.__origin__ is superclass.__origin__:
+		return subclass.__args__
+	real_super = _find_Generic_super_origin(subclass, superclass)
+	return [subclass.__args__[subclass.__origin__.__parameters__.index(prm)] \
+			for prm in real_super.__parameters__]
+
+def _issubclass_Generic(subclass, superclass):
+	if subclass is Any:
 		return True
-	if cls is None:
+	if subclass is None:
 		return False
-	if isinstance(cls, TupleMeta):
-		cls = Sequence[Union[cls.__tuple_params__]]
-	if isinstance(cls, GenericMeta):
+	if isinstance(subclass, TupleMeta):
+		subclass = Sequence[Union[subclass.__tuple_params__]]
+	if isinstance(subclass, GenericMeta):
 		# For a class C(Generic[T]) where T is co-variant,
 		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
-		origin = sper.__origin__
-		#Formerly: if origin is not None and origin is cls.__origin__:
-		if origin is not None and issubclass(cls.__origin__, origin):
-			assert len(sper.__args__) == len(origin.__parameters__)
-			assert len(cls.__args__) == len(origin.__parameters__)
-			for p_self, p_cls, p_origin in zip(sper.__args__,
-											cls.__args__,
+		origin = superclass.__origin__
+		#Formerly: if origin is not None and origin is subclass.__origin__:
+		if origin is not None and _issubclass(subclass.__origin__, origin):
+			assert len(superclass.__args__) == len(origin.__parameters__)
+			if len(subclass.__args__) == len(origin.__parameters__):
+				sub_args = subclass.__args__
+			else:
+				# We select the relevant subset of args by TypeVar-matching
+				sub_args = _select_Generic_superclass_parameters(subclass, superclass)
+				assert len(sub_args) == len(origin.__parameters__)
+			for p_self, p_cls, p_origin in zip(superclass.__args__,
+											sub_args,
 											origin.__parameters__):
 				if isinstance(p_origin, TypeVar):
 					if p_origin.__covariant__:
 						# Covariant -- p_cls must be a subclass of p_self.
-						if not issubclass(p_cls, p_self):
+						if not _issubclass(p_cls, p_self):
 							break
 					elif p_origin.__contravariant__:
 						# Contravariant.  I think it's the opposite. :-)
-						if not issubclass(p_self, p_cls):
+						if not _issubclass(p_self, p_cls):
 							break
 					else:
 						# Invariant -- p_cls and p_self must equal.
@@ -242,21 +264,21 @@ def _issubclass_Generic(cls, sper):
 			else:
 				return True
 			# If we break out of the loop, the superclass gets a chance.
-	if super(GenericMeta, sper).__subclasscheck__(cls):
+	if super(GenericMeta, superclass).__subclasscheck__(subclass):
 		return True
-	if sper.__extra__ is None or isinstance(cls, GenericMeta):
+	if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
 		return False
-	return issubclass(cls, sper.__extra__)
+	return _issubclass(subclass, superclass.__extra__)
 
-def _issubclass(sub, sper):
-	if hasattr(sper, '__origin__'):
-		# ALternative: if sper.__extra__ is dict:
-		if sper.__origin__ is Dict:
-			return _issubclass_Dict(sub, sper)
+def _issubclass(subclass, superclass):
+	if hasattr(superclass, '__origin__'):
+		# Alternative: if superclass.__extra__ is dict:
+		if superclass.__origin__ is Dict:
+			return _issubclass_Dict(subclass, superclass)
 		else:
-			return _issubclass_Generic(sub, sper)
+			return _issubclass_Generic(subclass, superclass)
 	# Will be a Python 3.6 workable version soon
-	return issubclass(sub, sper)
+	return issubclass(subclass, superclass)
 
 def _isinstance(obj, cls):
 	# Will be a Python 3.6 workable version soon
