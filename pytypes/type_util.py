@@ -5,7 +5,8 @@ Created on 13.12.2016
 '''
 
 import sys, types, inspect
-import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator, Callable
+import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator, Callable, \
+		TupleMeta, GenericMeta, Sequence, Mapping, TypeVar
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
@@ -189,26 +190,73 @@ def _funcsigtypes(func0, slf, func_class = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
-def _issubclass_Dict(sub, super):
+def _issubclass_Dict(sub, sper):
 	# Todo: Add support for general Mapping
 	if hasattr(sub, '__origin__'):
 		if not issubclass(sub.__origin__, Dict):
 			return False
 		# Todo: Key type is actually invariant (why?)
-		if not _issubclass(super.__args__[0], sub.__args__[0]):
+		if not _issubclass(sper.__args__[0], sub.__args__[0]):
 			return False
-		if not _issubclass(sub.__args__[1], super.__args__[1]):
+		if not _issubclass(sub.__args__[1], sper.__args__[1]):
 			return False
 		return True
-	return issubclass(sub, super)
+	return issubclass(sub, sper)
 
-def _issubclass(sub, super):
-	if hasattr(super, '__origin__'):
-		# ALternative: if super.__extra__ is dict:
-		if super.__origin__ is Dict:
-			return _issubclass_Dict(sub, super)
+def _issubclass_Generic(cls, sper):
+	if cls is Any:
+		return True
+	if cls is None:
+		return False
+	if isinstance(cls, TupleMeta):
+		cls = Sequence[Union[cls.__tuple_params__]]
+	if isinstance(cls, GenericMeta):
+		# For a class C(Generic[T]) where T is co-variant,
+		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
+		origin = sper.__origin__
+		#Formerly: if origin is not None and origin is cls.__origin__:
+		if origin is not None and issubclass(cls.__origin__, origin):
+			assert len(sper.__args__) == len(origin.__parameters__)
+			assert len(cls.__args__) == len(origin.__parameters__)
+			for p_self, p_cls, p_origin in zip(sper.__args__,
+											cls.__args__,
+											origin.__parameters__):
+				if isinstance(p_origin, TypeVar):
+					if p_origin.__covariant__:
+						# Covariant -- p_cls must be a subclass of p_self.
+						if not issubclass(p_cls, p_self):
+							break
+					elif p_origin.__contravariant__:
+						# Contravariant.  I think it's the opposite. :-)
+						if not issubclass(p_self, p_cls):
+							break
+					else:
+						# Invariant -- p_cls and p_self must equal.
+						if p_self != p_cls:
+							break
+				else:
+					# If the origin's parameter is not a typevar,
+					# insist on invariance.
+					if p_self != p_cls:
+						break
+			else:
+				return True
+			# If we break out of the loop, the superclass gets a chance.
+	if super(GenericMeta, sper).__subclasscheck__(cls):
+		return True
+	if sper.__extra__ is None or isinstance(cls, GenericMeta):
+		return False
+	return issubclass(cls, sper.__extra__)
+
+def _issubclass(sub, sper):
+	if hasattr(sper, '__origin__'):
+		# ALternative: if sper.__extra__ is dict:
+		if sper.__origin__ is Dict:
+			return _issubclass_Dict(sub, sper)
+		else:
+			return _issubclass_Generic(sub, sper)
 	# Will be a Python 3.6 workable version soon
-	return issubclass(sub, super)
+	return issubclass(sub, sper)
 
 def _isinstance(obj, cls):
 	# Will be a Python 3.6 workable version soon

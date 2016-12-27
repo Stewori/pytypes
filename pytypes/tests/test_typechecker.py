@@ -606,6 +606,15 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
 
+	def test_sequence(self):
+		self.assertEqual(testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
+		self.assertEqual(testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertEqual(testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
+		self.assertEqual(testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
+		self.assertRaises(ReturnTypeError, lambda: testfunc_Seq_ret_err(29, 'def'))
+
 	def test_dict(self):
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
@@ -990,6 +999,15 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_sequence(self):
+		self.assertEqual(py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
+		self.assertEqual(py3.testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertEqual(py3.testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
+		self.assertEqual(py3.testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Seq_ret_err(29, 'def'))
 
 	def test_dict_py3(self):
 		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
