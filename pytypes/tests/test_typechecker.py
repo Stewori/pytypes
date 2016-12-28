@@ -5,6 +5,7 @@ Created on 25.08.2016
 '''
 
 import unittest, sys, os, warnings
+from Crypto.Random.OSRNG import rng_base
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
 import pytypes

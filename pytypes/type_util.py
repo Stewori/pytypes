@@ -12,6 +12,46 @@ from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
 import pytypes
 
+def get_generator_yield_type(genr):
+	return get_generator_type(genr).__args__[0]
+
+def get_generator_type(genr):
+	if 'gen_type' in genr.gi_frame.f_locals:
+		return genr.gi_frame.f_locals['gen_type']
+	else:
+		return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
+
+def get_iterable_itemtype(obj):
+	# support further specific iterables on demand
+	try:
+		if isinstance(obj, range):
+			return Union[deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step)]
+	except TypeError:
+		pass
+	if type(obj) is tuple:
+		return Union[tuple(deep_type(t) for t in obj)]
+	elif type(obj) is types.GeneratorType:
+		return get_generator_yield_type(obj)
+	else:
+		tp = deep_type(obj)
+		if isinstance(tp, GenericMeta):
+			if issubclass(tp.__origin__, typing.Iterable):
+				if len(tp.__args__) == 1:
+					return tp.__args__[0]
+				return _select_Generic_superclass_parameters(tp, typing.Iterable)[0]
+	if is_iterable(obj):
+		return None # means that type is unknown
+	else:
+		raise TypeError('Not an iterable: '+str(type(obj)))
+
+def is_iterable(obj):
+	try:
+		itr = iter(obj)
+		del itr
+		return True
+	except:
+		return False
+
 def deep_type(obj):
 	return _deep_type(obj, [])
 
@@ -32,6 +72,8 @@ def _deep_type(obj, checked):
 				Union[tuple(_deep_type(t, checked) for t in obj.values())]]
 	elif res == set:
 		res = Set[Union[tuple(_deep_type(t, checked) for t in obj)]]
+	elif res == types.GeneratorType:
+		res = get_generator_type(obj)
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
 		# For old-style instances return the actual class:
 		return obj.__class__
@@ -132,11 +174,14 @@ def _make_invalid_type_msg(descr, func_name, tp):
 			msg += mask % (', '.join(str(t) for t in tp))
 	return msg
 
-def _funcsigtypes(func0, slf, func_class = None):
+def _funcsigtypes(func0, slf, func_class = None, globs = None):
 	# Check for stubfile
 	func = as_stub_func_if_any(util._actualfunc(func0), func0, func_class)
 
-	tpHints = typing.get_type_hints(func)
+	try:
+		tpHints = typing.get_type_hints(func)
+	except AttributeError:
+		tpHints = None
 	tpStr = _get_typestrings(func, slf)
 	if (tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints):
 		# Maybe raise warning here
@@ -145,12 +190,13 @@ def _funcsigtypes(func0, slf, func_class = None):
 		numArgs = len(util.getargspecs(func).args) - 1 if slf else 0
 		while len(tpStr[1]) < numArgs:
 			tpStr[1].append(None)
-	if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
-		globs = {}
-		globs.update(sys.modules[func.__module__].__dict__)
-		globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
-	else:
-		globs = sys.modules[func.__module__].__dict__
+	if globs is None:
+		if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
+			globs = {}
+			globs.update(sys.modules[func.__module__].__dict__)
+			globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
+		else:
+			globs = sys.modules[func.__module__].__dict__
 	if not tpHints is None and tpHints:
 		# We're running Python 3
 		argNames = inspect.getfullargspec(func).args
@@ -203,20 +249,20 @@ def _issubclass_Dict(subclass, superclass):
 		return True
 	return issubclass(subclass, superclass)
 
-def _find_Generic_super_origin(subclass, superclass):
+def _find_Generic_super_origin(subclass, superclass_origin):
 	stack = [subclass]
 	while len(stack) > 0:
 		bs = stack.pop()
 		if isinstance(bs, GenericMeta):
-			if (bs.__origin__ is superclass.__origin__):
+			if (bs.__origin__ is superclass_origin):
 				return bs
 			stack.extend(bs.__bases__)
 	return None
 
-def _select_Generic_superclass_parameters(subclass, superclass):
-	if subclass.__origin__ is superclass.__origin__:
+def _select_Generic_superclass_parameters(subclass, superclass_origin):
+	if subclass.__origin__ is superclass_origin:
 		return subclass.__args__
-	real_super = _find_Generic_super_origin(subclass, superclass)
+	real_super = _find_Generic_super_origin(subclass, superclass_origin)
 	return [subclass.__args__[subclass.__origin__.__parameters__.index(prm)] \
 			for prm in real_super.__parameters__]
 
@@ -238,7 +284,7 @@ def _issubclass_Generic(subclass, superclass):
 				sub_args = subclass.__args__
 			else:
 				# We select the relevant subset of args by TypeVar-matching
-				sub_args = _select_Generic_superclass_parameters(subclass, superclass)
+				sub_args = _select_Generic_superclass_parameters(subclass, superclass.__origin__)
 				assert len(sub_args) == len(origin.__parameters__)
 			for p_self, p_cls, p_origin in zip(superclass.__args__,
 											sub_args,
@@ -271,7 +317,7 @@ def _issubclass_Generic(subclass, superclass):
 	return _issubclass(subclass, superclass.__extra__)
 
 def _issubclass(subclass, superclass):
-	if hasattr(superclass, '__origin__'):
+	if isinstance(superclass, GenericMeta): #hasattr(superclass, '__origin__'):
 		# Alternative: if superclass.__extra__ is dict:
 		if superclass.__origin__ is Dict:
 			return _issubclass_Dict(subclass, superclass)
@@ -282,6 +328,17 @@ def _issubclass(subclass, superclass):
 
 def _isinstance(obj, cls):
 	# Will be a Python 3.6 workable version soon
+
+	# Special treatment if cls is Iterable[...]
+	if isinstance(cls, GenericMeta) and cls.__origin__ is typing.Iterable:
+		if not is_iterable(obj):
+			return False
+		itp = get_iterable_itemtype(obj)
+		if itp is None:
+			return not pytypes.check_iterables
+		else:
+			return _issubclass(itp, cls.__args__[0])
+
 	return _issubclass(deep_type(obj), cls)
 
 def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
@@ -290,40 +347,40 @@ def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
 	return gen.__name__+' '+incomp_text+':\n'+_cmp_msg_format \
 				% (type_str(expected_tp), type_str(tp))
 
-def generator_checker_py3(gen, yield_type, send_type, return_type):
+def generator_checker_py3(gen, gen_type):
 	initialized = False
 	sn = None
 	try:
 		while True:
 			a = gen.send(sn)
 			if initialized or not a is None:
-				if not yield_type is Any and not _isinstance(a, yield_type):
+				if not gen_type.__args__[0] is Any and not _isinstance(a, gen_type.__args__[0]):
 					raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
-							yield_type, 'has incompatible yield type'))
+							gen_type.__args__[0], 'has incompatible yield type'))
 			initialized = True
 			sn = yield a
-			if not send_type is Any and not _isinstance(sn, send_type):
+			if not gen_type.__args__[1] is Any and not _isinstance(sn, gen_type.__args__[1]):
 				raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
-						send_type, 'has incompatible send type'))
+						gen_type.__args__[1], 'has incompatible send type'))
 	except StopIteration as st:
 		# Python 3:
 		# todo: Check if st.value is always defined (i.e. as None if not present)
-		if not return_type is Any and not _isinstance(st.value, return_type):
+		if not gen_type.__args__[2] is Any and not _isinstance(st.value, gen_type.__args__[2]):
 				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(st.value), gen,
-						return_type, 'has incompatible return type'))
+						gen_type.__args__[2], 'has incompatible return type'))
 		raise st
 
-def generator_checker_py2(gen, yield_type, send_type):
+def generator_checker_py2(gen, gen_type):
 	initialized = False
 	sn = None
 	while True:
 		a = gen.send(sn)
 		if initialized or not a is None:
-			if not yield_type is Any and not _isinstance(a, yield_type):
+			if not gen_type.__args__[0] is Any and not _isinstance(a, gen_type.__args__[0]):
 				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
-						yield_type, 'has incompatible yield type'))
+						gen_type.__args__[0], 'has incompatible yield type'))
 		initialized  = True
 		sn = yield a
-		if not send_type is Any and not _isinstance(sn, send_type):
+		if not gen_type.__args__[1] is Any and not _isinstance(sn, gen_type.__args__[1]):
 			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
-					send_type, 'has incompatible send type'))
+					gen_type.__args__[1], 'has incompatible send type'))

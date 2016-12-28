@@ -309,7 +309,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 		else:
 			return False, obj
 	# This (optionally) turns some types into a checked version, e.g. generators or callables
-	if hasattr(cls, '__class__') and cls.__class__ is typing.CallableMeta:
+	if isinstance(cls, typing.CallableMeta):
 		# todo: Let pytypes somehow create a Callable-scoped error message,
 		# e.g. instead of
 		#	Expected: Tuple[Callable[[str, int], str], str]
@@ -337,26 +337,40 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 			# we can merge them into one checker. Maybe cheecker should already support this?
 			return True, typechecked_func(obj, force, typing.Tuple[cls.__args__], cls.__result__)
 		return True, obj
-	if pytypes.check_generators and hasattr(cls, '__origin__') and \
-			cls.__origin__ is typing.Generator:
-		if is_args or not inspect.isgeneratorfunction(func):
-			# todo: Insert fully qualified function name
-			# Todo: Move or port this to _isInstance (?)
-			raise pytypes.TypeCheckError(
-					'typing.Generator must only be used as result type of generator functions.')
-		if isinstance(obj, types.GeneratorType):
-			if obj.__name__.startswith('generator_checker_py'):
-				return True, obj
-			if sys.version_info.major == 2:
-				wrgen = type_util.generator_checker_py2(obj, cls.__args__[0], cls.__args__[1])
+	if isinstance(cls, typing.GenericMeta):
+		if cls.__origin__ is typing.Iterable:
+			if not pytypes.check_iterables:
+				return _isinstance(obj, cls), obj
 			else:
-				wrgen =type_util. generator_checker_py3(obj, cls.__args__[0], cls.__args__[1],
-						cls.__args__[2])
-				#wrgen.__name__ = obj.__name__
-				wrgen.__qualname__ = obj.__qualname__
-			return True, wrgen
-		else:
-			return False, obj
+				if not type_util.is_iterable(obj):
+					return False, obj
+				itp = type_util.get_iterable_itemtype(obj)
+				if itp is None:
+					# todo: Make iterable-checker in this case
+					return not pytypes.check_iterables
+				else:
+					return _issubclass(itp, cls.__args__[0]), obj
+		elif cls.__origin__ is typing.Generator:
+			if is_args or not inspect.isgeneratorfunction(func):
+				# todo: Insert fully qualified function name
+				# Todo: Move or port this to _isInstance (?)
+				raise pytypes.TypeCheckError(
+						'typing.Generator must only be used as result type of generator functions.')
+			if isinstance(obj, types.GeneratorType):
+				if pytypes.check_generators:
+					if obj.__name__.startswith('generator_checker_py'):
+						return True, obj
+					if sys.version_info.major == 2:
+						wrgen = type_util.generator_checker_py2(obj, cls)
+					else:
+						wrgen = type_util. generator_checker_py3(obj, cls)
+						#wrgen.__name__ = obj.__name__
+						wrgen.__qualname__ = obj.__qualname__
+					return True, wrgen
+				else:
+					return True, obj
+			else:
+				return False, obj
 	return _isinstance(obj, cls), obj
 
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False):
