@@ -334,7 +334,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 			# Todo: Only this part shall reside in _checkInstance
 			# Todo: Invent something to avoid stacking of type checkers
 			# Note that these might check different type-aspects. With IntersectionTypes one day
-			# we can merge them into one checker. Maybe cheecker should already support this?
+			# we can merge them into one checker. Maybe checker should already support this?
 			return True, typechecked_func(obj, force, typing.Tuple[cls.__args__], cls.__result__)
 		return True, obj
 	if isinstance(cls, typing.GenericMeta):
@@ -346,13 +346,31 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 					return False, obj
 				itp = type_util.get_iterable_itemtype(obj)
 				if itp is None:
-					# todo: Make iterable-checker in this case
-					return not pytypes.check_iterables
+					return not pytypes.check_iterables, obj
+# 	There was this idea of monkeypatching, but it doesn't work in Python 3 and is anyway too invasive.
+# 					if not hasattr(obj, '__iter__'):
+# 						raise TypeError(
+# 								'Can only create iterable-checker for objects with __iter__ method.')
+# 					else:
+# 						__iter__orig = obj.__iter__
+# 						def __iter__checked(self):
+# 							res = __iter__orig()
+# 							if sys.version_info.major == 3:
+# 								# Instance-level monkeypatching doesn' seem to work in Python 3
+# 								res.__next__ = types.MethodType(typechecked_func(res.__next__.__func__,
+# 										force, typing.Tuple[tuple()], cls.__args__[0]), res)
+# 							else:
+# 								# We're running Python 2
+# 								res.next = types.MethodType(typechecked_func(res.next.__func__,
+# 										force, typing.Tuple[tuple()], cls.__args__[0]), res)
+# 							return res
+# 						obj.__iter__ = types.MethodType(__iter__checked, obj)
+# 						return True, obj
 				else:
 					return _issubclass(itp, cls.__args__[0]), obj
 		elif cls.__origin__ is typing.Generator:
 			if is_args or not inspect.isgeneratorfunction(func):
-				# todo: Insert fully qualified function name
+				# Todo: Insert fully qualified function name
 				# Todo: Move or port this to _isInstance (?)
 				raise pytypes.TypeCheckError(
 						'typing.Generator must only be used as result type of generator functions.')

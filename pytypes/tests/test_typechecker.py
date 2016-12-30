@@ -5,7 +5,6 @@ Created on 25.08.2016
 '''
 
 import unittest, sys, os, warnings
-from Crypto.Random.OSRNG import rng_base
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
 import pytypes
@@ -14,7 +13,7 @@ pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
 		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-		Generic, Iterable, Sequence, Callable, Mapping
+		Generic, Iterable, Iterator, Sequence, Callable, Mapping
 from numbers import Real
 import abc; from abc import abstractmethod
 
@@ -438,6 +437,11 @@ def testfunc_Dict_arg(a, b):
 	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
 
 @typechecked
+def testfunc_Mapping_arg(a, b):
+	# type: (int, Mapping[str, Union[int, str]]) -> None
+	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
+
+@typechecked
 def testfunc_Dict_ret(a):
 	# type: (str) -> Dict[str, Union[int, str]]
 	return {a: len(a), 2*a: a}
@@ -471,6 +475,11 @@ def testfunc_Seq_ret_err(a, b):
 def testfunc_Iter_arg(a, b):
 	# type: (Iterable[int], str) -> List[int]
 	return [r for r in a]
+
+@typechecked
+def testfunc_Iter_str_arg(a):
+	# type: (Iterable[str]) -> List[int]
+	return [ord(r) for r in a]
 
 @typechecked
 def testfunc_Iter_ret():
@@ -540,6 +549,47 @@ def testfunc_Generic_ret():
 
 def testfunc_Generic_ret_err():
 	pass
+
+class test_iter():
+	def __init__(self, itrbl):
+		self.itrbl = itrbl
+		self.pos = 0
+
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		if self.pos == len(self.itrbl.tpl):
+			raise StopIteration()
+		else:
+			res = self.itrbl.tpl[self.pos]
+			self.pos += 1
+			return res
+
+	def next(self):
+		if self.pos == len(self.itrbl.tpl):
+			raise StopIteration()
+		else:
+			res = self.itrbl.tpl[self.pos]
+			self.pos += 1
+			return res
+
+
+class test_iterable():
+	def __init__(self, tpl):
+		self.tpl = tpl
+
+	def __iter__(self):
+		return test_iter(self)
+
+
+class test_iterable_annotated():
+	def __init__(self, tpl):
+		self.tpl = tpl
+
+	def __iter__(self):
+		# type: () -> Iterator[int]
+		return test_iter(self)
 
 
 class TestTypecheck(unittest.TestCase):
@@ -619,6 +669,7 @@ class TestTypecheck(unittest.TestCase):
 
 	def test_iterable(self):
 		self.assertEqual(testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
+		self.assertEqual(testfunc_Iter_str_arg('defg'), [100, 101, 102, 103])
 		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
 		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg(7, 'vwxy'))
 		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
@@ -629,10 +680,16 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(res, [16, 17, 18, 19])
 		self.assertEqual(testfunc_Iter_ret(), [1, 2, 3, 4, 5])
 		self.assertRaises(ReturnTypeError, lambda: testfunc_Iter_ret_err())
+		ti = test_iterable((2, 4, 6))
+		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg(ti, 'vwxy'))
+		tia = test_iterable_annotated((3, 6, 9))
+		self.assertEqual(testfunc_Iter_arg(tia, 'vwxy'), [3, 6, 9])
 
 	def test_dict(self):
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
+		self.assertIsNone(testfunc_Mapping_arg(7, {'7': 4, 'c': '8'}))
+		self.assertIsNone(testfunc_Mapping_arg(5, {'5': 'A', 'c': '8'}))
 		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {4: 4, 3: '8'}))
 		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
 		self.assertEqual(testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
@@ -1027,6 +1084,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
 	def test_iterable_py3(self):
 		self.assertEqual(py3.testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
+		self.assertEqual(py3.testfunc_Iter_str_arg('defg'), [100, 101, 102, 103])
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg(7, 'vwxy'))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
@@ -1037,10 +1095,16 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(res, [16, 17, 18, 19])
 		self.assertEqual(py3.testfunc_Iter_ret(), [1, 2, 3, 4, 5])
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Iter_ret_err())
+		ti = py3.test_iterable((2, 4, 6))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg(ti, 'vwxy'))
+		tia = py3.test_iterable_annotated((3, 6, 9))
+		self.assertEqual(py3.testfunc_Iter_arg(tia, 'vwxy'), [3, 6, 9])
 
 	def test_dict_py3(self):
 		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
 		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
+		self.assertIsNone(py3.testfunc_Mapping_arg(7, {'7': 4, 'c': '8'}))
+		self.assertIsNone(py3.testfunc_Mapping_arg(5, {'5': 'A', 'c': '8'}))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {4: 4, 3: '8'}))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
 		self.assertEqual(py3.testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})

@@ -23,6 +23,15 @@ check_callables = True
 check_iterables = True
 check_generators = True
 
+# For runtime-checking it is usually okay to treat Mapping-types as covariant,
+# given that a Mapping here wouldn't accept every value of proper type anyway.
+# (Unlike a mathematical mapping that accepts all values from a certain set.)
+# Note that we cannot treat the key-type as contravariant as one might expect,
+# because in Python Mappings are Iterables over the Key-type.
+covariant_Mapping = True
+
+default_typecheck_depth = 10
+
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
 # Search-path for stubfiles.

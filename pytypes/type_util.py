@@ -27,6 +27,7 @@ def get_iterable_itemtype(obj):
 		if isinstance(obj, range):
 			return Union[deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step)]
 	except TypeError:
+		# We're running Python 2
 		pass
 	if type(obj) is tuple:
 		return Union[tuple(deep_type(t) for t in obj)]
@@ -40,6 +41,18 @@ def get_iterable_itemtype(obj):
 					return tp.__args__[0]
 				return _select_Generic_superclass_parameters(tp, typing.Iterable)[0]
 	if is_iterable(obj):
+		if type(obj) is str:
+			return str
+		if hasattr(obj, '__iter__'):
+			if has_type_hints(obj.__iter__):
+				itrator = _funcsigtypes(obj.__iter__, True, obj.__class__)[1]
+				if isinstance(itrator, GenericMeta) and itrator.__origin__ is typing.Iterator:
+					return itrator.__args__[0]
+		if hasattr(obj, '__getitem__'):
+			if has_type_hints(obj.__getitem__):
+				itrator =  _funcsigtypes(obj.__getitem__, True, obj.__class__)[1]
+				if isinstance(itrator, GenericMeta) and itrator.__origin__ is typing.Iterator:
+					return itrator.__args__[0]
 		return None # means that type is unknown
 	else:
 		raise TypeError('Not an iterable: '+str(type(obj)))
@@ -52,26 +65,26 @@ def is_iterable(obj):
 	except:
 		return False
 
-def deep_type(obj):
-	return _deep_type(obj, [])
+def deep_type(obj, depth = pytypes.default_typecheck_depth):
+	return _deep_type(obj, [], depth)
 
-def _deep_type(obj, checked):
+def _deep_type(obj, checked, depth):
 	res = type(obj)
-	if obj in checked:
+	if depth == 0 or obj in checked:
 		return res
 	else:
 		checked.append(obj)
 	if hasattr(obj, '__gentype__'):
 		return obj.__gentype__
 	if res == tuple:
-		res = Tuple[tuple(_deep_type(t, checked) for t in obj)]
+		res = Tuple[tuple(_deep_type(t, checked, depth-1) for t in obj)]
 	elif res == list:
-		res = List[Union[tuple(_deep_type(t, checked) for t in obj)]]
+		res = List[Union[tuple(_deep_type(t, checked, depth-1) for t in obj)]]
 	elif res == dict:
-		res = Dict[Union[tuple(_deep_type(t, checked) for t in obj.keys())],
-				Union[tuple(_deep_type(t, checked) for t in obj.values())]]
+		res = Dict[Union[tuple(_deep_type(t, checked, depth-1) for t in obj.keys())],
+				Union[tuple(_deep_type(t, checked, depth-1) for t in obj.values())]]
 	elif res == set:
-		res = Set[Union[tuple(_deep_type(t, checked) for t in obj)]]
+		res = Set[Union[tuple(_deep_type(t, checked, depth-1) for t in obj)]]
 	elif res == types.GeneratorType:
 		res = get_generator_type(obj)
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
@@ -236,13 +249,12 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
-def _issubclass_Dict(subclass, superclass):
-	# Todo: Add support for general Mapping
+def _issubclass_Mapping_covariant(subclass, superclass):
+	# This subclass-check treats Mapping-values as covariant
 	if isinstance(subclass, GenericMeta):
-		if not issubclass(subclass.__origin__, Dict):
+		if not issubclass(subclass.__origin__, Mapping):
 			return False
-		# Todo: Key type is actually invariant (why?)
-		if not _issubclass(superclass.__args__[0], subclass.__args__[0]):
+		if not _issubclass(subclass.__args__[0], superclass.__args__[0]):
 			return False
 		if not _issubclass(subclass.__args__[1], superclass.__args__[1]):
 			return False
@@ -316,11 +328,22 @@ def _issubclass_Generic(subclass, superclass):
 		return False
 	return _issubclass(subclass, superclass.__extra__)
 
+# This is just a crutch, because issubclass sometimes tries to be too smart.
+def _has_base(cls, base):
+	if cls is base:
+		return True
+	elif cls is None:
+		return False
+	for bs in cls.__bases__:
+		if _has_base(bs, base):
+			return True
+	return False
+
 def _issubclass(subclass, superclass):
-	if isinstance(superclass, GenericMeta): #hasattr(superclass, '__origin__'):
-		# Alternative: if superclass.__extra__ is dict:
-		if superclass.__origin__ is Dict:
-			return _issubclass_Dict(subclass, superclass)
+	if isinstance(superclass, GenericMeta):
+		# We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
+		if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
+			return _issubclass_Mapping_covariant(subclass, superclass)
 		else:
 			return _issubclass_Generic(subclass, superclass)
 	# Will be a Python 3.6 workable version soon

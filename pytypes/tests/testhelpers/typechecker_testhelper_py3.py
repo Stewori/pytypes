@@ -5,8 +5,8 @@ Created on 12.09.2016
 '''
 
 import pytypes; from pytypes import typechecked, override
-from typing import Tuple, Union, Dict, Generator, TypeVar, \
-		Generic, Iterable, Sequence, Callable, List, Any
+from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
+		Iterable, Iterator, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
 from numbers import Real
 
@@ -247,6 +247,10 @@ def testfunc_Dict_arg(a: int, b: Dict[str, Union[int, str]]) -> None:
 	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
 
 @typechecked
+def testfunc_Mapping_arg(a: int, b: Mapping[str, Union[int, str]]) -> None:
+	assert isinstance(b[str(a)], str) or isinstance(b[str(a)], int)
+
+@typechecked
 def testfunc_Dict_ret(a: str) -> Dict[str, Union[int, str]]:
 	return {a: len(a), 2*a: a}
 
@@ -273,6 +277,10 @@ def testfunc_Seq_ret_err(a: int, b: str) -> Sequence[Union[int, str]]:
 @typechecked
 def testfunc_Iter_arg(a: Iterable[int], b: str) -> List[int]:
 	return [r for r in a]
+
+@typechecked
+def testfunc_Iter_str_arg(a: Iterable[str]) -> List[int]:
+	return [ord(r) for r in a]
 
 @typechecked
 def testfunc_Iter_ret() -> Iterable[int]:
@@ -335,3 +343,44 @@ def testfunc_Generator_ret() -> Generator[int, Union[str, None], Any]:
 	# should raise error because of illegal use of typing.Generator
 	res = testfunc_Generator()
 	return res
+
+class test_iter():
+	def __init__(self, itrbl):
+		self.itrbl = itrbl
+		self.pos = 0
+
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		if self.pos == len(self.itrbl.tpl):
+			raise StopIteration()
+		else:
+			res = self.itrbl.tpl[self.pos]
+			self.pos += 1
+			return res
+
+	def next(self):
+		if self.pos == len(self.itrbl.tpl):
+			raise StopIteration()
+		else:
+			res = self.itrbl.tpl[self.pos]
+			self.pos += 1
+			return res
+
+
+class test_iterable():
+	def __init__(self, tpl):
+		self.tpl = tpl
+
+	def __iter__(self):
+		return test_iter(self)
+
+
+class test_iterable_annotated():
+	def __init__(self, tpl):
+		self.tpl = tpl
+
+	def __iter__(self) -> Iterator[int]:
+		return test_iter(self)
+
