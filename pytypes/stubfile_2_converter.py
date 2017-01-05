@@ -38,10 +38,8 @@ def _typestring(_types):
 	if _types[0] is Any:
 		argstr = '...'
 	else:
-		try:
-			argstr = ', '.join([tpc._type_str(tp) for tp in _types[0].__tuple_params__])
-		except AttributeError:
-			argstr = ', '.join([tpc._type_str(tp) for tp in _types[0].__args__])
+		argstr = ', '.join([tpc._type_str(tp) for tp in \
+				pytypes.get_Tuple_params(_types[0])])
 	retstr = tpc._type_str(_types[1])
 	return '('+argstr+') -> '+retstr
 

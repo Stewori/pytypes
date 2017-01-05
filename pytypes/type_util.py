@@ -150,15 +150,16 @@ def type_str(tp):
 		except AttributeError:
 			params = [type_str(param) for param in tp.__union_params__]
 		return 'Union['+', '.join(params)+']'
+	elif isinstance(tp, TupleMeta):
+		prms = get_Tuple_params(tp)
+		tpl_params = [type_str(param) for param in prms]
+		return 'Tuple['+', '.join(tpl_params)+']'
 	elif hasattr(tp, '__args__'):
 		params = [type_str(param) for param in tp.__args__]
 		if hasattr(tp, '__result__'):
 			return tp.__name__+'[['+', '.join(params)+'], '+type_str(tp.__result__)+']'
 		else:
 			return tp.__name__+'['+', '.join(params)+']'
-	elif hasattr(tp, '__tuple_params__'):
-		tpl_params = [type_str(param) for param in tp.__tuple_params__]
-		return 'Tuple['+', '.join(tpl_params)+']'
 	else:
 		# Todo: Care for other special types from typing where necessary.
 		return str(tp).replace('typing.', '')
@@ -199,12 +200,9 @@ def get_type_hints(func):
 	argNames = util.getargspecs(util._actualfunc(func)).args
 	result = {}
 	if not args is Any:
+		prms = get_Tuple_params(args)
 		for i in range(slf, len(argNames)):
-			try:
-				result[argNames[i]] = args.__tuple_params__[i-slf]
-			except AttributeError:
-				# Python 3.6
-				result[argNames[i]] = args.__args__[i-slf]
+			result[argNames[i]] = prms[i-slf]
 	result['return'] = res
 	return result
 
@@ -280,6 +278,13 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
+def get_Tuple_params(tpl):
+	try:
+		return tpl.__tuple_params__
+	except AttributeError:
+		# Python 3.6
+		return () if tpl.__args__[0] == () else tpl.__args__
+
 def _issubclass_Mapping_covariant(subclass, superclass):
 	# This subclass-check treats Mapping-values as covariant
 	if isinstance(subclass, GenericMeta):
@@ -299,7 +304,7 @@ def _find_Generic_super_origin(subclass, superclass_origin):
 		if isinstance(bs, GenericMeta):
 			if (bs.__origin__ is superclass_origin or \
 					(bs.__origin__ is None and bs is superclass_origin)):
-				return bs
+				return bs.__parameters__
 			stack.extend(bs.__bases__)
 	return None
 
@@ -312,28 +317,27 @@ def _find_Generic_super_origin_py36(subclass, superclass_origin):
 		if isinstance(bs, GenericMeta):
 			if (bs.__origin__ is superclass_origin or \
 					(bs.__origin__ is None and bs is superclass_origin)):
-				return bs, param_map
+				prms = []
+				prms.extend(bs.__parameters__)
+				for i in range(len(prms)):
+					while prms[i] in param_map:
+						prms[i] = param_map[prms[i]]
+				return prms
 			if len(bs.__origin__.__parameters__) > 0:
 				for i in range(len(bs.__parameters__)):
 					ors = bs.__origin__.__parameters__[i]
 					if bs.__parameters__[i] != ors:
 						param_map[ors] = bs.__parameters__[i]
 			stack.extend(bs.__orig_bases__)
-	return None, None
+	return None
 
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
 	if subclass.__origin__ is superclass_origin:
 		return subclass.__args__
 	if hasattr(subclass, '__orig_bases__'):
-		real_super, pmap = _find_Generic_super_origin_py36(subclass, superclass_origin)
-		prms = []
-		prms.extend(real_super.__parameters__)
-		for i in range(len(prms)):
-			while prms[i] in pmap:
-				prms[i] = pmap[prms[i]]
+		prms = _find_Generic_super_origin_py36(subclass, superclass_origin)
 	else:
-		real_super = _find_Generic_super_origin(subclass, superclass_origin)
-		prms = real_super.__parameters__
+		prms = _find_Generic_super_origin(subclass, superclass_origin)
 	return [subclass.__args__[subclass.__origin__.__parameters__.index(prm)] \
 			for prm in prms]
 
@@ -344,7 +348,7 @@ def _issubclass_Generic(subclass, superclass):
 		return False
 	if isinstance(subclass, TupleMeta):
 		try:
-			subclass = Sequence[Union[subclass.__tuple_params__]]
+			subclass = Sequence[Union[get_Tuple_params(subclass)]]
 		except AttributeError:
 			# Python 3.6
 			subclass = Sequence[Union[subclass.__args__]]
@@ -359,7 +363,6 @@ def _issubclass_Generic(subclass, superclass):
 				sub_args = subclass.__args__
 			else:
 				# We select the relevant subset of args by TypeVar-matching
-				print(334, subclass, superclass.__origin__)
 				sub_args = _select_Generic_superclass_parameters(subclass, superclass.__origin__)
 				assert len(sub_args) == len(origin.__parameters__)
 			for p_self, p_cls, p_origin in zip(superclass.__args__,

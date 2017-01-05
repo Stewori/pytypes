@@ -294,11 +294,7 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 
 def _checkinstance(obj, cls, is_args, func, force = False):
 	if isinstance(cls, typing.TupleMeta):
-		try:
-			prms = cls.__tuple_params__
-		except AttributeError:
-			# Python 3.6
-			prms = cls.__args__
+		prms = pytypes.get_Tuple_params(cls)
 		if len(obj) != len(prms):
 			return False, obj
 		lst = []

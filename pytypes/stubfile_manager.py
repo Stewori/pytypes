@@ -171,10 +171,8 @@ def _match_stub_type(stub_type):
 	# Todo: Only apply if stub-module is involved
 	# Todo: Somehow cache results
 	if isinstance(stub_type, TupleMeta):
-		if hasattr(stub_type, '__tuple_params__'):
-			res = Tuple[tuple(_match_stub_type(t) for t in stub_type.__tuple_params__)]
-		else:
-			res = Tuple[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+		prms = pytypes.get_Tuple_params(stub_type)
+		res = Tuple[tuple(_match_stub_type(t) for t in prms)]
 	elif pytypes.is_Union(stub_type):
 		try:
 			# Python 3.6
