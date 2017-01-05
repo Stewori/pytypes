@@ -1204,3 +1204,7 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
+
+#print (pytypes.type_util._issubclass(Tuple[str, float], tuple))
+# should be false, because former type is more specialized
+# todo: same for list etc

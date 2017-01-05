@@ -7,7 +7,7 @@ Created on 13.12.2016
 import sys, inspect, os, imp, subprocess
 import warnings, tempfile, atexit
 from inspect import isclass, ismodule, ismethod
-from typing import Tuple, Union
+from typing import Tuple, Union, TupleMeta
 
 import pytypes; from pytypes import util
 
@@ -170,10 +170,17 @@ def _match_stub_type(stub_type):
 		return stub_type
 	# Todo: Only apply if stub-module is involved
 	# Todo: Somehow cache results
-	if hasattr(stub_type, '__tuple_params__'):
-		res = Tuple[tuple(_match_stub_type(t) for t in stub_type.__tuple_params__)]
-	elif hasattr(stub_type, '__union_params__'):
-		res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
+	if isinstance(stub_type, TupleMeta):
+		if hasattr(stub_type, '__tuple_params__'):
+			res = Tuple[tuple(_match_stub_type(t) for t in stub_type.__tuple_params__)]
+		else:
+			res = Tuple[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+	elif pytypes.is_Union(stub_type):
+		try:
+			# Python 3.6
+			res = Union[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+		except AttributeError:
+			res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
 # 	elif res == list:
 # 		res = List[Union[tuple(_match_stub_type(t) for t in obj)]]
 # 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):

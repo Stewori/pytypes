@@ -293,14 +293,18 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 				% (type_str(expected_tp), type_str(tp))
 
 def _checkinstance(obj, cls, is_args, func, force = False):
-	# todo: Complete this function
-	if hasattr(cls, '__tuple_params__'):
-		if len(obj) != len(cls.__tuple_params__):
+	if isinstance(cls, typing.TupleMeta):
+		try:
+			prms = cls.__tuple_params__
+		except AttributeError:
+			# Python 3.6
+			prms = cls.__args__
+		if len(obj) != len(prms):
 			return False, obj
 		lst = []
 		if isinstance(obj, tuple):
 			for i in range(len(obj)):
-				res, obj2 = _checkinstance(obj[i], cls.__tuple_params__[i], is_args, func)
+				res, obj2 = _checkinstance(obj[i], prms[i], is_args, func)
 				if not res:
 					return False, obj
 				else:

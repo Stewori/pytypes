@@ -58,12 +58,32 @@ def get_iterable_itemtype(obj):
 		raise TypeError('Not an iterable: '+str(type(obj)))
 
 def is_iterable(obj):
+	'''Tests if an object implements the iterable protocol.
+	This function is intentionally not capitalized, because
+	it does not check w.r.t. (capital) Iterable class from
+	typing or collections.
+	'''
 	try:
 		itr = iter(obj)
 		del itr
 		return True
 	except:
 		return False
+
+def is_Union(tp):
+	'''Python-version independent check if a type is typing.Union.
+	Tested with CPython 2.7, 3.5 and 3.6.
+	'''
+	if tp is Union:
+		return True
+	try:
+		# Python 3.6
+		return tp.__origin__ is Union
+	except AttributeError:
+		try:
+			return isinstance(tp, typing.UnionMeta)
+		except AttributeError:
+			return False
 
 def deep_type(obj, depth = pytypes.default_typecheck_depth):
 	return _deep_type(obj, [], depth)
@@ -123,6 +143,13 @@ def type_str(tp):
 			params = [type_str(param) for param in tp.__args__]
 			prm = '['+', '.join(params)+']'
 		return pck+tp.__name__+prm
+	elif is_Union(tp):
+		try:
+			# Python 3.6
+			params = [type_str(param) for param in tp.__args__]
+		except AttributeError:
+			params = [type_str(param) for param in tp.__union_params__]
+		return 'Union['+', '.join(params)+']'
 	elif hasattr(tp, '__args__'):
 		params = [type_str(param) for param in tp.__args__]
 		if hasattr(tp, '__result__'):
@@ -173,7 +200,11 @@ def get_type_hints(func):
 	result = {}
 	if not args is Any:
 		for i in range(slf, len(argNames)):
-			result[argNames[i]] = args.__tuple_params__[i-slf]
+			try:
+				result[argNames[i]] = args.__tuple_params__[i-slf]
+			except AttributeError:
+				# Python 3.6
+				result[argNames[i]] = args.__args__[i-slf]
 	result['return'] = res
 	return result
 
@@ -266,17 +297,45 @@ def _find_Generic_super_origin(subclass, superclass_origin):
 	while len(stack) > 0:
 		bs = stack.pop()
 		if isinstance(bs, GenericMeta):
-			if (bs.__origin__ is superclass_origin):
+			if (bs.__origin__ is superclass_origin or \
+					(bs.__origin__ is None and bs is superclass_origin)):
 				return bs
 			stack.extend(bs.__bases__)
 	return None
 
+def _find_Generic_super_origin_py36(subclass, superclass_origin):
+	# Special version for Python 3.6
+	stack = [subclass]
+	param_map = {}
+	while len(stack) > 0:
+		bs = stack.pop()
+		if isinstance(bs, GenericMeta):
+			if (bs.__origin__ is superclass_origin or \
+					(bs.__origin__ is None and bs is superclass_origin)):
+				return bs, param_map
+			if len(bs.__origin__.__parameters__) > 0:
+				for i in range(len(bs.__parameters__)):
+					ors = bs.__origin__.__parameters__[i]
+					if bs.__parameters__[i] != ors:
+						param_map[ors] = bs.__parameters__[i]
+			stack.extend(bs.__orig_bases__)
+	return None, None
+
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
 	if subclass.__origin__ is superclass_origin:
 		return subclass.__args__
-	real_super = _find_Generic_super_origin(subclass, superclass_origin)
+	if hasattr(subclass, '__orig_bases__'):
+		real_super, pmap = _find_Generic_super_origin_py36(subclass, superclass_origin)
+		prms = []
+		prms.extend(real_super.__parameters__)
+		for i in range(len(prms)):
+			while prms[i] in pmap:
+				prms[i] = pmap[prms[i]]
+	else:
+		real_super = _find_Generic_super_origin(subclass, superclass_origin)
+		prms = real_super.__parameters__
 	return [subclass.__args__[subclass.__origin__.__parameters__.index(prm)] \
-			for prm in real_super.__parameters__]
+			for prm in prms]
 
 def _issubclass_Generic(subclass, superclass):
 	if subclass is Any:
@@ -284,7 +343,11 @@ def _issubclass_Generic(subclass, superclass):
 	if subclass is None:
 		return False
 	if isinstance(subclass, TupleMeta):
-		subclass = Sequence[Union[subclass.__tuple_params__]]
+		try:
+			subclass = Sequence[Union[subclass.__tuple_params__]]
+		except AttributeError:
+			# Python 3.6
+			subclass = Sequence[Union[subclass.__args__]]
 	if isinstance(subclass, GenericMeta):
 		# For a class C(Generic[T]) where T is co-variant,
 		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
@@ -296,6 +359,7 @@ def _issubclass_Generic(subclass, superclass):
 				sub_args = subclass.__args__
 			else:
 				# We select the relevant subset of args by TypeVar-matching
+				print(334, subclass, superclass.__origin__)
 				sub_args = _select_Generic_superclass_parameters(subclass, superclass.__origin__)
 				assert len(sub_args) == len(origin.__parameters__)
 			for p_self, p_cls, p_origin in zip(superclass.__args__,
@@ -322,11 +386,56 @@ def _issubclass_Generic(subclass, superclass):
 			else:
 				return True
 			# If we break out of the loop, the superclass gets a chance.
-	if super(GenericMeta, superclass).__subclasscheck__(subclass):
+# 	Formerly: if super(GenericMeta, superclass).__subclasscheck__(subclass):
+	if type.__subclasscheck__(superclass, subclass):
 		return True
 	if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
 		return False
 	return _issubclass(subclass, superclass.__extra__)
+
+def _issubclass_Tuple(subclass, superclass):
+	# Intended only for Python 3.6+
+	if subclass is Any:
+		return True
+	if not isinstance(subclass, type):
+# 		# To TypeError.
+		return False
+# 		return super(TupleMeta, superclass).__subclasscheck__(subclass)
+# 	if issubclass(subclass, tuple):
+# 		return False  # Special case.
+	if not isinstance(subclass, TupleMeta):
+		#return super(TupleMeta, superclass).__subclasscheck__(subclass)  # False.
+		return _issubclass_Generic(subclass, superclass)
+	if superclass.__args__ is None:
+		return True
+	if subclass.__args__ is None:
+		return False  # ???
+# 	if subclass.__tuple_use_ellipsis__ != superclass.__tuple_use_ellipsis__:
+# 		return False
+	# Covariance.
+	return (len(superclass.__args__) == len(subclass.__args__) and
+			all(_issubclass(x, p)
+				for x, p in zip(subclass.__args__, superclass.__args__)))
+
+def _issubclass_Union(subclass, superclass): #self, cls):
+	# Intended only for Python 3.6+
+	if subclass is Any:
+		return True # Why??
+	if superclass.__args__ is None:
+		#return isinstance(subclass, UnionMeta)
+		return is_Union(subclass)
+	elif is_Union(subclass): #isinstance(subclass, UnionMeta):
+		if subclass.__args__ is None:
+			return False
+		return all(_issubclass(c, superclass) for c in (subclass.__args__))
+	elif isinstance(subclass, TypeVar):
+		if subclass in superclass.__args__:
+			return True
+		if subclass.__constraints__:
+			return _issubclass(Union[subclass.__constraints__], superclass)
+		return False
+	else:
+		return any(_issubclass(subclass, t) for t in superclass.__args__)
 
 # This is just a crutch, because issubclass sometimes tries to be too smart.
 def _has_base(cls, base):
@@ -340,18 +449,24 @@ def _has_base(cls, base):
 	return False
 
 def _issubclass(subclass, superclass):
+	if superclass is Any:
+		return True
 	if isinstance(superclass, GenericMeta):
+		if isinstance(superclass, TupleMeta):
+			return _issubclass_Tuple(subclass, superclass)
 		# We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
 		if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
 			return _issubclass_Mapping_covariant(subclass, superclass)
 		else:
 			return _issubclass_Generic(subclass, superclass)
-	# Will be a Python 3.6 workable version soon
+	if is_Union(superclass) and hasattr(superclass, '__args__'):
+		return _issubclass_Union(subclass, superclass)
+	if is_Union(subclass) and hasattr(subclass, '__args__'):
+		# Another special treatment for Python 3.6
+		return all(_issubclass(t, superclass) for t in subclass.__args__)
 	return issubclass(subclass, superclass)
 
 def _isinstance(obj, cls):
-	# Will be a Python 3.6 workable version soon
-
 	# Special treatment if cls is Iterable[...]
 	if isinstance(cls, GenericMeta) and cls.__origin__ is typing.Iterable:
 		if not is_iterable(obj):

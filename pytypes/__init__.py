@@ -56,7 +56,7 @@ class OverrideError(TypeCheckError): pass
 # We import some public API for central access:
 from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, \
-		get_generator_type, get_generator_yield_type
+		get_generator_type, get_generator_yield_type, is_Union
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
