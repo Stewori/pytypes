@@ -6,7 +6,7 @@ Created on 13.12.2016
 
 import sys, types, inspect
 import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator, Callable, \
-		TupleMeta, GenericMeta, Sequence, Mapping, TypeVar
+		TupleMeta, GenericMeta, CallableMeta, Sequence, Mapping, TypeVar
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
@@ -56,6 +56,20 @@ def get_iterable_itemtype(obj):
 		return None # means that type is unknown
 	else:
 		raise TypeError('Not an iterable: '+str(type(obj)))
+
+def get_Tuple_params(tpl):
+	try:
+		return tpl.__tuple_params__
+	except AttributeError:
+		# Python 3.6
+		return () if tpl.__args__[0] == () else tpl.__args__
+
+def get_Callable_args_res(clb):
+	try:
+		return clb.__args__, clb.__result__
+	except AttributeError:
+		# Python 3.6
+		return clb.__args__[:-1], clb.__args__[-1]
 
 def is_iterable(obj):
 	'''Tests if an object implements the iterable protocol.
@@ -158,6 +172,8 @@ def type_str(tp):
 		params = [type_str(param) for param in tp.__args__]
 		if hasattr(tp, '__result__'):
 			return tp.__name__+'[['+', '.join(params)+'], '+type_str(tp.__result__)+']'
+		elif isinstance(tp, CallableMeta):
+			return tp.__name__+'[['+', '.join(params[:-1])+'], '+type_str(params[-1])+']'
 		else:
 			return tp.__name__+'['+', '.join(params)+']'
 	else:
@@ -278,13 +294,6 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None):
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	return res
 
-def get_Tuple_params(tpl):
-	try:
-		return tpl.__tuple_params__
-	except AttributeError:
-		# Python 3.6
-		return () if tpl.__args__[0] == () else tpl.__args__
-
 def _issubclass_Mapping_covariant(subclass, superclass):
 	# This subclass-check treats Mapping-values as covariant
 	if isinstance(subclass, GenericMeta):
@@ -396,7 +405,7 @@ def _issubclass_Generic(subclass, superclass):
 		return False
 	return _issubclass(subclass, superclass.__extra__)
 
-def _issubclass_Tuple(subclass, superclass):
+def _issubclass_Tuple_py36(subclass, superclass):
 	# Intended only for Python 3.6+
 	if subclass is Any:
 		return True
@@ -420,7 +429,7 @@ def _issubclass_Tuple(subclass, superclass):
 			all(_issubclass(x, p)
 				for x, p in zip(subclass.__args__, superclass.__args__)))
 
-def _issubclass_Union(subclass, superclass): #self, cls):
+def _issubclass_Union_py36(subclass, superclass): #self, cls):
 	# Intended only for Python 3.6+
 	if subclass is Any:
 		return True # Why??
@@ -456,18 +465,42 @@ def _issubclass(subclass, superclass):
 		return True
 	if isinstance(superclass, GenericMeta):
 		if isinstance(superclass, TupleMeta):
-			return _issubclass_Tuple(subclass, superclass)
+			return _issubclass_Tuple_py36(subclass, superclass)
 		# We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
 		if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
 			return _issubclass_Mapping_covariant(subclass, superclass)
 		else:
 			return _issubclass_Generic(subclass, superclass)
 	if is_Union(superclass) and hasattr(superclass, '__args__'):
-		return _issubclass_Union(subclass, superclass)
+		return _issubclass_Union_py36(subclass, superclass)
 	if is_Union(subclass) and hasattr(subclass, '__args__'):
 		# Another special treatment for Python 3.6
 		return all(_issubclass(t, superclass) for t in subclass.__args__)
 	return issubclass(subclass, superclass)
+
+def _isinstance_Callable(obj, cls, check_callables = True):
+	# todo: Let pytypes somehow create a Callable-scoped error message,
+	# e.g. instead of
+	#	Expected: Tuple[Callable[[str, int], str], str]
+	#	Received: Tuple[function, str]
+	# make
+	#	Expected: Tuple[Callable[[str, int], str], str]
+	#	Received: Tuple[Callable[[str, str], str], str]
+	if not hasattr(obj, '__call__'):
+		return False
+	if has_type_hints(obj):
+		slf_or_cls = util.is_method(obj) or util.is_classmethod(obj)
+		parent_cls = util.get_class_that_defined_method(obj) if slf_or_cls else None
+		argSig, resSig = _funcsigtypes(obj, slf_or_cls, parent_cls)
+		argSig = _match_stub_type(argSig)
+		resSig = _match_stub_type(resSig)
+		clb_args, clb_res = get_Callable_args_res(cls)
+		if not _issubclass(typing.Tuple[clb_args], argSig):
+			return False
+		if not _issubclass(resSig, clb_res):
+			return False
+		return True
+	return not check_callables
 
 def _isinstance(obj, cls):
 	# Special treatment if cls is Iterable[...]
@@ -479,6 +512,9 @@ def _isinstance(obj, cls):
 			return not pytypes.check_iterables
 		else:
 			return _issubclass(itp, cls.__args__[0])
+
+	if isinstance(cls, CallableMeta):
+		return _isinstance_Callable(obj, cls)
 
 	return _issubclass(deep_type(obj), cls)
 

@@ -310,32 +310,15 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 			return False, obj
 	# This (optionally) turns some types into a checked version, e.g. generators or callables
 	if isinstance(cls, typing.CallableMeta):
-		# todo: Let pytypes somehow create a Callable-scoped error message,
-		# e.g. instead of
-		#	Expected: Tuple[Callable[[str, int], str], str]
-		#	Received: Tuple[function, str]
-		# make
-		#	Expected: Tuple[Callable[[str, int], str], str]
-		#	Received: Tuple[Callable[[str, str], str], str]
-		if not hasattr(obj, '__call__'):
+		if not type_util._isinstance_Callable(obj, cls, False):
 			return False, obj
-		if type_util.has_type_hints(obj):
-			# Todo: Move or port this to _isInstance
-			slf_or_cls = util.is_method(obj) or util.is_classmethod(obj)
-			parent_cls = util.get_class_that_defined_method(obj) if slf_or_cls else None
-			argSig, resSig = _funcsigtypes(obj, slf_or_cls, parent_cls)
-			argSig = _match_stub_type(argSig)
-			resSig = _match_stub_type(resSig)
-			if not _issubclass(typing.Tuple[cls.__args__], argSig):
-				return False, obj
-			if not _issubclass(resSig, cls.__result__):
-				return False, obj
 		if pytypes.check_callables:
 			# Todo: Only this part shall reside in _checkInstance
 			# Todo: Invent something to avoid stacking of type checkers
 			# Note that these might check different type-aspects. With IntersectionTypes one day
 			# we can merge them into one checker. Maybe checker should already support this?
-			return True, typechecked_func(obj, force, typing.Tuple[cls.__args__], cls.__result__)
+			clb_args, clb_res = pytypes.get_Callable_args_res(cls)
+			return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
 		return True, obj
 	if isinstance(cls, typing.GenericMeta):
 		if cls.__origin__ is typing.Iterable:

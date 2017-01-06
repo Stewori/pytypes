@@ -708,6 +708,10 @@ class TestTypecheck(unittest.TestCase):
 			# type: (str, int) -> int
 			return '_'+s+'*'*i
 
+		self.assertTrue(pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
+		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
+		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
+
 		self.assertEqual(testfunc_Callable_arg(clb, 'pqrs'), '_pqrs****')
 		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb2, 'pqrs'))
 		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb3, 'pqrs'))
@@ -1111,6 +1115,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Dict_ret_err(6))
 
 	def test_callable_py3(self):
+		self.assertTrue(pytypes.is_of_type(py3.pclb, typing.Callable[[str, int], str]))
+		self.assertFalse(pytypes.is_of_type(py3.pclb, typing.Callable[[str, str], str]))
+		self.assertFalse(pytypes.is_of_type(py3.pclb, typing.Callable[[str, int], float]))
+
 		self.assertEqual(py3.testfunc_Callable_arg(py3.pclb, 'pqrs'), '_pqrs****')
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb2, 'pqrs'))
 		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb3, 'pqrs'))
