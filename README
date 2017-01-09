@@ -15,10 +15,10 @@ Besides various other useful typing-related functions pytypes so far features an
 Further it provides a typecheck-decorator for runtime typechecking and an override-decorator for runtime-assertion of consistent method-overriding w.r.t. type-annotations. In combination these decorators can also perform type-checking on overridden methods even if only the parent method was type-annotated.
 
 
-Python 2.7 and 3.5
-------------------
+Python 2.7, 3.5, 3.6
+--------------------
 
-All described features of pytypes were carefully implemented such that they are equally workable on Python 3.5 and 2.7. For Python 2.7 pytypes fully supports type-annotations as described in https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code. As far as we know this support is currently a unique feature compared to other type-checking frameworks.
+All described features of pytypes were carefully implemented such that they are equally workable on Python 3.5, 3.6 and 2.7. For Python 2.7 pytypes fully supports type-annotations as described in https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code. As far as we know this support is currently a unique feature compared to other runtime-type-checking frameworks.
 It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development. If a function or method is type-annotated in Python 2.7 and 3.5 style at the same time pytypes automatically asserts equality of the annotations.
 
 
@@ -38,7 +38,7 @@ Next steps
 As of this writing pytypes doesn't yet support
 
 - method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
-- some constructs from typing (e.g. List, Tuple, Union, Any are supported, e.g. generics and callables are not yet)
+- async-related constructs from typing
 - numeric tower does not yet work like described in PEP 484
 
 

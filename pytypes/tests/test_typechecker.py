@@ -1209,7 +1209,6 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 		pytypes.check_override_at_class_definition_time = tmp
 
-
 if __name__ == '__main__':
 	unittest.main()
 

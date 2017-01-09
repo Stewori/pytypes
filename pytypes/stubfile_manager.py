@@ -14,6 +14,11 @@ import pytypes; from pytypes import util
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
 stub_modules = {}
 
+if os.name == 'java':
+	module_filename_delim = '$'
+else:
+	module_filename_delim = '.'
+
 def _create_Python_2_stub(module_filepath, out_file = None):
 	if out_file is None:
 		out_file = _gen_stub2_filename(module_filepath)
@@ -55,11 +60,11 @@ def _find_stub_files(module_name):
 			file_name2, pytypes.stub_path)
 
 def _plain_stub2_filename(stub_file):
-	return stub_file.rpartition('.')[0]+'.pyi2'
+	return stub_file.rpartition(module_filename_delim)[0]+'.pyi2'
 
 def _gen_stub2_filename(stub_file, base_module):
 	if os.path.isfile(stub_file):
-		bn = os.path.basename(stub_file).rpartition('.')[0]
+		bn = os.path.basename(stub_file).rpartition(module_filename_delim)[0]
 		if pytypes.stub_gen_dir is None:
 			checksum = util._md5(stub_file)
 			return tempfile.gettempdir()+os.sep+bn+'__'+checksum+'.pyi2'
@@ -94,13 +99,13 @@ def get_stub_module(func):
 	module = sys.modules[func.__module__]
 	assert(ismodule(module))
 	m_name = module.__name__
-	
+
 	if m_name.endswith('.pyi') or m_name.endswith('.pyi2'):
 		return None
 	m_key = m_name+str(id(module))
 	if m_key in stub_modules:
 		return stub_modules[m_key]
-	module_filepath = module.__file__.rpartition('.')[0]+'.pyi'
+	module_filepath = module.__file__.rpartition(module_filename_delim)[0]+'.pyi'
 	module_filepath2 = _plain_stub2_filename(module.__file__)
 	stub_files = _find_stub_files(m_name)
 	if os.path.isfile(module_filepath):
