@@ -21,16 +21,45 @@ def get_generator_type(genr):
 	else:
 		return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
 
+def make_Union(arg_tpl):
+	if pytypes.issue351:
+		if not isinstance(arg_tpl, tuple):
+			arg_tpl = (arg_tpl,)
+		for i in range(len(arg_tpl)-1):
+			for j in range(i+1, len(arg_tpl)):
+				if arg_tpl[i] == arg_tpl[j] and not \
+						_issubclass(arg_tpl[i], arg_tpl[j]):
+					res = Union[str, int]
+					if any (t is None for t in arg_tpl):
+						ntp = type(None)
+						arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
+					res.__args__ = arg_tpl
+					return res
+	return Union[arg_tpl]
+
+def make_Tuple(arg_tpl):
+	res = Tuple[arg_tpl]
+	if pytypes.issue351:
+		if not isinstance(arg_tpl, tuple):
+			arg_tpl = (arg_tpl,)
+		if any (t is None for t in arg_tpl):
+			ntp = type(None)
+			arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
+		res.__args__ = arg_tpl if len(arg_tpl) > 0 else ((),)
+	return res
+
 def get_iterable_itemtype(obj):
 	# support further specific iterables on demand
 	try:
 		if isinstance(obj, range):
-			return Union[deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step)]
+			tpl = tuple(deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step))
+			return make_Union(tpl)
 	except TypeError:
 		# We're running Python 2
 		pass
 	if type(obj) is tuple:
-		return Union[tuple(deep_type(t) for t in obj)]
+		tpl = tuple(deep_type(t) for t in obj)
+		return make_Union(tpl)
 	elif type(obj) is types.GeneratorType:
 		return get_generator_yield_type(obj)
 	else:
@@ -103,22 +132,26 @@ def deep_type(obj, depth = pytypes.default_typecheck_depth):
 	return _deep_type(obj, [], depth)
 
 def _deep_type(obj, checked, depth):
-	res = type(obj)
+	res = obj.__orig_class__ if hasattr(obj, '__orig_class__') else type(obj)
 	if depth == 0 or obj in checked:
 		return res
 	else:
 		checked.append(obj)
-	if hasattr(obj, '__gentype__'):
-		return obj.__gentype__
+	if hasattr(obj, '__orig_class__'):
+		return obj.__orig_class__
 	if res == tuple:
-		res = Tuple[tuple(_deep_type(t, checked, depth-1) for t in obj)]
+		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		res = make_Tuple(tpl)
 	elif res == list:
-		res = List[Union[tuple(_deep_type(t, checked, depth-1) for t in obj)]]
+		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		res = List[make_Union(tpl)]
 	elif res == dict:
-		res = Dict[Union[tuple(_deep_type(t, checked, depth-1) for t in obj.keys())],
-				Union[tuple(_deep_type(t, checked, depth-1) for t in obj.values())]]
+		tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.keys())
+		tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.values())
+		res = Dict[make_Union(tpl1), make_Union(tpl2)]
 	elif res == set:
-		res = Set[Union[tuple(_deep_type(t, checked, depth-1) for t in obj)]]
+		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		res = Set[make_Union(tpl)]
 	elif res == types.GeneratorType:
 		res = get_generator_type(obj)
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
@@ -140,6 +173,10 @@ def has_type_hints(func0):
 	return not ((tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints))
 
 def type_str(tp):
+	try:
+		return type_str(tp.__orig_class__)
+	except AttributeError:
+		pass
 	tp = _match_stub_type(tp)
 	impl = ('__builtin__', 'builtins', '__main__')
 	if inspect.isclass(tp) and not hasattr(typing, tp.__name__):
@@ -153,7 +190,7 @@ def type_str(tp):
 		else:
 			pck = ''
 		prm = ''
-		if hasattr(tp, '__args__'):
+		if hasattr(tp, '__args__') and not tp.__args__ is None:
 			params = [type_str(param) for param in tp.__args__]
 			prm = '['+', '.join(params)+']'
 		return pck+tp.__name__+prm
@@ -261,8 +298,8 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None):
 		if slf:
 			argNames = argNames[1:]
 		retTp = tpHints['return'] if 'return' in tpHints else Any
-		resType = (Tuple[tuple((tpHints[t] if t in tpHints else Any) for t in argNames)],
-				retTp if not retTp is None else type(None))
+		tpl = tuple((tpHints[t] if t in tpHints else Any) for t in argNames)
+		resType = (make_Tuple(tpl), retTp if not retTp is None else type(None))
 		if not (tpStr is None or tpStr[0] is None):
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
 			if resType != resType2:
@@ -357,10 +394,10 @@ def _issubclass_Generic(subclass, superclass):
 		return False
 	if isinstance(subclass, TupleMeta):
 		try:
-			subclass = Sequence[Union[get_Tuple_params(subclass)]]
+			subclass = Sequence[make_Union(get_Tuple_params(subclass))]
 		except AttributeError:
 			# Python 3.6
-			subclass = Sequence[Union[subclass.__args__]]
+			subclass = Sequence[make_Union(subclass.__args__)]
 	if isinstance(subclass, GenericMeta):
 		# For a class C(Generic[T]) where T is co-variant,
 		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
@@ -444,7 +481,7 @@ def _issubclass_Union_py36(subclass, superclass): #self, cls):
 		if subclass in superclass.__args__:
 			return True
 		if subclass.__constraints__:
-			return _issubclass(Union[subclass.__constraints__], superclass)
+			return _issubclass(make_Union(subclass.__constraints__), superclass)
 		return False
 	else:
 		return any(_issubclass(subclass, t) for t in superclass.__args__)
@@ -495,7 +532,7 @@ def _isinstance_Callable(obj, cls, check_callables = True):
 		argSig = _match_stub_type(argSig)
 		resSig = _match_stub_type(resSig)
 		clb_args, clb_res = get_Callable_args_res(cls)
-		if not _issubclass(typing.Tuple[clb_args], argSig):
+		if not _issubclass(make_Tuple(clb_args), argSig):
 			return False
 		if not _issubclass(resSig, clb_res):
 			return False
@@ -515,7 +552,7 @@ def _isinstance(obj, cls):
 
 	if isinstance(cls, CallableMeta):
 		return _isinstance_Callable(obj, cls)
-
+	dtp = deep_type(obj)
 	return _issubclass(deep_type(obj), cls)
 
 def _make_generator_error_message(tp, gen, expected_tp, incomp_text):

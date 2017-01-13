@@ -5,6 +5,7 @@ Created on 13.12.2016
 '''
 
 import inspect
+import pytypes
 from typing import Tuple
 
 def _striptrailingcomment(s):
@@ -72,11 +73,11 @@ def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(), se
 	resString = typestring[splt+2:].strip()
 	if selfType is None:
 		# Note: Tuple constructor automatically normalizes None to NoneType
-		tpl = Tuple[eval(argString, globals)]
+		tpl = pytypes.make_Tuple(eval(argString, globals))
 	else:
 		argTypes = [selfType]
 		argTypes += eval(argString, globals)
-		tpl =  Tuple[tuple(argTypes)]
+		pytypes.make_Tuple(argTypes)
 # 	if useEllipsis:
 # 		tpl.__tuple_use_ellipsis__ = True
 

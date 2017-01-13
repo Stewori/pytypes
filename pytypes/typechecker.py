@@ -318,7 +318,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 			# Note that these might check different type-aspects. With IntersectionTypes one day
 			# we can merge them into one checker. Maybe checker should already support this?
 			clb_args, clb_res = pytypes.get_Callable_args_res(cls)
-			return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
+			return True, typechecked_func(obj, force, pytypes.make_Tuple(clb_args), clb_res)
 		return True, obj
 	if isinstance(cls, typing.GenericMeta):
 		if cls.__origin__ is typing.Iterable:
@@ -381,7 +381,6 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 		result = _isinstance(check_val, argSig)
 		checked_val = None
 	if not result:
-		# todo: constrain deep_type-depth
 		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
 				slf, func_class, argSig, 'called with incompatible types'))
 	return checked_val

@@ -4,7 +4,7 @@ Created on 12.12.2016
 @author: Stefan Richthofer
 '''
 
-from typing import Generic
+import typing
 
 checking_enabled = False
 def set_checking_enabled(flag = True):
@@ -34,6 +34,19 @@ default_typecheck_depth = 10
 
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
+def _detect_issue351():
+	'''Detect if github.com/python/typing/issues/351 applies
+	to the installed typing-version.
+	'''
+	class Tuple(typing.Generic[typing.T]):
+		pass
+
+	res = Tuple[str] == typing.Tuple[str]
+	del Tuple
+	return res
+
+issue351 = _detect_issue351()
+
 # Search-path for stubfiles.
 stub_path = []
 
@@ -41,12 +54,13 @@ stub_path = []
 stub_gen_dir = None
 
 # Monkeypatch Generic to circumvent type-erasure:
-_Generic__new__ = Generic.__new__
-def __Generic__new__(cls, *args, **kwds):
-	res = _Generic__new__(cls, args, kwds)
-	res.__gentype__ = cls
-	return res
-Generic.__new__ = __Generic__new__
+if not hasattr(typing, '_generic_new'):
+	_Generic__new__ = typing.Generic.__new__
+	def __Generic__new__(cls, *args, **kwds):
+		res = _Generic__new__(cls, *args, **kwds)
+		res.__orig_class__ = cls
+		return res
+	typing.Generic.__new__ = __Generic__new__
 
 class TypeCheckError(Exception): pass
 class InputTypeError(TypeCheckError): pass
@@ -57,7 +71,8 @@ class OverrideError(TypeCheckError): pass
 from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, \
 		get_generator_type, get_generator_yield_type, is_Union, get_Tuple_params, \
-		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type
+		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
+		make_Tuple, make_Union
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod
 from .stubfile_manager import get_stub_module, as_stub_func_if_any

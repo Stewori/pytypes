@@ -344,6 +344,27 @@ def testfunc_Generator_ret() -> Generator[int, Union[str, None], Any]:
 	res = testfunc_Generator()
 	return res
 
+T_1_py3 = TypeVar('T_1_py3')
+class Custom_Generic(Generic[T_1_py3]):
+	
+	def __init__(self, val: T_1_py3) -> None:
+		self.val = val
+
+	def v(self) -> T_1_py3:
+		return self.val
+
+@typechecked
+def testfunc_Generic_arg(x: Custom_Generic[str]) -> str:
+	return x.v()
+
+@typechecked
+def testfunc_Generic_ret(x: int) -> Custom_Generic[int]:
+	return Custom_Generic[int](x)
+
+@typechecked
+def testfunc_Generic_ret_err(x: int) -> Custom_Generic[int]:
+	return Custom_Generic[str](str(x))
+
 class test_iter():
 	def __init__(self, itrbl):
 		self.itrbl = itrbl

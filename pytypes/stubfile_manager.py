@@ -7,8 +7,7 @@ Created on 13.12.2016
 import sys, inspect, os, imp, subprocess
 import warnings, tempfile, atexit
 from inspect import isclass, ismodule, ismethod
-from typing import Tuple, Union, TupleMeta
-
+from typing import Union, TupleMeta
 import pytypes; from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
@@ -177,15 +176,15 @@ def _match_stub_type(stub_type):
 	# Todo: Somehow cache results
 	if isinstance(stub_type, TupleMeta):
 		prms = pytypes.get_Tuple_params(stub_type)
-		res = Tuple[tuple(_match_stub_type(t) for t in prms)]
+		res = pytypes.make_Tuple(tuple(_match_stub_type(t) for t in prms))
 	elif pytypes.is_Union(stub_type):
 		try:
 			# Python 3.6
-			res = Union[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__args__))
 		except AttributeError:
-			res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
+			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__union_params__))
 # 	elif res == list:
-# 		res = List[Union[tuple(_match_stub_type(t) for t in obj)]]
+# 		res = List[pytypes.make_Union(tuple(_match_stub_type(t) for t in obj))]
 # 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
 # 		# For old-style instances return the actual class:
 # 		return obj.__class__

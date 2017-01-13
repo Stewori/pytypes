@@ -541,14 +541,31 @@ def testfunc_Generator_ret():
 	res = testfunc_Generator()
 	return res
 
-def testfunc_Generic_arg():
-	pass
+T_1 = TypeVar('T_1')
+class Custom_Generic(Generic[T_1]):
+	
+	def __init__(self, val):
+		# type: (T_1) -> None
+		self.val = val
 
-def testfunc_Generic_ret():
-	pass
+	def v(self):
+		# type: () -> T_1
+		return self.val
 
-def testfunc_Generic_ret_err():
-	pass
+@typechecked
+def testfunc_Generic_arg(x):
+	# type: (Custom_Generic[str]) -> str
+	return x.v()
+
+@typechecked
+def testfunc_Generic_ret(x):
+	# type: (int) -> Custom_Generic[int]
+	return Custom_Generic[int](x)
+
+@typechecked
+def testfunc_Generic_ret_err(x):
+	# type: (int) -> Custom_Generic[int]
+	return Custom_Generic[str](str(x))
 
 class test_iter():
 	def __init__(self, itrbl):
@@ -736,6 +753,13 @@ class TestTypecheck(unittest.TestCase):
 		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
 		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_arg(test_gen))
 		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
+
+	def test_custom_generic(self):
+		self.assertEqual(testfunc_Generic_arg(Custom_Generic[str]('abc')), 'abc')
+		self.assertEqual(testfunc_Generic_ret(5).v(), 5)
+		self.assertRaises(InputTypeError, lambda: testfunc_Generic_arg(Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda: testfunc_Generic_arg(Custom_Generic(7)))
+		self.assertRaises(ReturnTypeError, lambda: testfunc_Generic_ret_err(8))
 
 	def test_various(self):
 		self.assertEqual(get_type_hints(testfunc),
@@ -1154,6 +1178,13 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertIsNone(test_gen4.send(None))
 		self.assertEqual(test_gen4.send('abcdefgh'), 8)
 		self.assertRaises(ReturnTypeError, lambda: test_gen4.send('ret_fail'))
+
+	def test_custom_generic_py3(self):
+		self.assertEqual(py3.testfunc_Generic_arg(py3.Custom_Generic[str]('abc')), 'abc')
+		self.assertEqual(py3.testfunc_Generic_ret(5).v(), 5)
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Generic_arg(py3.Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_Generic_arg(py3.Custom_Generic(7)))
+		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Generic_ret_err(8))
 
 	def test_various_py3(self):
 		self.assertEqual(get_type_hints(testfunc),
