@@ -132,13 +132,14 @@ def deep_type(obj, depth = pytypes.default_typecheck_depth):
 	return _deep_type(obj, [], depth)
 
 def _deep_type(obj, checked, depth):
-	res = obj.__orig_class__ if hasattr(obj, '__orig_class__') else type(obj)
+	try:
+		res = obj.__orig_class__
+	except AttributeError:
+		res = type(obj)
 	if depth == 0 or obj in checked:
 		return res
 	else:
 		checked.append(obj)
-	if hasattr(obj, '__orig_class__'):
-		return obj.__orig_class__
 	if res == tuple:
 		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
 		res = make_Tuple(tpl)
@@ -298,8 +299,8 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None):
 		if slf:
 			argNames = argNames[1:]
 		retTp = tpHints['return'] if 'return' in tpHints else Any
-		tpl = tuple((tpHints[t] if t in tpHints else Any) for t in argNames)
-		resType = (make_Tuple(tpl), retTp if not retTp is None else type(None))
+		resType = (make_Tuple(tuple((tpHints[t] if t in tpHints else Any) for t in argNames)),
+				retTp if not retTp is None else type(None))
 		if not (tpStr is None or tpStr[0] is None):
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
 			if resType != resType2:
@@ -487,6 +488,7 @@ def _issubclass_Union_py36(subclass, superclass): #self, cls):
 		return any(_issubclass(subclass, t) for t in superclass.__args__)
 
 # This is just a crutch, because issubclass sometimes tries to be too smart.
+# Note that this doesn't consider __subclasshook__ etc, so use with care!
 def _has_base(cls, base):
 	if cls is base:
 		return True
@@ -552,7 +554,6 @@ def _isinstance(obj, cls):
 
 	if isinstance(cls, CallableMeta):
 		return _isinstance_Callable(obj, cls)
-	dtp = deep_type(obj)
 	return _issubclass(deep_type(obj), cls)
 
 def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
