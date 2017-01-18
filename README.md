@@ -1,5 +1,8 @@
-pytypes
-=======
+![pytypes Logo](https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.jpg)
+
+
+Welcome to the pytypes project.
+-------------------------------
 
 Welcome to the pytypes project.
 
