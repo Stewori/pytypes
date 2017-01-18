@@ -4,8 +4,6 @@
 Welcome to the pytypes project.
 -------------------------------
 
-Welcome to the pytypes project.
-
 pytypes is a typing toolbox w.r.t. PEP 484. As an additional future goal it will also feature generator utilities to produce language bindings to allow other programming languages to call into Python code (kind of reverse FFI). In this sense the project name refers to 'ctypes', which provides Python-bindings to C.
 Especially Jython will be the first target and pytypes' typing-utilities will allow to generate type-safe Java-bindings to Python frameworks as far as PEP 484-style type annotations are provided.
 
