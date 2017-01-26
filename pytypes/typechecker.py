@@ -295,7 +295,10 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 def _checkinstance(obj, cls, is_args, func, force = False):
 	if isinstance(cls, typing.TupleMeta):
 		prms = pytypes.get_Tuple_params(cls)
-		if len(obj) != len(prms):
+		try:
+			if len(obj) != len(prms):
+				return False, obj
+		except:
 			return False, obj
 		lst = []
 		if isinstance(obj, tuple):

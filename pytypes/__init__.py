@@ -16,12 +16,17 @@ def set_checking_enabled(flag = True):
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
 assert(set_checking_enabled())
 
+# Some behavior-flags:
+
 check_override_at_runtime = False
 check_override_at_class_definition_time = True
 
 check_callables = True
 check_iterables = True
 check_generators = True
+
+check_unbound_types = True
+apply_numeric_tower = True # as described in PEP 484, i.e. int is subtype of float
 
 # For runtime-checking it is usually okay to treat Mapping-types as covariant,
 # given that a Mapping here wouldn't accept every value of proper type anyway.

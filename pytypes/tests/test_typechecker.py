@@ -7,8 +7,6 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
-#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
-#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -569,6 +567,31 @@ def testfunc_Generic_ret_err(x):
 	# type: (int) -> Custom_Generic[int]
 	return Custom_Generic[str](str(x))
 
+@typechecked
+def testfunc_numeric_tower_float(x):
+	# type: (float) -> str
+	return str(x)
+
+@typechecked
+def testfunc_numeric_tower_complex(x):
+	# type: (complex) -> str
+	return str(x)
+
+@typechecked
+def testfunc_numeric_tower_tuple(x):
+	# type: (Tuple[float, str]) -> str
+	return str(x)
+
+@typechecked
+def testfunc_numeric_tower_return(x):
+	# type: (str) -> float
+	return len(x)
+
+@typechecked
+def testfunc_numeric_tower_return_err(x):
+	# type: (str) -> int
+	return len(x)*1.5
+
 class test_iter():
 	def __init__(self, itrbl):
 		self.itrbl = itrbl
@@ -812,6 +835,56 @@ class TestTypecheck(unittest.TestCase):
 		self.assertTrue(pytypes.is_subtype(tuple, Sequence))
 		self.assertTrue(pytypes.is_subtype(tuple, Sequence[Any]))
 
+	def test_numeric_tower(self):
+		num_tow_tmp = pytypes.apply_numeric_tower
+		pytypes.apply_numeric_tower = True
+		self.assertEqual(testfunc_numeric_tower_float(3), '3')
+		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float('abc'))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(True))
+
+		self.assertEqual(testfunc_numeric_tower_complex(5), '5')
+		self.assertEqual(testfunc_numeric_tower_complex(8.7), '8.7')
+		self.assertEqual(testfunc_numeric_tower_complex(1+3j), '(1+3j)')
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex('abc'))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(True))
+
+		self.assertEqual(testfunc_numeric_tower_tuple((3, 'abc')), "(3, 'abc')")
+		self.assertEqual(testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((1+3j, 'abc')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(('abc', 'def')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((True, 'abc')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(True))
+
+		self.assertEqual(testfunc_numeric_tower_return('defg'), 4)
+		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
+
+
+		pytypes.apply_numeric_tower = False
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(3))
+		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float('abc'))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(True))
+
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(5))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(8.7))
+		self.assertEqual(testfunc_numeric_tower_complex(1+3j), '(1+3j)')
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex('abc'))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(True))
+
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((3, 'abc')))
+		self.assertEqual(testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((1+3j, 'abc')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(('abc', 'def')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((True, 'abc')))
+		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(True))
+
+		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return('defg'))
+		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
+
+		pytypes.apply_numeric_tower = num_tow_tmp
 
 class TestTypecheck_class(unittest.TestCase):
 	def test_classmethod(self):

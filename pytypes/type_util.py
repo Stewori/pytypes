@@ -458,6 +458,8 @@ def _issubclass_Generic(subclass, superclass):
 		# if both are unknown:
 		#   return False (?) (or NotImplemented? Or let a flag decide behavior?)
 		if origin is None:
+			if not pytypes.check_unbound_types:
+				raise TypeError("Attempted to check unbound type(supeclass: "+str(superclass))
 			if not subclass.__origin__ is None:
 				if not type.__subclasscheck__(superclass, subclass.__origin__):
 					return False
@@ -477,6 +479,8 @@ def _issubclass_Generic(subclass, superclass):
 			#else:
 				# nothing to do here... (?)
 		elif subclass.__origin__ is None:
+			if not pytypes.check_unbound_types:
+				raise TypeError("Attempted to check unbound type (subclass): "+str(subclass))
 			if not type.__subclasscheck__(superclass.__origin__, subclass):
 				return False
 			prms = superclass.__origin__.__parameters__
@@ -550,6 +554,12 @@ def _issubclass(subclass, superclass):
 		return True
 	if subclass is Any:
 		return superclass is Any
+	if pytypes.apply_numeric_tower:
+		if superclass is float and subclass is int:
+			return True
+		elif superclass is complex and \
+				(subclass is int or subclass is float):
+			return True
 	if superclass in _extra_dict:
 		superclass = _extra_dict[superclass]
 	if isinstance(superclass, GenericMeta):
