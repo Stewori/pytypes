@@ -7,6 +7,8 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
+#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
+#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -779,6 +781,37 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(pytypes.get_class_that_defined_method(tc3.testmeth), testClass3)
 		self.assertEqual(pytypes.get_class_that_defined_method(testClass3.testmeth), testClass3)
 
+	def test_unparameterized(self):
+		# invariant type-vars
+		self.assertFalse(pytypes.is_subtype(List, List[str]))
+		self.assertFalse(pytypes.is_subtype(List, List[Any]))
+		self.assertFalse(pytypes.is_subtype(List[str], List))
+		self.assertFalse(pytypes.is_subtype(list, List[str]))
+		self.assertFalse(pytypes.is_subtype(list, List[Any]))
+		self.assertFalse(pytypes.is_subtype(List[str], list))
+		self.assertTrue(pytypes.is_subtype(List, list))
+		self.assertTrue(pytypes.is_subtype(list, List))
+		self.assertFalse(pytypes.is_subtype(List[str], List[Any]))
+		self.assertFalse(pytypes.is_subtype(List[Any], List[str]))
+
+		# covariant
+		self.assertTrue(pytypes.is_subtype(Sequence[str], Sequence[Any]))
+		self.assertFalse(pytypes.is_subtype(Sequence[Any], Sequence[str]))
+		self.assertTrue(pytypes.is_subtype(Sequence[str], Sequence))
+		self.assertFalse(pytypes.is_subtype(Sequence, Sequence[str]))
+
+		# special case Tuple
+		self.assertFalse(pytypes.is_subtype(Tuple, Tuple[str]))
+		self.assertTrue(pytypes.is_subtype(Tuple[str], Tuple))
+		self.assertFalse(pytypes.is_subtype(tuple, Tuple[str]))
+		self.assertTrue(pytypes.is_subtype(Tuple[str], tuple))
+		self.assertTrue(pytypes.is_subtype(Tuple, tuple))
+		self.assertTrue(pytypes.is_subtype(tuple, Tuple))
+		self.assertTrue(pytypes.is_subtype(Tuple, Sequence))
+		self.assertTrue(pytypes.is_subtype(Tuple, Sequence[Any]))
+		self.assertTrue(pytypes.is_subtype(tuple, Sequence))
+		self.assertTrue(pytypes.is_subtype(tuple, Sequence[Any]))
+
 
 class TestTypecheck_class(unittest.TestCase):
 	def test_classmethod(self):
@@ -1242,7 +1275,3 @@ class TestOverride_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
-
-#print (pytypes.type_util._issubclass(Tuple[str, float], tuple))
-# should be false, because former type is more specialized
-# todo: same for list etc
