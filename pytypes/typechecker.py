@@ -298,7 +298,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 		try:
 			if len(obj) != len(prms):
 				return False, obj
-		except:
+		except TypeError:
 			return False, obj
 		lst = []
 		if isinstance(obj, tuple):

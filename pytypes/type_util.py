@@ -32,30 +32,36 @@ def get_generator_type(genr):
 		return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
 
 def make_Union(arg_tpl):
-	if pytypes.issue351:
-		if not isinstance(arg_tpl, tuple):
-			arg_tpl = (arg_tpl,)
-		for i in range(len(arg_tpl)-1):
-			for j in range(i+1, len(arg_tpl)):
-				if arg_tpl[i] == arg_tpl[j] and not \
-						_issubclass(arg_tpl[i], arg_tpl[j]):
-					res = Union[str, int]
-					if any (t is None for t in arg_tpl):
-						ntp = type(None)
-						arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
-					res.__args__ = arg_tpl
-					return res
+# Should work now by monkeypatching in pytypes.
+# However we leave this sample here for a while...
+# Once we remove it, we will also inline make_Union again.
+# 	if pytypes.issue351:
+# 		if not isinstance(arg_tpl, tuple):
+# 			arg_tpl = (arg_tpl,)
+# 		for i in range(len(arg_tpl)-1):
+# 			for j in range(i+1, len(arg_tpl)):
+# 				if arg_tpl[i] == arg_tpl[j] and not \
+# 						_issubclass(arg_tpl[i], arg_tpl[j]):
+# 					res = Union[str, int]
+# 					if any (t is None for t in arg_tpl):
+# 						ntp = type(None)
+# 						arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
+# 					res.__args__ = arg_tpl
+# 					return res
 	return Union[arg_tpl]
 
 def make_Tuple(arg_tpl):
 	res = Tuple[arg_tpl]
-	if pytypes.issue351:
-		if not isinstance(arg_tpl, tuple):
-			arg_tpl = (arg_tpl,)
-		if any (t is None for t in arg_tpl):
-			ntp = type(None)
-			arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
-		res.__args__ = arg_tpl if len(arg_tpl) > 0 else ((),)
+# Should work now by monkeypatching in pytypes.
+# However we leave this sample here for a while...
+# Once we remove it, we will also inline make_Tuple again.
+# 	if pytypes.issue351:
+# 		if not isinstance(arg_tpl, tuple):
+# 			arg_tpl = (arg_tpl,)
+# 		if any (t is None for t in arg_tpl):
+# 			ntp = type(None)
+# 			arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
+# 		res.__args__ = arg_tpl if len(arg_tpl) > 0 else ((),)
 	return res
 
 def get_iterable_itemtype(obj):
