@@ -63,6 +63,10 @@ class class2_py2(class1_py2):
 		pass
 
 
+def testfunc_class_in_list_py2(a):
+	# type: (List[class1_py2]) -> int
+	pass
+
 def testfunc_None_ret_py2(a, b):
 	# type: (int, Real) -> None
 	pass

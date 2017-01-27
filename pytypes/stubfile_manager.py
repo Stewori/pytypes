@@ -7,7 +7,7 @@ Created on 13.12.2016
 import sys, inspect, os, imp, subprocess
 import warnings, tempfile, atexit
 from inspect import isclass, ismodule, ismethod
-from typing import Union, TupleMeta
+from typing import Union, TupleMeta, GenericMeta, CallableMeta
 import pytypes; from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
@@ -186,11 +186,19 @@ def _match_stub_type(stub_type):
 			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__args__))
 		except AttributeError:
 			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__union_params__))
-# 	elif res == list:
-# 		res = List[pytypes.make_Union(tuple(_match_stub_type(t) for t in obj))]
-# 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
-# 		# For old-style instances return the actual class:
-# 		return obj.__class__
+	elif isinstance(stub_type, GenericMeta):
+		if stub_type.__args__ is None:
+			res = stub_type
+		elif isinstance(stub_type, CallableMeta):
+			if hasattr(stub_type, '__result__'):
+				res = stub_type.__origin__[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+				res.__result__ = _match_stub_type(stub_type.__result__)
+			else:
+				res = stub_type.__origin__[tuple([
+						[_match_stub_type(t) for t in stub_type.__args__[:-1]],
+						_match_stub_type(stub_type.__args__[-1]) ]) ]
+		else:
+			res = stub_type.__origin__[tuple(_match_stub_type(t) for t in stub_type.__args__)]
 	elif isclass(stub_type):
 		res = stub_type._match_type if hasattr(stub_type, '_match_type') else stub_type
 	else:

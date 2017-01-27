@@ -1056,10 +1056,13 @@ class TestStubfile(unittest.TestCase):
 				'<pytypes.tests.testhelpers.stub_testhelper_py2.class1_py2'))
 		self.assertRaises(InputTypeError, lambda: cl2.meth2b_py2('cl1'))
 
-		self.assertIsNone(testfunc_None_ret(2, 3.0))
-		self.assertEqual(testfunc_None_arg(4, None), 16)
+		self.assertIsNone(stub_py2.testfunc_None_ret_py2(2, 3.0))
+		self.assertEqual(stub_py2.testfunc_None_arg_py2(4, None), 16)
+		stub_py2.testfunc_class_in_list_py2([cl1])
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_class_in_list_py2((cl1,)))
 
 
+# Todo: Add some of these tests for stubfile
 # 	def test_get_types_plain_2_7_stub(self):
 # 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
 # 		tc = testClass('mnop')
@@ -1246,6 +1249,9 @@ class TestStubfile(unittest.TestCase):
 		self.assertTrue(cl2.meth2b(cl1).startswith(
 				'<pytypes.tests.testhelpers.stub_testhelper.class1 object at '))
 		self.assertRaises(InputTypeError, lambda: cl2.meth2b('cl1'))
+		
+		stub_py3.testfunc_class_in_list([cl1])
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_class_in_list((cl1,)))
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

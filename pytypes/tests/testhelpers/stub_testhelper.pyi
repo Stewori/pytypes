@@ -5,6 +5,7 @@ Created on 21.10.2016
 '''
 
 from numbers import Real
+from typing import List
 
 def testfunc1(a: int, b: Real) -> str: ...
 
@@ -30,3 +31,5 @@ class class2(class1):
 
 	def meth2b(self, b: class1) -> str: ...
 
+
+def testfunc_class_in_list(a: List[class1]) -> int: ...

@@ -39,7 +39,7 @@ class class1_py2():
 
 		@staticmethod
 		def inner_static_meth_py2(d, c):
-		# actually d: float, c: class1_py2) -> int
+		# actually d: float, c: class1_py2 -> int
 			return len(c+str(d))
 
 		@classmethod
@@ -62,6 +62,10 @@ class class2_py2(class1_py2):
 	# actually cls, a: str, b: class1_py2 -> float
 		return a + (cls.__name__) + str(b)
 
+@typechecked
+def testfunc_class_in_list_py2(a):
+	# actually a: List[class1_py2] -> int
+	return len(a)
 
 @typechecked
 def testfunc_None_ret_py2(a, b):

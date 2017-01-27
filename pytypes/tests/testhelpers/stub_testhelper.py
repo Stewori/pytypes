@@ -4,7 +4,7 @@ Created on 21.10.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked #, get_type_hints 
+from pytypes import typechecked
 
 @typechecked
 def testfunc1(a, b):
@@ -50,3 +50,8 @@ class class2(class1):
 	def meth2b(self, b):
 	# actually class1_py2 -> str
 		return str(b)
+
+@typechecked
+def testfunc_class_in_list(a):
+	# actually a: List[class1_py2] -> int
+	return len(a)
