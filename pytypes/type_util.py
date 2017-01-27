@@ -506,7 +506,7 @@ def _issubclass_Generic(subclass, superclass):
 		return True
 	if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
 		return False
-	return _issubclass(subclass, superclass.__extra__)
+	return _issubclass_2(subclass, superclass.__extra__)
 
 def _issubclass_Tuple_py36(subclass, superclass):
 	# Intended only for Python 3.6+
@@ -568,6 +568,9 @@ def _issubclass(subclass, superclass):
 			return True
 	if superclass in _extra_dict:
 		superclass = _extra_dict[superclass]
+	return _issubclass_2(subclass, superclass)
+
+def _issubclass_2(subclass, superclass):
 	if isinstance(superclass, GenericMeta):
 		if isinstance(superclass, TupleMeta):
 			return _issubclass_Tuple_py36(subclass, superclass)
@@ -582,8 +585,6 @@ def _issubclass(subclass, superclass):
 		# Another special treatment for Python 3.6
 		return all(_issubclass(t, superclass) for t in subclass.__args__)
 
-	if superclass in _extra_dict:
-		superclass = _extra_dict[superclass]
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 
