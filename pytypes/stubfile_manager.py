@@ -28,14 +28,17 @@ def _create_Python_2_stub(module_filepath, out_file = None):
 	subprocess.call([pytypes.python3_5_executable, conv_script,
 			'-s', '-o', out_file, module_filepath], env = {})
 
-def _match_classes(stub_module, original_module):
-	classes = [cl[1] for cl in inspect.getmembers(original_module, isclass)]
+def _match_classes(stub_module_or_class, original_module_or_class, original_module_name):
+	classes = [cl[1] for cl in inspect.getmembers(original_module_or_class, isclass)]
 	for cl in classes:
-		if hasattr(stub_module, cl.__name__):
+		if cl.__module__ == original_module_name and hasattr(stub_module_or_class, cl.__name__):
 			# Todo: What if stub_file uses slots? (unlikely (?))
-			stub_class = getattr(stub_module, cl.__name__)
+			stub_class = getattr(stub_module_or_class, cl.__name__)
 			stub_class._match_type = cl
-			_match_classes(stub_class, cl)
+			_match_classes(stub_class, cl, original_module_name)
+
+def _match_module(stub_module, original_module):
+	return _match_classes(stub_module, original_module, original_module.__name__)
 
 def _get_stub_module(module_filepath, original_module):
 	module_name = os.path.basename(module_filepath)
@@ -46,7 +49,7 @@ def _get_stub_module(module_filepath, original_module):
 				warnings.simplefilter('ignore')
 				stub_module = imp.load_module(pck+'.'+module_name, module_file, module_filepath, stub_descr)
 				if sys.version_info.major >= 3:
-					_match_classes(stub_module, original_module)
+					_match_module(stub_module, original_module)
 				return stub_module
 	except SyntaxError:
 		return None

@@ -1056,6 +1056,122 @@ class TestStubfile(unittest.TestCase):
 				'<pytypes.tests.testhelpers.stub_testhelper_py2.class1_py2'))
 		self.assertRaises(InputTypeError, lambda: cl2.meth2b_py2('cl1'))
 
+		self.assertIsNone(testfunc_None_ret(2, 3.0))
+		self.assertEqual(testfunc_None_arg(4, None), 16)
+
+
+# 	def test_get_types_plain_2_7_stub(self):
+# 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+# 		tc = testClass('mnop')
+# 		tc2 = testClass2('qrst')
+# 		tc3 = testClass3()
+# 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+# 		self.assertEqual(get_types(testfunc2), (Tuple[int, Real, testClass], Tuple[int, float]))
+# 		self.assertEqual(get_types(testfunc4), (Any, Any))
+# 		self.assertEqual(get_types(tc2.testmeth), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(testClass2.testmeth), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(tc3.testmeth), (Any, Any))
+# 		self.assertEqual(get_types(testClass3Base.testmeth), (Tuple[int, Real], Union[str, int]))
+# 		self.assertEqual(get_types(tc.testmeth2), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(tc.testmeth_class), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(tc.testmeth_class2), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
+# 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+
+	def test_sequence_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw'))), 2)
+		self.assertEqual(stub_py2.testfunc_Seq_arg_py2([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2({(3, 'ab'), (8, 'qvw')}))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertEqual(stub_py2.testfunc_Seq_ret_List_py2(7, 'mno'), [7, 'mno'])
+		self.assertEqual(stub_py2.testfunc_Seq_ret_Tuple_py2(3, 'mno'), (3, 'mno'))
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Seq_ret_err_py2(29, 'def'))
+
+	def test_iterable_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.testfunc_Iter_arg_py2((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
+		self.assertEqual(stub_py2.testfunc_Iter_str_arg_py2('defg'), [100, 101, 102, 103])
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2([9, 8, 7, '6'], 'vwxy'))
+		self.assertEqual(stub_py2.testfunc_Iter_arg_py2([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
+		res = stub_py2.testfunc_Iter_arg_py2({9, 8, 7, 6}, 'vwxy'); res.sort()
+		self.assertEqual(res, [6, 7, 8, 9])
+		res = stub_py2.testfunc_Iter_arg_py2({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		self.assertEqual(res, [16, 17, 18, 19])
+		self.assertEqual(stub_py2.testfunc_Iter_ret_py2(), [1, 2, 3, 4, 5])
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Iter_ret_err_py2())
+		ti = test_iterable((2, 4, 6))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2(ti, 'vwxy'))
+		# tia = stub_py2.test_iterable_annotated_py2((3, 6, 9))
+		# self.assertEqual(stub_py2.testfunc_Iter_arg_py2(tia, 'vwxy'), [3, 6, 9])
+
+	def test_dict_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertIsNone(stub_py2.testfunc_Dict_arg_py2(5, {'5': 4, 'c': '8'}))
+		self.assertIsNone(stub_py2.testfunc_Dict_arg_py2(5, {'5': 'A', 'c': '8'}))
+		self.assertIsNone(stub_py2.testfunc_Mapping_arg_py2(7, {'7': 4, 'c': '8'}))
+		self.assertIsNone(stub_py2.testfunc_Mapping_arg_py2(5, {'5': 'A', 'c': '8'}))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Dict_arg_py2(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Dict_arg_py2(5, {'5': (4,), 'c': '8'}))
+		self.assertEqual(stub_py2.testfunc_Dict_ret_py2('defg'), {'defgdefg': 'defg', 'defg': 4})
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Dict_ret_err_py2(6))
+
+	def test_callable_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		def clb(s, i):
+			# type: (str, int) -> str
+			return '_'+s+'*'*i
+		
+		def clb2(s, i):
+			# type: (str, str) -> str
+			return '_'+s+'*'*i
+		
+		def clb3(s, i):
+			# type: (str, int) -> int
+			return '_'+s+'*'*i
+
+		self.assertTrue(pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
+		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
+		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
+
+		self.assertEqual(stub_py2.testfunc_Callable_arg_py2(clb, 'pqrs'), '_pqrs****')
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_arg_py2(clb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_arg_py2(clb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_call_err_py2(clb, 'tuvw'))
+		self.assertEqual(stub_py2.testfunc_Callable_arg_py2(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError,
+				lambda: stub_py2.testfunc_Callable_call_err_py2(lambda s, i: '__'+s+'-'*i, 'tuvw'))
+		fnc = stub_py2.testfunc_Callable_ret_py2(5, 'qvwx')
+		self.assertEqual(fnc.__class__.__name__, 'function')
+		self.assertEqual(fnc.__name__, 'm')
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Callable_ret_err_py2())
+
+	def test_generator_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		test_gen = stub_py2.testfunc_Generator_py2()
+		self.assertIsNone(test_gen.send(None))
+		self.assertEqual(test_gen.send('abc'), 3)
+		self.assertEqual(test_gen.send('ddffd'), 5)
+		self.assertRaises(InputTypeError, lambda: test_gen.send(7))
+		test_gen2 = stub_py2.testfunc_Generator_py2()
+		self.assertIsNone(test_gen2.next() if hasattr(test_gen2, 'next') else test_gen2.__next__())
+		self.assertEqual(test_gen2.send('defg'), 4)
+		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
+		self.assertRaises(TypeCheckError, lambda: stub_py2.testfunc_Generator_arg_py2(test_gen))
+		self.assertRaises(TypeCheckError, lambda: stub_py2.testfunc_Generator_ret_py2())
+
+	def test_custom_generic_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.testfunc_Generic_arg_py2(stub_py2.Custom_Generic_py2[str]('abc')), 'abc')
+		self.assertEqual(stub_py2.testfunc_Generic_ret_py2(5).v(), 5)
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Generic_arg_py2(Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Generic_arg_py2(Custom_Generic(7)))
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Generic_ret_err_py2(8))
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
