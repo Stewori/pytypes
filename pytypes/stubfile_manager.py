@@ -12,6 +12,10 @@ import pytypes; from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
 stub_modules = {}
+if sys.version_info.major >= 3:
+	_stub_modules_loading = {}
+else:
+	_stub_modules_loading = stub_modules
 
 if os.name == 'java':
 	module_filename_delim = '$'
@@ -34,11 +38,30 @@ def _match_classes(stub_module_or_class, original_module_or_class, original_modu
 		if cl.__module__ == original_module_name and hasattr(stub_module_or_class, cl.__name__):
 			# Todo: What if stub_file uses slots? (unlikely (?))
 			stub_class = getattr(stub_module_or_class, cl.__name__)
+			# Maybe we should assert that stub_class.__module__ is really the stub module.
+			# However that might prevent some import tricks and modularity management in
+			# a smarter subfile hierarchy. So we leave it like this for now.
 			stub_class._match_type = cl
 			_match_classes(stub_class, cl, original_module_name)
 
 def _match_module(stub_module, original_module):
 	return _match_classes(stub_module, original_module, original_module.__name__)
+
+def _re_match_module(module_name, final = False):
+	if sys.version_info.major >= 3:
+		module = sys.modules[module_name]
+		assert(ismodule(module))
+		m_name = module.__name__
+
+		if m_name.endswith('.pyi') or m_name.endswith('.pyi2'):
+			return
+		m_key = m_name+str(id(module))
+		if m_key in _stub_modules_loading:
+			stub_m = _stub_modules_loading[m_key]
+			_match_module(stub_m, module)
+			if final:
+				stub_modules[m_key] = stub_m
+				del _stub_modules_loading[m_key]
 
 def _get_stub_module(module_filepath, original_module):
 	module_name = os.path.basename(module_filepath)
@@ -107,6 +130,9 @@ def get_stub_module(func):
 	m_key = m_name+str(id(module))
 	if m_key in stub_modules:
 		return stub_modules[m_key]
+	if m_key in _stub_modules_loading:
+		_re_match_module(m_name)
+		return _stub_modules_loading[m_key]
 	module_filepath = module.__file__.rpartition(module_filename_delim)[0]+'.pyi'
 	module_filepath2 = _plain_stub2_filename(module.__file__)
 	stub_files = _find_stub_files(m_name)
@@ -121,7 +147,7 @@ def get_stub_module(func):
 		for module_filepath2_plain in stub_files[1]:
 			stub_module = _get_stub_module(module_filepath2_plain, module)
 			if not stub_module is None:
-				stub_modules[m_key] = stub_module
+				_stub_modules_loading[m_key] = stub_module
 				return stub_module
 		# Now for a previously generated one:
 		if (not module_filepath2_gen is None) and os.path.isfile(module_filepath2_gen):
@@ -132,7 +158,7 @@ def get_stub_module(func):
 				# for files found under stub_gen_dir.
 				for module_filepath in stub_files[0]:
 					if _check_py2_stubmodule(module_filepath, stub_module):
-						stub_modules[m_key] = stub_module
+						_stub_modules_loading[m_key] = stub_module
 						return stub_module
 				# Otherwise we let the code below re-create the module.
 				# Note that we cannot be in tmp-dir mode, since the pyi2-file
@@ -142,13 +168,13 @@ def get_stub_module(func):
 	for module_filepath in stub_files[0]:
 		stub_module = _get_stub_module(module_filepath, module)
 		if not stub_module is None:
-			stub_modules[m_key] = stub_module
+			_stub_modules_loading[m_key] = stub_module
 			return stub_module
 	# Try Python2-style stubs in search-folders, even if running Python 3:
 	for module_filepath in stub_files[1]:
 		stub_module = _get_stub_module(module_filepath, module)
 		if not stub_module is None:
-			stub_modules[m_key] = stub_module
+			_stub_modules_loading[m_key] = stub_module
 			return stub_module
 	# Finally try to convert a Python3 stub to Python2-style:
 	if not (sys.version_info.major >= 3 and sys.version_info.minor >= 5):
@@ -164,7 +190,7 @@ def get_stub_module(func):
 						atexit.register(os.remove, module_filepath2_gen+'c')
 						# Todo: Clean up other potential by-products
 					if not stub_module is None:
-						stub_modules[m_key] = stub_module
+						_stub_modules_loading[m_key] = stub_module
 						return stub_module
 				#else:
 				# Todo: Raise warning in verbose mode.
@@ -205,8 +231,9 @@ def _match_stub_type(stub_type):
 		res = stub_type
 	return res
 
-def as_stub_func_if_any(func0, decorated_func = None, func_class = None):
+def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting = None):
 	# Check for stubfile
+	# Todo: Compactify
 	module = get_stub_module(func0)
 	if not module is None:
 		if hasattr(module, func0.__name__):
@@ -217,13 +244,28 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None):
 				cls2 = getattr(module, cls.__name__)
 				if hasattr(cls2, func0.__name__):
 					return getattr(cls2, func0.__name__)
+			else:
+				if nesting is None:
+					nesting = util._get_class_nesting_list(cls, sys.modules[cls.__module__])
+				else:
+					nesting = nesting[:-1]
+				if not nesting is None:
+					mcls = module
+					try:
+						for cl in nesting:
+							mcls = getattr(mcls, cl.__name__)
+						mcls = getattr(mcls, cls.__name__)
+						return getattr(mcls, func0.__name__)
+					except AttributeError:
+						pass
 		elif not func_class is None:
 			if hasattr(module, func_class.__name__):
 				cls2 = getattr(module, func_class.__name__)
 				if hasattr(cls2, func0.__name__):
 					return getattr(cls2, func0.__name__)
 			else:
-				nesting = util._get_class_nesting_list(func_class, sys.modules[func_class.__module__])
+				if nesting is None:
+					nesting = util._get_class_nesting_list(func_class, sys.modules[func_class.__module__])
 				if not nesting is None:
 					mcls = module
 					try:
@@ -234,8 +276,9 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None):
 					except AttributeError:
 						pass
 		else:
-			nesting = util._get_class_nesting_list_for_staticmethod(decorated_func,
-					sys.modules[func0.__module__], [], set())
+			if nesting is None:
+				nesting = util._get_class_nesting_list_for_staticmethod(decorated_func,
+						sys.modules[func0.__module__], [], set())
 			if not nesting is None:
 					mcls = module
 					try:

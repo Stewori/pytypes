@@ -182,7 +182,10 @@ def is_builtin_type(tp):
 	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
 def has_type_hints(func0):
-	func = as_stub_func_if_any(util._actualfunc(func0), func0)
+	return _has_type_hints(func0)
+
+def _has_type_hints(func0, nesting = None):
+	func = as_stub_func_if_any(util._actualfunc(func0), func0, None, nesting)
 	try:
 		tpHints = typing.get_type_hints(func)
 	except NameError:
@@ -261,10 +264,8 @@ def _get_types(func, clsm, slf):
 	return _match_stub_type(args), _match_stub_type(res)
 
 def get_type_hints(func):
+	'''Resembles typing.get_type_hints, but is also workable on Python 2.7.
 	'''
-	Resembles typing.get_type_hints, but is also workable on Python 2.7.
-	'''
-	typing.get_type_hints
 	if not has_type_hints(func):
 		return {}
 	slf = 1 if util.is_method(func) else 0

@@ -296,6 +296,22 @@ class testClass4(str):
 		return '-'.join((str(a), str(b), 'static'))
 
 
+class testClass5_base(object):
+	def testmeth_cls5(self, a, b):
+		# type: (int, Real) -> str
+		return 'Dummy implementation 5'
+
+
+@typechecked
+class testClass5(testClass5_base):
+	@override
+	def testmeth_cls5(self, a, b):
+		return '-'.join((str(a), str(b)))
+
+	def testmeth2_cls5(self, a, b):
+		return '-'.join((str(a), str(b)))
+
+
 def testClass2_defTimeCheck():
 	class testClass2b(testClass2Base):
 		def testmeth0(self,
@@ -933,6 +949,13 @@ class TestOverride(unittest.TestCase):
 		self.assertEqual(tc2.testmeth5(1, 2.5), '1-2.5-uvwx')
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
 
+	def test_override_typecheck_class(self):
+		tc5 = testClass5()
+		self.assertEqual(tc5.testmeth_cls5(3, 7), '3-7')
+		self.assertRaises(InputTypeError, lambda: tc5.testmeth_cls5(3, '8'))
+		self.assertTrue(hasattr(tc5.testmeth_cls5, 'ch_func'))
+		self.assertFalse(hasattr(tc5.testmeth2_cls5, 'ch_func'))
+
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time
 		pytypes.check_override_at_class_definition_time = True
@@ -1469,6 +1492,7 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertRaises(NameError, _test_err2_py3)
 
 		pytypes.check_override_at_class_definition_time = tmp
+
 
 if __name__ == '__main__':
 	unittest.main()

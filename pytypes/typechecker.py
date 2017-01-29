@@ -6,9 +6,9 @@ Created on 20.08.2016
 
 import sys, typing, types, inspect, re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
-from .stubfile_manager import _match_stub_type
-from .type_util import type_str, has_type_hints, is_builtin_type, deep_type, \
-		_funcsigtypes, _issubclass, _isinstance
+from .stubfile_manager import _match_stub_type, _re_match_module
+from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
+		deep_type, _funcsigtypes, _issubclass, _isinstance
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
@@ -22,12 +22,21 @@ not_type_checked = set()
 _delayed_checks = []
 
 # Monkeypatch import to process forward-declarations after module loading finished:
-savimp = builtins.__import__
-def newimp(name, *x):
-	res = savimp(name, *x)
+python___import__ = builtins.__import__
+def pytypes___import__(name, *x):
+	res = python___import__(name, *x)
+	if sys.version_info.major >= 3:
+		if (len(x) >= 3):
+			if x[2] is None:
+				_re_match_module(name, True)
+			else:
+				for mod_name in x[2]:
+					mod_name_full = name+'.'+mod_name
+					if mod_name_full in sys.modules:
+						_re_match_module(mod_name_full, True)
 	_run_delayed_checks(True, name)
 	return res
-builtins.__import__ = newimp
+builtins.__import__ = pytypes___import__
 
 class _DelayedCheck():
 	def __init__(self, func, method, class_name, base_method, base_class, exc_info):
@@ -274,7 +283,7 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text
 	_cmp_msg_format = 'Expected: %s\nReceived: %s'
 	fq_func_name = util._fully_qualified_func_name(func, slf, func_class)
 	if slf:
-		#Todo: Clarify if an @override-induced check caused this
+		# Todo: Clarify if an @override-induced check caused this
 		# Todo: Python3 misconcepts method as classmethod here, because it doesn't
 		# detect it as bound method, because ov_checker or tp_checker obfuscate it
 		if not func_class is None and not type(func) is classmethod:
@@ -519,7 +528,10 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 	else:
 		return checker_tp
 
-def typechecked_class(cls, force = False, force_recursive = False, argType = None, resType = None):
+def typechecked_class(cls, force = False, force_recursive = False):
+	return _typechecked_class(cls, force, force_recursive)
+
+def _typechecked_class(cls, force = False, force_recursive = False, nesting = None):
 	if not pytypes.checking_enabled:
 		return cls
 	assert(isclass(cls))
@@ -528,14 +540,24 @@ def typechecked_class(cls, force = False, force_recursive = False, argType = Non
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
 	# For this we don't use keys() because of Python 3.
+	nst = [cls] if nesting is None else nesting
 	keys = [key for key in cls.__dict__]
 	for key in keys:
 		obj = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
-				setattr(cls, key, typechecked_func(obj, force_recursive))
+			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)):# and has_type_hints(obj):
+				if _has_type_hints(getattr(cls, key), nst) or hasattr(obj, 'ov_func'):
+					setattr(cls, key, typechecked_func(obj, force_recursive))
+# 				else:
+# 					print ("wouldn't check", key, cls, obj, getattr(cls, key))
 			elif isclass(obj):
-				setattr(cls, key, typechecked_class(obj, force_recursive, force_recursive))
+				if not nesting is None:
+					nst2 = []
+					nst2.extend(nesting)
+				else:
+					nst2 = [cls]
+				nst2.append(obj)
+				setattr(cls, key, _typechecked_class(getattr(cls, key), force_recursive, force_recursive, nst2))
 	return cls
 
 # Todo: Write tests for this
@@ -578,4 +600,4 @@ def no_type_check(obj):
 		return obj
 
 def is_no_type_check(obj):
-	return (hasattr(obj, '__no_type_check__') and obj.__no_type_check__) or obj in not_type_checked
+	return hasattr(obj, '__no_type_check__') and obj.__no_type_check__ or obj in not_type_checked
