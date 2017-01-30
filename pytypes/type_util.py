@@ -191,8 +191,17 @@ def _has_type_hints(func0, nesting = None):
 	except NameError:
 		# Some typehint caused this NameError, so typhints are present in some form
 		return True
-	tpStr = _get_typestrings(func, False)
-	return not ((tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints))
+	except TypeError:
+		# func seems to be not suitable of having type hints
+		return False
+	except AttributeError:
+		# func seems to be not suitable of having type hints
+		return False
+	try:
+		tpStr = _get_typestrings(func, False)
+		return not ((tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints))
+	except TypeError:
+		return False
 
 def type_str(tp):
 	try:
@@ -455,10 +464,9 @@ def _issubclass_Generic(subclass, superclass):
 				return True
 			# If we break out of the loop, the superclass gets a chance.
 
-		# Now: origin is None or not _issubclass(subclass.__origin__, origin)
-		# Todo: Based on a pytypes-flag, throw TypeError rather than deal with it
+		# I.e.: origin is None or not _issubclass(subclass.__origin__, origin)
 		# In this case we must consider origin or subclass.__origin__ to be None
-		# Then treat param-values as unknown in the following sense:
+		# We treat param-values as unknown in the following sense:
 		#   for covariant params: treat unknown more-or-equal specific than Any
 		#   for contravariant param: Any more-or-equal specific than Unknown
 		#   for invariant param: unknown never passes

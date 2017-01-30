@@ -545,7 +545,7 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 	for key in keys:
 		obj = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)):# and has_type_hints(obj):
+			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)):
 				if _has_type_hints(getattr(cls, key), nst) or hasattr(obj, 'ov_func'):
 					setattr(cls, key, typechecked_func(obj, force_recursive))
 # 				else:
@@ -557,10 +557,10 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 				else:
 					nst2 = [cls]
 				nst2.append(obj)
-				setattr(cls, key, _typechecked_class(getattr(cls, key), force_recursive, force_recursive, nst2))
+				setattr(cls, key, _typechecked_class(obj, force_recursive, force_recursive, nst2))
 	return cls
 
-# Todo: Write tests for this
+# Todo: Extend tests for this
 def typechecked_module(md, force_recursive = False):
 	'''
 	Intended to typecheck modules that were not annotated with @typechecked without
@@ -576,9 +576,10 @@ def typechecked_module(md, force_recursive = False):
 	for key in keys:
 		obj = md.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
+			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)) \
+					and obj.__module__ == md.__name__ and has_type_hints(obj):
 				setattr(md, key, typechecked_func(obj, force_recursive))
-			elif isclass(obj):
+			elif isclass(obj) and obj.__module__ == md.__name__:
 				setattr(md, key, typechecked_class(obj, force_recursive, force_recursive))
 
 def typechecked(obj):
@@ -600,4 +601,7 @@ def no_type_check(obj):
 		return obj
 
 def is_no_type_check(obj):
-	return hasattr(obj, '__no_type_check__') and obj.__no_type_check__ or obj in not_type_checked
+	try:
+		return hasattr(obj, '__no_type_check__') and obj.__no_type_check__ or obj in not_type_checked
+	except TypeError:
+		return False

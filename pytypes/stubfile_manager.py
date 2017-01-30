@@ -40,7 +40,7 @@ def _match_classes(stub_module_or_class, original_module_or_class, original_modu
 			stub_class = getattr(stub_module_or_class, cl.__name__)
 			# Maybe we should assert that stub_class.__module__ is really the stub module.
 			# However that might prevent some import tricks and modularity management in
-			# a smarter subfile hierarchy. So we leave it like this for now.
+			# a smarter stubfile hierarchy. So we leave it like this for now.
 			stub_class._match_type = cl
 			_match_classes(stub_class, cl, original_module_name)
 
@@ -119,7 +119,7 @@ def _check_py2_stubmodule(pyi_file, pyi2_module):
 		return False
 
 def get_stub_module(func):
-	if not hasattr(func, '__module__'):
+	if not hasattr(func, '__module__') or func.__module__ is None:
 		return None
 	module = sys.modules[func.__module__]
 	assert(ismodule(module))

@@ -930,6 +930,24 @@ class TestTypecheck_class(unittest.TestCase):
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ('a', 'b'), 1.9))
 
+class TestTypecheck_module(unittest.TestCase):
+	def test_function_py2(self):
+		from pytypes.tests.testhelpers import modulewide_typecheck_testhelper_py2 as mth
+		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
+		pytypes.typechecked_module(mth)
+		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+	def test_function_py3(self):
+		from pytypes.tests.testhelpers import modulewide_typecheck_testhelper as mth
+		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
+		pytypes.typechecked_module(mth)
+		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+		self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
 
 class TestOverride(unittest.TestCase):
 	def test_override(self):
