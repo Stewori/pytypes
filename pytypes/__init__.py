@@ -98,7 +98,8 @@ from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
-		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError
+		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \
+		check_argument_types
 
 # Some exemplary overrides for this modules's global settings:
 

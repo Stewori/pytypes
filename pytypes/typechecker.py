@@ -8,7 +8,7 @@ import sys, typing, types, inspect, re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
-		deep_type, _funcsigtypes, _issubclass, _isinstance
+		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
@@ -434,6 +434,7 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 			args_kw = tuple([t for t in args] + [kw[name] for name in argNames[len(args):]])
 
 		if len(argNames) > 0:
+			# Todo: Raise warnings instead of printing them
 			if clsm:
 				if argNames[0] != 'cls':
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
@@ -540,6 +541,7 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
 	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
 	nst = [cls] if nesting is None else nesting
 	keys = [key for key in cls.__dict__]
 	for key in keys:
@@ -572,6 +574,7 @@ def typechecked_module(md, force_recursive = False):
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
 	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
 	keys = [key for key in md.__dict__]
 	for key in keys:
 		obj = md.__dict__[key]
@@ -605,3 +608,22 @@ def is_no_type_check(obj):
 		return hasattr(obj, '__no_type_check__') and obj.__no_type_check__ or obj in not_type_checked
 	except TypeError:
 		return False
+
+def check_argument_types(cllable = None, call_args = None):
+	if cllable is None:
+		fq = pytypes.util.get_current_function_fq(1)
+		cllable = fq[0]
+		slf = fq[2]
+		clsm = pytypes.is_classmethod(fq[0])
+		clss = fq[1][-1] if slf or clsm else None
+	else:
+		clsm = pytypes.is_classmethod(cllable)
+		slf = inspect.ismethod(cllable)
+		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
+	argSig, resSig = type_util._get_types(cllable, clsm, slf)
+	if call_args is None:
+		call_args = pytypes.util.get_current_args(1)
+	if slf or clsm:
+		call_args = call_args[1:]
+	pytypes.typechecker._checkfunctype(argSig, call_args, cllable, slf, clss)
+

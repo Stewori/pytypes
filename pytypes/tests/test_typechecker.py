@@ -11,7 +11,7 @@ import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
-		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError
+		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, check_argument_types
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping
 from numbers import Real
@@ -650,6 +650,26 @@ class test_iterable_annotated():
 		return test_iter(self)
 
 
+class testClass_check_argument_types(object):
+
+	def testMeth_check_argument_types(self, a):
+		# type: (int) -> None
+		check_argument_types()
+
+	@classmethod
+	def testClassmeth_check_argument_types(cls, a):
+		# type: (int) -> None
+		check_argument_types()
+
+	@staticmethod
+	def testStaticmeth_check_argument_types(a):
+		# type: (int) -> None
+		check_argument_types()
+
+def testfunc_check_argument_types(a, b, c):
+	# type: (int, float, str) -> None
+	check_argument_types()
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -948,6 +968,22 @@ class TestTypecheck_module(unittest.TestCase):
 		pytypes.typechecked_module(mth)
 		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
 		self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
+
+class Test_check_argument_types(unittest.TestCase):
+	def test_function(self):
+		self.assertIsNone(testfunc_check_argument_types(2, 3.0, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
+
+	def test_methods(self):
+		cl = testClass_check_argument_types()
+		self.assertIsNone(cl.testMeth_check_argument_types(7))
+		self.assertIsNone(cl.testClassmeth_check_argument_types(8))
+		self.assertIsNone(cl.testStaticmeth_check_argument_types(9))
+
+		self.assertRaises(InputTypeError, lambda: cl.testMeth_check_argument_types('7'))
+		self.assertRaises(InputTypeError, lambda: cl.testClassmeth_check_argument_types(8.5))
+		self.assertRaises(InputTypeError, lambda: cl.testStaticmeth_check_argument_types((9,)))
+
 
 class TestOverride(unittest.TestCase):
 	def test_override(self):

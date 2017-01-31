@@ -6,6 +6,8 @@ Created on 12.12.2016
 
 import pytypes, subprocess, hashlib, sys, os, types, inspect
 
+_code_callable_dict = {}
+
 def _check_python3_5_version():
 	try:
 		ver = subprocess.check_output([pytypes.python3_5_executable, '--version'])
@@ -164,6 +166,8 @@ def is_method(func):
 				return True
 			else:
 				print('Warning (is_method): non-method declaring self '+func0.__name__)
+		else:
+			return inspect.ismethod(func)
 	return False
 
 def is_class(obj):
@@ -173,6 +177,8 @@ def is_class(obj):
 		return isinstance(obj, (types.TypeType, types.ClassType))
 
 def is_classmethod(meth):
+	if inspect.ismethoddescriptor(meth):
+		return isinstance(meth, classmethod)
 	if not inspect.ismethod(meth):
 		return False
 	if not is_class(meth.__self__):
@@ -204,3 +210,72 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 				get_staticmethod_qualname(func))
 	else:
 		return ('%s.%s') % (func0.__module__, func0.__name__)
+
+def get_current_function(caller_level = 0):
+	stck = inspect.stack()
+	return get_callable_fq_for_code(stck[1+caller_level][0].f_code)[0]
+
+def get_current_function_fq(caller_level = 0):
+	stck = inspect.stack()
+	return get_callable_fq_for_code(stck[1+caller_level][0].f_code)
+
+def get_current_args(caller_level = 0):
+	func = get_current_function(caller_level+1)
+	stck = inspect.stack()
+	lcs = stck[1+caller_level][0].f_locals
+	return tuple([lcs[t] for t in getargspecs(func)[0]])
+
+def get_callable_fq_for_code(code):
+	if code in _code_callable_dict:
+		return _code_callable_dict[code]
+	md = inspect.getmodule(code, code.co_filename)
+	if not md is None:
+		nesting = []
+		res, slf = _get_callable_fq_for_code(code, md, md, False, nesting)
+		_code_callable_dict[code] = (res, nesting, slf)
+		return res, nesting, slf
+	else:
+		return None, None, None
+
+def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
+	keys = [key for key in module_or_class.__dict__]
+	for key in keys:
+		slf2 = slf
+		obj = module_or_class.__dict__[key]
+		if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+			if isinstance(obj, classmethod) or isinstance(obj, staticmethod):
+				obj = obj.__func__
+				slf2 = False
+			try:
+				if obj.__module__ == module.__name__ and _code_matches_func(obj, code):
+					return getattr(module_or_class, key), slf2
+			except AttributeError:
+				try:
+					if obj.__func__.__module__ == module.__name__ and \
+							_code_matches_func(obj, code):
+						return getattr(module_or_class, key), slf2
+				except AttributeError:
+					pass
+		elif inspect.isclass(obj) and obj.__module__ == module.__name__:
+			nesting.append(obj)
+			res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting)
+			if not res is None:
+				return res, slf2
+			else:
+				nesting.pop()
+	return None, False
+
+def _code_matches_func(func, code):
+	if func.__code__ == code:
+		return True
+	else:
+		try:
+			return _code_matches_func(func.ch_func, code)
+		except AttributeError:
+			try:
+				return _code_matches_func(func.ov_func, code)
+			except AttributeError:
+				try:
+					return _code_matches_func(func.__func__, code)
+				except AttributeError:
+					return False
