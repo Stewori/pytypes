@@ -111,6 +111,13 @@ def get_Tuple_params(tpl):
 		# Python 3.6
 		return () if tpl.__args__[0] == () else tpl.__args__
 
+def get_Union_params(un):
+	try:
+		return un.__union_params__
+	except AttributeError:
+		# Python 3.6
+		return un.__args__
+
 def get_Callable_args_res(clb):
 	try:
 		return clb.__args__, clb.__result__
@@ -132,8 +139,8 @@ def is_iterable(obj):
 		return False
 
 def is_Union(tp):
-	'''Python-version independent check if a type is typing.Union.
-	Tested with CPython 2.7, 3.5 and 3.6.
+	'''Python version independent check if a type is typing.Union.
+	Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
 	'''
 	if tp is Union:
 		return True
@@ -517,40 +524,46 @@ def _issubclass_Generic(subclass, superclass):
 		return False
 	return _issubclass_2(subclass, superclass.__extra__)
 
-def _issubclass_Tuple_py36(subclass, superclass):
-	# Intended only for Python 3.6+
+def _issubclass_Tuple(subclass, superclass):
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 	if not isinstance(subclass, type):
 # 		# To TypeError.
 		return False
 	if not isinstance(subclass, TupleMeta):
-		return _issubclass_Generic(subclass, superclass)
-	if superclass.__args__ is None:
+		if isinstance(subclass, GenericMeta):
+			return _issubclass_Generic(subclass, superclass)
+		elif is_Union(subclass):
+			return all(_issubclass_Tuple(t, superclass)
+					for t in get_Union_params(subclass))
+	sub_args = get_Tuple_params(subclass)
+	super_args = get_Tuple_params(superclass)
+	if super_args is None:
 		return True
-	if subclass.__args__ is None:
+	if sub_args is None:
 		return False  # ???
 	# Covariance.
-	return (len(superclass.__args__) == len(subclass.__args__) and
+	return (len(super_args) == len(sub_args) and
 			all(_issubclass(x, p)
-				for x, p in zip(subclass.__args__, superclass.__args__)))
+				for x, p in zip(sub_args, super_args)))
 
-def _issubclass_Union_py36(subclass, superclass): #self, cls):
-	# Intended only for Python 3.6+
-	if superclass.__args__ is None:
+def _issubclass_Union(subclass, superclass):
+	super_args = get_Union_params(superclass)
+	if super_args is None:
 		return is_Union(subclass)
 	elif is_Union(subclass):
-		if subclass.__args__ is None:
+		sub_args = get_Union_params(subclass)
+		if sub_args is None:
 			return False
-		return all(_issubclass(c, superclass) for c in (subclass.__args__))
+		return all(_issubclass(c, superclass) for c in (sub_args))
 	elif isinstance(subclass, TypeVar):
-		if subclass in superclass.__args__:
+		if subclass in super_args:
 			return True
 		if subclass.__constraints__:
 			return _issubclass(make_Union(subclass.__constraints__), superclass)
 		return False
 	else:
-		return any(_issubclass(subclass, t) for t in superclass.__args__)
+		return any(_issubclass(subclass, t) for t in super_args)
 
 # This is just a crutch, because issubclass sometimes tries to be too smart.
 # Note that this doesn't consider __subclasshook__ etc, so use with care!
@@ -580,24 +593,25 @@ def _issubclass(subclass, superclass):
 	return _issubclass_2(subclass, superclass)
 
 def _issubclass_2(subclass, superclass):
+	if isinstance(superclass, TupleMeta):
+		return _issubclass_Tuple(subclass, superclass)
 	if isinstance(superclass, GenericMeta):
-		if isinstance(superclass, TupleMeta):
-			return _issubclass_Tuple_py36(subclass, superclass)
 		# We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
 		if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
 			return _issubclass_Mapping_covariant(subclass, superclass)
 		else:
 			return _issubclass_Generic(subclass, superclass)
-	if is_Union(superclass) and hasattr(superclass, '__args__'):
-		return _issubclass_Union_py36(subclass, superclass)
-	if is_Union(subclass) and hasattr(subclass, '__args__'):
-		# Another special treatment for Python 3.6
-		return all(_issubclass(t, superclass) for t in subclass.__args__)
-
+	if is_Union(superclass):
+		return _issubclass_Union(subclass, superclass)
+	if is_Union(subclass):
+		return all(_issubclass(t, superclass) for t in get_Union_params(subclass))
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
-
-	return issubclass(subclass, superclass)
+	try:
+		return issubclass(subclass, superclass)
+	except TypeError:
+		raise TypeError("Invalid type declaration: %s, %s" %
+				(type_str(subclass), type_str(superclass)))
 
 def _isinstance_Callable(obj, cls, check_callables = True):
 	# todo: Let pytypes somehow create a Callable-scoped error message,

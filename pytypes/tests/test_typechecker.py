@@ -670,6 +670,10 @@ def testfunc_check_argument_types(a, b, c):
 	# type: (int, float, str) -> None
 	check_argument_types()
 
+def testfunc_check_argument_types2(a):
+	# type: (Sequence[float]) -> None
+	check_argument_types()
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -874,6 +878,22 @@ class TestTypecheck(unittest.TestCase):
 	def test_numeric_tower(self):
 		num_tow_tmp = pytypes.apply_numeric_tower
 		pytypes.apply_numeric_tower = True
+
+		self.assertTrue(pytypes.is_subtype(int, float))
+		self.assertTrue(pytypes.is_subtype(int, complex))
+		self.assertTrue(pytypes.is_subtype(float, complex))
+
+		self.assertFalse(pytypes.is_subtype(float, int))
+		self.assertFalse(pytypes.is_subtype(complex, int))
+		self.assertFalse(pytypes.is_subtype(complex, float))
+
+		self.assertTrue(pytypes.is_subtype(Union[int, float], float))
+		self.assertTrue(pytypes.is_subtype(Sequence[int], Sequence[float]))
+		self.assertTrue(pytypes.is_subtype(List[int], Sequence[float]))
+		self.assertTrue(pytypes.is_subtype(Tuple[int, float], Tuple[float, complex]))
+		self.assertTrue(pytypes.is_subtype(Tuple[int, float], Sequence[float]))
+		self.assertTrue(pytypes.is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
+
 		self.assertEqual(testfunc_numeric_tower_float(3), '3')
 		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
 		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
@@ -896,8 +916,27 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(testfunc_numeric_tower_return('defg'), 4)
 		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
 
+		self.assertIsNone(testfunc_check_argument_types(2, 3, 'qvwx'))
+		self.assertIsNone(testfunc_check_argument_types2([3, 2., 1]))
+
 
 		pytypes.apply_numeric_tower = False
+
+		self.assertFalse(pytypes.is_subtype(int, float))
+		self.assertFalse(pytypes.is_subtype(int, complex))
+		self.assertFalse(pytypes.is_subtype(float, complex))
+
+		self.assertFalse(pytypes.is_subtype(float, int))
+		self.assertFalse(pytypes.is_subtype(complex, int))
+		self.assertFalse(pytypes.is_subtype(complex, float))
+
+		self.assertFalse(pytypes.is_subtype(Union[int, float], float))
+		self.assertFalse(pytypes.is_subtype(Sequence[int], Sequence[float]))
+		self.assertFalse(pytypes.is_subtype(List[int], Sequence[float]))
+		self.assertFalse(pytypes.is_subtype(Tuple[int, float], Tuple[float, complex]))
+		self.assertFalse(pytypes.is_subtype(Tuple[int, float], Sequence[float]))
+		self.assertFalse(pytypes.is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
+
 		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(3))
 		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
 		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
@@ -919,6 +958,9 @@ class TestTypecheck(unittest.TestCase):
 
 		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return('defg'))
 		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
+
+		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types(2, 3, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types2([3, 2., 1]))
 
 		pytypes.apply_numeric_tower = num_tow_tmp
 
@@ -950,6 +992,7 @@ class TestTypecheck_class(unittest.TestCase):
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ('a', 'b'), 1.9))
 
+
 class TestTypecheck_module(unittest.TestCase):
 	def test_function_py2(self):
 		from pytypes.tests.testhelpers import modulewide_typecheck_testhelper_py2 as mth
@@ -968,6 +1011,7 @@ class TestTypecheck_module(unittest.TestCase):
 		pytypes.typechecked_module(mth)
 		self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
 		self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
+
 
 class Test_check_argument_types(unittest.TestCase):
 	def test_function(self):

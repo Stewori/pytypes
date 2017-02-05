@@ -40,7 +40,6 @@ As of this writing pytypes doesn't yet support
 
 - method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
 - async-related constructs from typing
-- numeric tower does not yet work like described in PEP 484
 
 
 License
