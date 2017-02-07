@@ -29,7 +29,10 @@ def _parse_typecomment_oneline(line):
 	return None
 
 def _get_typestrings(obj, slf):
-	srclines = inspect.getsourcelines(obj)[0]
+	try:
+		srclines = inspect.getsourcelines(obj)[0]
+	except IOError:
+		return None
 	funcstart = 0
 	startInit = False
 	result = []

@@ -4,7 +4,7 @@ Created on 20.08.2016
 @author: Stefan Richthofer
 '''
 
-import sys, typing, types, inspect, re, atexit
+import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
@@ -18,10 +18,13 @@ else:
 	import __builtin__ as builtins
 
 not_type_checked = set()
+_fully_typechecked_modules = {}
 
 _delayed_checks = []
 
-# Monkeypatch import to process forward-declarations after module loading finished:
+# Monkeypatch import to
+# process forward-declarations after module loading finished
+# and eventually apply global typechecking:
 python___import__ = builtins.__import__
 def pytypes___import__(name, *x):
 	res = python___import__(name, *x)
@@ -35,6 +38,16 @@ def pytypes___import__(name, *x):
 					if mod_name_full in sys.modules:
 						_re_match_module(mod_name_full, True)
 	_run_delayed_checks(True, name)
+	if pytypes.global_checking:
+		if (len(x) >= 3):
+			if x[2] is None:
+				if name in sys.modules:
+					typechecked_module(name)
+			else:
+				for mod_name in x[2]:
+					mod_name_full = name+'.'+mod_name
+					if mod_name_full in sys.modules:
+						typechecked_module(mod_name_full, True)
 	return res
 builtins.__import__ = pytypes___import__
 
@@ -148,7 +161,7 @@ def override(func):
 		# as it is just getting defined. Luckily we can get base-classes via inspect.stack():
 		stack = inspect.stack()
 		try:
-			base_classes = re.search(r'class.+\((.+)\)\s*\:', stack[2][4][0]).group(1)
+			base_classes = _re.search(r'class.+\((.+)\)\s*\:', stack[2][4][0]).group(1)
 		except IndexError:
 			raise _function_instead_of_method_error(func)
 		meth_cls_name = stack[1][3]
@@ -564,13 +577,21 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 
 # Todo: Extend tests for this
 def typechecked_module(md, force_recursive = False):
-	'''
-	Intended to typecheck modules that were not annotated with @typechecked without
-	modifying their code.
+	'''Intended to typecheck modules that were not annotated
+	with @typechecked without modifying their code.
+	md must be a module or a module name contained in sys.modules.
 	'''
 	if not pytypes.checking_enabled:
 		return md
+	if isinstance(md, str):
+		if md in sys.modules:
+			md = sys.modules[md]
+			if md is None:
+				return md
 	assert(ismodule(md))
+	if md.__name__ in _fully_typechecked_modules and \
+			_fully_typechecked_modules[md.__name__] == len(md.__dict__):
+		return md
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
 	# For this we don't use keys() because of Python 3.
@@ -584,6 +605,8 @@ def typechecked_module(md, force_recursive = False):
 				setattr(md, key, typechecked_func(obj, force_recursive))
 			elif isclass(obj) and obj.__module__ == md.__name__:
 				setattr(md, key, typechecked_class(obj, force_recursive, force_recursive))
+	_fully_typechecked_modules[md.__name__] = len(md.__dict__)
+	return md
 
 def typechecked(obj):
 	if not pytypes.checking_enabled:
@@ -594,7 +617,19 @@ def typechecked(obj):
 		return typechecked_func(obj)
 	if isclass(obj):
 		return typechecked_class(obj)
+	if ismodule(obj):
+		return typechecked_module(obj, True)
 	return obj
+
+def _catch_up_global_checking():
+	for mod_name in sys.modules:
+		if not mod_name in _fully_typechecked_modules:
+			try:
+				md = sys.modules[mod_name]
+			except KeyError:
+				md = None
+			if not md is None and ismodule(md):
+				typechecked_module(mod_name)
 
 def no_type_check(obj):
 	try:

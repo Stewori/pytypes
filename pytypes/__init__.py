@@ -7,14 +7,7 @@ Created on 12.12.2016
 import typing
 
 checking_enabled = False
-def set_checking_enabled(flag = True):
-	global checking_enabled
-	checking_enabled = flag
-	return checking_enabled
-
-# This way we glue typechecking to activeness of the assert statement by default,
-# no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
-assert(set_checking_enabled())
+global_checking = False
 
 # Some behavior flags:
 
@@ -26,7 +19,7 @@ check_iterables = True
 check_generators = True
 
 check_unbound_types = True
-apply_numeric_tower = True # as described in PEP 484, i.e. int is subtype of float
+apply_numeric_tower = True # i.e. int is subtype of float is subtype of complex
 
 # For runtime checking it is usually okay to treat Mapping-types as covariant,
 # given that a Mapping here wouldn't accept every value of proper type anyway.
@@ -38,6 +31,22 @@ covariant_Mapping = True
 default_typecheck_depth = 10
 
 python3_5_executable = 'python3' # Must be >= 3.5.0
+
+def set_checking_enabled(flag = True):
+	global checking_enabled
+	checking_enabled = flag
+	return checking_enabled
+
+def set_global_checking(flag = True, retrospective = True):
+	global global_checking
+	global_checking = flag
+	if global_checking and retrospective:
+		_catch_up_global_checking()
+	return global_checking
+
+# This way we glue typechecking to activeness of the assert statement by default,
+# no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
+assert(set_checking_enabled())
 
 def _detect_issue351():
 	'''Detect if github.com/python/typing/issues/351 applies
@@ -100,7 +109,7 @@ from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \
-		check_argument_types
+		check_argument_types, _catch_up_global_checking
 
 # Some exemplary overrides for this modules's global settings:
 

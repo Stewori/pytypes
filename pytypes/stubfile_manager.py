@@ -121,6 +121,8 @@ def _check_py2_stubmodule(pyi_file, pyi2_module):
 def get_stub_module(func):
 	if not hasattr(func, '__module__') or func.__module__ is None:
 		return None
+	if not func.__module__ in sys.modules or sys.modules[func.__module__] is None:
+		return None
 	module = sys.modules[func.__module__]
 	assert(ismodule(module))
 	m_name = module.__name__
