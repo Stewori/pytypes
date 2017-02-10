@@ -106,10 +106,13 @@ def get_Tuple_params(tpl):
 	try:
 		return tpl.__tuple_params__
 	except AttributeError:
-		if tpl.__args__ is None:
+		try:
+			if tpl.__args__ is None:
+				return None
+			# Python 3.6
+			return () if tpl.__args__[0] == () else tpl.__args__
+		except AttributeError:
 			return None
-		# Python 3.6
-		return () if tpl.__args__[0] == () else tpl.__args__
 
 def get_Union_params(un):
 	try:
@@ -258,7 +261,7 @@ def type_str(tp):
 def get_types(func):
 	return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
-def _get_types(func, clsm, slf):
+def _get_types(func, clsm, slf, clss = None):
 	func0 = util._actualfunc(func)
 
 	# check consistency regarding special case with 'self'-keyword
@@ -268,8 +271,7 @@ def _get_types(func, clsm, slf):
 			if clsm:
 				if argNames[0] != 'cls':
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
-	clss = None
-	if slf or clsm:
+	if clss is None and (slf or clsm):
 		if slf:
 			assert util.is_method(func)
 		if clsm:
@@ -528,7 +530,7 @@ def _issubclass_Tuple(subclass, superclass):
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 	if not isinstance(subclass, type):
-# 		# To TypeError.
+		# To TypeError.
 		return False
 	if not isinstance(subclass, TupleMeta):
 		if isinstance(subclass, GenericMeta):
@@ -536,10 +538,10 @@ def _issubclass_Tuple(subclass, superclass):
 		elif is_Union(subclass):
 			return all(_issubclass_Tuple(t, superclass)
 					for t in get_Union_params(subclass))
-	sub_args = get_Tuple_params(subclass)
 	super_args = get_Tuple_params(superclass)
 	if super_args is None:
 		return True
+	sub_args = get_Tuple_params(subclass)
 	if sub_args is None:
 		return False  # ???
 	# Covariance.

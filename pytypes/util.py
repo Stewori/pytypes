@@ -67,6 +67,8 @@ def _unchecked_backend(func):
 def _actualfunc(func):
 	if type(func) == classmethod or type(func) == staticmethod:
 		return _actualfunc(func.__func__)
+	if type(func) == property:
+		return _actualfunc(func.fget if func.fset is None else func.fset)
 	# Todo: maybe rename ov_func and ch_func also to __func__
 	elif hasattr(func, 'ov_func'):
 		return _actualfunc((func.ov_func))
@@ -221,6 +223,8 @@ def get_current_function_fq(caller_level = 0):
 
 def get_current_args(caller_level = 0):
 	func = get_current_function(caller_level+1)
+	if isinstance(func, property):
+		func = func.fget if func.fset is None else func.fset
 	stck = inspect.stack()
 	lcs = stck[1+caller_level][0].f_locals
 	return tuple([lcs[t] for t in getargspecs(func)[0]])
@@ -242,10 +246,14 @@ def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 	for key in keys:
 		slf2 = slf
 		obj = module_or_class.__dict__[key]
-		if inspect.isfunction(obj) or inspect.ismethod(obj) or inspect.ismethoddescriptor(obj):
+		if inspect.isfunction(obj) or inspect.ismethod(obj) \
+				or inspect.ismethoddescriptor(obj) or inspect.isdatadescriptor(obj):
 			if isinstance(obj, classmethod) or isinstance(obj, staticmethod):
 				obj = obj.__func__
 				slf2 = False
+			elif isinstance(obj, property):
+				slf2 = True
+				obj = obj.fget if obj.fset is None else obj.fset
 			try:
 				if obj.__module__ == module.__name__ and _code_matches_func(obj, code):
 					return getattr(module_or_class, key), slf2

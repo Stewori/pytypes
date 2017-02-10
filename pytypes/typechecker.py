@@ -5,7 +5,7 @@ Created on 20.08.2016
 '''
 
 import sys, typing, types, inspect, re as _re, atexit
-from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
+from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor, isdatadescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types
@@ -292,27 +292,22 @@ def override(func):
 		func._check_parent_types = True
 		return func
 
-def _make_type_error_message(tp, func, slf, func_class, expected_tp, incomp_text):
+def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
+			incomp_text, prop_getter = False):
 	_cmp_msg_format = 'Expected: %s\nReceived: %s'
-	fq_func_name = util._fully_qualified_func_name(func, slf, func_class)
-	if slf:
-		# Todo: Clarify if an @override-induced check caused this
-		# Todo: Python3 misconcepts method as classmethod here, because it doesn't
-		# detect it as bound method, because ov_checker or tp_checker obfuscate it
-		if not func_class is None and not type(func) is classmethod:
-			func = getattr(func_class, func.__name__)
-		if hasattr(func, 'im_class'):
-			return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
-				% (type_str(expected_tp), type_str(tp))
+	if type(func) is property:
+		assert slf is True
+		if func.fset is None or prop_getter:
+			fq_func_name = util._fully_qualified_func_name(func.fget, True, func_class)+"/getter"
 		else:
-			return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
-				% (type_str(expected_tp), type_str(tp))
-	elif type(func) == staticmethod:
-		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
-				% (type_str(expected_tp), type_str(tp))
+			fq_func_name = util._fully_qualified_func_name(func.fset, True, func_class)+"/setter"
 	else:
-		return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
-				% (type_str(expected_tp), type_str(tp))
+		fq_func_name = util._fully_qualified_func_name(func, slf, func_class)
+	# Todo: Clarify if an @override-induced check caused this
+	# Todo: Python3 misconcepts method as classmethod here, because it doesn't
+	# detect it as bound method, because ov_checker or tp_checker obfuscate it
+	return fq_func_name+' '+incomp_text+':\n'+_cmp_msg_format \
+			% (type_str(expected_tp), type_str(tp))
 
 def _checkinstance(obj, cls, is_args, func, force = False):
 	if isinstance(cls, typing.TupleMeta):
@@ -399,7 +394,8 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 				return False, obj
 	return _isinstance(obj, cls), obj
 
-def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False):
+def _checkfunctype(argSig, check_val, func, slf, func_class, \
+			make_checked_val = False, prop_getter = False):
 	if make_checked_val:
 		result, checked_val = _checkinstance(check_val, argSig, True, func)
 	else:
@@ -407,10 +403,11 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 		checked_val = None
 	if not result:
 		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
-				slf, func_class, argSig, 'called with incompatible types'))
+				slf, func_class, argSig, 'called with incompatible types', prop_getter))
 	return checked_val
 
-def _checkfuncresult(resSig, check_val, func, slf, func_class, make_checked_val = False):
+def _checkfuncresult(resSig, check_val, func, slf, func_class, \
+			make_checked_val = False, prop_getter = False):
 	if make_checked_val:
 		result, checked_val = _checkinstance(check_val, _match_stub_type(resSig), False, func)
 	else:
@@ -419,18 +416,22 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, make_checked_val 
 	if not result:
 		# todo: constrain deep_type-depth
 		raise ReturnTypeError(_make_type_error_message(deep_type(check_val), func,
-				slf, func_class, resSig, 'returned incompatible type'))
+				slf, func_class, resSig, 'returned incompatible type', prop_getter))
 	return checked_val
 
-def typechecked_func(func, force = False, argType = None, resType = None):
+def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
 	if not pytypes.checking_enabled:
 		return func
-	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func))
+	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func) or isdatadescriptor(func))
 	if not force and is_no_type_check(func):
 		return func
 	clsm = type(func) == classmethod
 	stat = type(func) == staticmethod
-	func0 = util._actualfunc(func)
+	prop = prop_getter or type(func) == property
+	if prop_getter:
+		func0 = util._actualfunc(func.fget)
+	else:
+		func0 = util._actualfunc(func)
 
 	if hasattr(func, '_check_parent_types'):
 		checkParents = func._check_parent_types
@@ -450,10 +451,13 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 			# Todo: Raise warnings instead of printing them
 			if clsm:
 				if argNames[0] != 'cls':
-					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
+					print('Warning: classmethod using non-idiomatic cls argname '+func0.__name__)
 				check_args = args_kw[1:] # omit self
 			elif argNames[0] == 'self':
-				if hasattr(args_kw[0].__class__, func0.__name__) and \
+				if prop:
+					check_args = args_kw[1:] # omit self
+					slf = True
+				elif hasattr(args_kw[0].__class__, func0.__name__) and \
 						ismethod(getattr(args_kw[0], func0.__name__)):
 					check_args = args_kw[1:] # omit self
 					slf = True
@@ -461,8 +465,17 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 					print('Warning: non-method declaring self '+func0.__name__)
 					check_args = args_kw
 			else:
+				if prop:
+					print('Warning: property using non-idiomatic self argname '+func0.__name__)
+					check_args = args_kw[1:] # omit self
+					slf = True
 				check_args = args_kw
 		else:
+			# Todo: Fill in fully qualified names
+			if clsm:
+				raise TypeError("classmethod without cls-arg: "+str(func))
+			elif prop:
+				raise TypeError("property without slef-arg: "+str(func))
 			check_args = args_kw
 			
 		if checkParents:
@@ -486,7 +499,10 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 
 		resSigs = []
 		if argType is None or resType is None:
-			argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm, parent_class)
+			if prop_getter:
+				argSig, resSig = _funcsigtypes(toCheck[0].fget, slf or clsm, parent_class)
+			else:
+				argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm, parent_class)
 			if argType is None:
 				argSig = _match_stub_type(argSig)
 			else:
@@ -512,15 +528,22 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 				res = func.__func__(args[0], *checked_val)
 			else:
 				res = func.__func__(*checked_val)
+		elif prop:
+			if prop_getter or func.fset is None:
+				res = func.fget(args[0], *checked_val)
+			else:
+				res = func.fset(args[0], *checked_val)
 		else:
 			if len(args_kw) != len(checked_val):
 				res = func(args[0], *checked_val)
 			else:
 				res = func(*checked_val)
 
-		checked_res = _checkfuncresult(resSigs[0], res, toCheck[0], slf or clsm, parent_class, True)
+		checked_res = _checkfuncresult(resSigs[0], res, toCheck[0], \
+				slf or clsm, parent_class, True, prop_getter)
 		for i in range(1, len(resSigs)):
-			_checkfuncresult(resSigs[i], res, toCheck[i], slf or clsm, parent_class)
+			_checkfuncresult(resSigs[i], res, toCheck[i], slf or clsm, parent_class, \
+					prop_getter = prop_getter)
 		return checked_res
 
 	checker_tp.ch_func = func
@@ -539,6 +562,15 @@ def typechecked_func(func, force = False, argType = None, resType = None):
 		return classmethod(checker_tp)
 	elif stat:
 		return staticmethod(checker_tp)
+	elif prop and not prop_getter:
+		if func.fset is None:
+			return property(checker_tp, None, func.fdel, func.__doc__)
+		else:
+			if not hasattr(func.fget, 'ch_func'):
+				#todo: What about @no_type_check applied to getter/setter?
+				checker_tp_get = typechecked_func(func, prop_getter = True)
+				return property(checker_tp_get, checker_tp, func.fdel, func.__doc__)
+			return property(func.fget, checker_tp, func.fdel, func.__doc__)
 	else:
 		return checker_tp
 
@@ -560,7 +592,8 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 	for key in keys:
 		obj = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(obj):
-			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)):
+			if (isfunction(obj) or ismethod(obj) or \
+					ismethoddescriptor(obj) or isinstance(obj, property)):
 				if _has_type_hints(getattr(cls, key), nst) or hasattr(obj, 'ov_func'):
 					setattr(cls, key, typechecked_func(obj, force_recursive))
 # 				else:
@@ -613,7 +646,7 @@ def typechecked(obj):
 		return obj
 	if is_no_type_check(obj):
 		return obj
-	if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj):
+	if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj) or isinstance(obj, property):
 		return typechecked_func(obj)
 	if isclass(obj):
 		return typechecked_class(obj)
@@ -655,7 +688,7 @@ def check_argument_types(cllable = None, call_args = None):
 		clsm = pytypes.is_classmethod(cllable)
 		slf = inspect.ismethod(cllable)
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
-	argSig, resSig = type_util._get_types(cllable, clsm, slf)
+	argSig, resSig = type_util._get_types(cllable, clsm, slf, clss)
 	if call_args is None:
 		call_args = pytypes.util.get_current_args(1)
 	if slf or clsm:

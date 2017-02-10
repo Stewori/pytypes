@@ -7,6 +7,8 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
+#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
+#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -674,6 +676,68 @@ def testfunc_check_argument_types2(a):
 	# type: (Sequence[float]) -> None
 	check_argument_types()
 
+
+class testClass_property(object):
+
+	@typechecked
+	@property
+	def testprop(self):
+		# type: () -> int
+		return self._testprop
+
+	@typechecked
+	@testprop.setter
+	def testprop(self, value):
+		# type: (int) -> None
+		self._testprop = value
+
+	@typechecked
+	@property
+	def testprop2(self):
+		# type: () -> str
+		return self._testprop2
+
+	@testprop2.setter
+	def testprop2(self, value):
+		# type: (str) -> None
+		self._testprop2 = value
+
+	@typechecked
+	@property
+	def testprop3(self):
+		# type: () -> Tuple[int, str]
+		return self._testprop3
+
+	@testprop3.setter
+	def testprop3(self, value):
+		# type: (Tuple[int, str]) -> None
+		check_argument_types()
+		self._testprop3 = value
+
+
+@typechecked
+class testClass_property_class_check(object):
+	@property
+	def testprop(self):
+		# type: () -> int
+		return self._testprop
+
+	@testprop.setter
+	def testprop(self, value):
+		# type: (int) -> None
+		self._testprop = value
+
+	@property
+	def testprop2(self):
+		# type: () -> float
+		return 'abc'
+
+	@testprop2.setter
+	def testprop2(self, value):
+		# type: (float) -> None
+		pass
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -963,6 +1027,39 @@ class TestTypecheck(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types2([3, 2., 1]))
 
 		pytypes.apply_numeric_tower = num_tow_tmp
+
+	def test_property(self):
+		tcp = testClass_property()
+		tcp.testprop = 7
+		self.assertEqual(tcp.testprop, 7)
+		def tcp_prop1(): tcp.testprop = 7.2
+		self.assertRaises(InputTypeError, tcp_prop1)
+		tcp._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop)
+
+		tcp.testprop2 = 'def'
+		self.assertEqual(tcp.testprop2, 'def')
+		tcp.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop2)
+
+		tcp.testprop3 = (22, 'ghi')
+		self.assertEqual(tcp.testprop3, (22, 'ghi'))
+		def tcp_prop3(): tcp.testprop3 = 9
+		self.assertRaises(InputTypeError, tcp_prop3)
+		tcp._testprop3 = 9
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop3)
+
+		tcp_ch = testClass_property_class_check()
+		tcp_ch.testprop = 17
+		self.assertEqual(tcp_ch.testprop, 17)
+		def tcp_ch_prop(): tcp_ch.testprop = 71.2
+		self.assertRaises(InputTypeError, tcp_ch_prop)
+		tcp_ch._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop)
+
+		tcp_ch.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
+
 
 class TestTypecheck_class(unittest.TestCase):
 	def test_classmethod(self):
@@ -1542,6 +1639,38 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 				{'a': int, 'c': str, 'b': Real, 'return': Tuple[int, Real]})
 		self.assertEqual(pytypes.deep_type(('abc', [3, 'a', 7], 4.5)),
 				Tuple[str, List[Union[int, str]], float])
+
+	def test_property(self):
+		tcp = py3.testClass_property()
+		tcp.testprop = 7
+		self.assertEqual(tcp.testprop, 7)
+		def tcp_prop1(): tcp.testprop = 7.2
+		self.assertRaises(InputTypeError, tcp_prop1)
+		tcp._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop)
+
+		tcp.testprop2 = 'def'
+		self.assertEqual(tcp.testprop2, 'def')
+		tcp.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop2)
+
+		tcp.testprop3 = (22, 'ghi')
+		self.assertEqual(tcp.testprop3, (22, 'ghi'))
+		def tcp_prop3(): tcp.testprop3 = 9
+		self.assertRaises(InputTypeError, tcp_prop3)
+		tcp._testprop3 = 9
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop3)
+
+		tcp_ch = py3.testClass_property_class_check()
+		tcp_ch.testprop = 17
+		self.assertEqual(tcp_ch.testprop, 17)
+		def tcp_ch_prop(): tcp_ch.testprop = 71.2
+		self.assertRaises(InputTypeError, tcp_ch_prop)
+		tcp_ch._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop)
+
+		tcp_ch.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

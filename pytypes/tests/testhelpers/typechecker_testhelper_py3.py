@@ -4,7 +4,7 @@ Created on 12.09.2016
 @author: Stefan Richthofer
 '''
 
-import pytypes; from pytypes import typechecked, override
+import pytypes; from pytypes import typechecked, override, check_argument_types
 from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
 		Iterable, Iterator, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
@@ -405,3 +405,53 @@ class test_iterable_annotated():
 	def __iter__(self) -> Iterator[int]:
 		return test_iter(self)
 
+
+class testClass_property(object):
+
+	@typechecked
+	@property
+	def testprop(self) -> int:
+		return self._testprop
+
+	@typechecked
+	@testprop.setter
+	def testprop(self, value: int) -> None:
+		self._testprop = value
+
+	@typechecked
+	@property
+	def testprop2(self) -> str:
+		return self._testprop2
+
+	@testprop2.setter
+	def testprop2(self, value: str) -> None:
+		self._testprop2 = value
+
+	@typechecked
+	@property
+	def testprop3(self) -> Tuple[int, str]:
+		return self._testprop3
+
+	@testprop3.setter
+	def testprop3(self, value: Tuple[int, str]) -> None:
+		check_argument_types()
+		self._testprop3 = value
+
+
+@typechecked
+class testClass_property_class_check(object):
+	@property
+	def testprop(self) -> int:
+		return self._testprop
+
+	@testprop.setter
+	def testprop(self, value: int) -> None:
+		self._testprop = value
+
+	@property
+	def testprop2(self) -> float:
+		return 'abc'
+
+	@testprop2.setter
+	def testprop2(self, value: float) -> None:
+		pass
