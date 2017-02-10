@@ -5,7 +5,7 @@ Created on 20.08.2016
 '''
 
 import sys, typing, types, inspect, re as _re, atexit
-from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor, isdatadescriptor
+from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types
@@ -419,10 +419,13 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 				slf, func_class, resSig, 'returned incompatible type', prop_getter))
 	return checked_val
 
+# Todo: Rename to something that better indicates this is also applicable to some descriptors,
+#       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
 	if not pytypes.checking_enabled:
 		return func
-	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func) or isdatadescriptor(func))
+	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func)
+			or isinstance(func, property))
 	if not force and is_no_type_check(func):
 		return func
 	clsm = type(func) == classmethod
@@ -688,7 +691,7 @@ def check_argument_types(cllable = None, call_args = None):
 		clsm = pytypes.is_classmethod(cllable)
 		slf = inspect.ismethod(cllable)
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
-	argSig, resSig = type_util._get_types(cllable, clsm, slf, clss)
+	argSig, resSig = _get_types(cllable, clsm, slf, clss)
 	if call_args is None:
 		call_args = pytypes.util.get_current_args(1)
 	if slf or clsm:

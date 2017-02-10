@@ -7,8 +7,6 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
-#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
-#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
