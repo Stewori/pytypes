@@ -1123,6 +1123,42 @@ class Test_check_argument_types(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: cl.testClassmeth_check_argument_types(8.5))
 		self.assertRaises(InputTypeError, lambda: cl.testStaticmeth_check_argument_types((9,)))
 
+	def test_inner_method(self):
+		def testf1():
+			def testf2(x):
+				# type: (Tuple[int, float]) -> str
+				pytypes.check_argument_types()
+				return str(x)
+			return testf2((3, 6))
+		self.assertEqual(testf1(), '(3, 6)')
+		
+		def testf1_err():
+			def testf2(x):
+				# type: (Tuple[int, float]) -> str
+				pytypes.check_argument_types()
+				return str(x)
+			return testf2((3, '6'))
+		self.assertRaises(InputTypeError, lambda: testf1_err())
+	
+	def test_inner_class(self):
+		def testf1():
+			class test_class_in_func(object):
+				def testm1(self, x):
+					# type: (int) -> str
+					pytypes.check_argument_types()
+					return str(x)
+			return test_class_in_func().testm1(99)
+		self.assertEqual(testf1(), '99')
+
+		def testf1_err():
+			class test_class_in_func(object):
+				def testm1(self, x):
+					# type: (int) -> str
+					pytypes.check_argument_types()
+					return str(x)
+			return test_class_in_func().testm1(99.5)
+		self.assertRaises(InputTypeError, lambda: testf1_err())
+
 
 class TestOverride(unittest.TestCase):
 	def test_override(self):
@@ -1717,6 +1753,37 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertRaises(NameError, _test_err2_py3)
 
 		pytypes.check_override_at_class_definition_time = tmp
+
+
+@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+class Test_check_argument_types_Python3_5(unittest.TestCase):
+	@classmethod
+	def setUpClass(cls):
+		global py3
+		from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
+
+	def test_function(self):
+		self.assertIsNone(py3.testfunc_check_argument_types(2, 3.0, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
+
+	def test_methods(self):
+		cl = py3.testClass_check_argument_types()
+		self.assertIsNone(cl.testMeth_check_argument_types(7))
+		self.assertIsNone(cl.testClassmeth_check_argument_types(8))
+		self.assertIsNone(cl.testStaticmeth_check_argument_types(9))
+
+		self.assertRaises(InputTypeError, lambda: cl.testMeth_check_argument_types('7'))
+		self.assertRaises(InputTypeError, lambda: cl.testClassmeth_check_argument_types(8.5))
+		self.assertRaises(InputTypeError, lambda: cl.testStaticmeth_check_argument_types((9,)))
+
+	def test_inner_method(self):
+		self.assertEqual(py3.test_inner_method_testf1(), '(3, 6)')
+		self.assertRaises(InputTypeError, lambda: py3.test_inner_method_testf1_err())
+
+	def test_inner_class(self):
+		self.assertEqual(py3.test_inner_class_testf1(), '99')
+		self.assertRaises(InputTypeError, lambda: py3.test_inner_class_testf1_err())
 
 
 if __name__ == '__main__':

@@ -693,7 +693,7 @@ def check_argument_types(cllable = None, call_args = None):
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
 	argSig, resSig = _get_types(cllable, clsm, slf, clss)
 	if call_args is None:
-		call_args = pytypes.util.get_current_args(1)
+		call_args = pytypes.util.get_current_args(1, cllable)
 	if slf or clsm:
 		call_args = call_args[1:]
 	pytypes.typechecker._checkfunctype(argSig, call_args, cllable, slf, clss)

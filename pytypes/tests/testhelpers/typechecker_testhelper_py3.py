@@ -406,6 +406,52 @@ class test_iterable_annotated():
 		return test_iter(self)
 
 
+class testClass_check_argument_types(object):
+
+	def testMeth_check_argument_types(self, a: int) -> None:
+		check_argument_types()
+
+	@classmethod
+	def testClassmeth_check_argument_types(cls, a: int) -> None:
+		check_argument_types()
+
+	@staticmethod
+	def testStaticmeth_check_argument_types(a: int) -> None:
+		check_argument_types()
+
+def testfunc_check_argument_types(a: int, b: float, c: str) -> None:
+	check_argument_types()
+
+def testfunc_check_argument_types2(a: Sequence[float]) -> None:
+	check_argument_types()
+
+def test_inner_method_testf1():
+	def testf2(x: Tuple[int, float]) -> str:
+		pytypes.check_argument_types()
+		return str(x)
+	return testf2((3, 6))
+
+def test_inner_method_testf1_err():
+	def testf2(x: Tuple[int, float]) -> str:
+		pytypes.check_argument_types()
+		return str(x)
+	return testf2((3, '6'))
+
+def test_inner_class_testf1():
+	class test_class_in_func(object):
+		def testm1(self, x: int) -> str:
+			pytypes.check_argument_types()
+			return str(x)
+	return test_class_in_func().testm1(99)
+
+def test_inner_class_testf1_err():
+	class test_class_in_func(object):
+		def testm1(self, x: int) -> str:
+			pytypes.check_argument_types()
+			return str(x)
+	return test_class_in_func().testm1(99.5)
+
+
 class testClass_property(object):
 
 	@typechecked

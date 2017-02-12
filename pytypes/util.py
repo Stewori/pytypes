@@ -214,32 +214,67 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 		return ('%s.%s') % (func0.__module__, func0.__name__)
 
 def get_current_function(caller_level = 0):
-	stck = inspect.stack()
-	return get_callable_fq_for_code(stck[1+caller_level][0].f_code)[0]
+	return get_current_function_fq(1+caller_level)[0]
 
 def get_current_function_fq(caller_level = 0):
 	stck = inspect.stack()
-	return get_callable_fq_for_code(stck[1+caller_level][0].f_code)
+	res = get_callable_fq_for_code(stck[1+caller_level][0].f_code)
+	if res[0] is None and len(stck) > 2:
+		res = get_callable_fq_for_code(stck[1+caller_level][0].f_code,
+				stck[2+caller_level][0].f_locals)
+	return res
 
-def get_current_args(caller_level = 0):
-	func = get_current_function(caller_level+1)
+def get_current_args(caller_level = 0, func = None):
+	if func is None:
+		func = get_current_function(caller_level+1)
 	if isinstance(func, property):
 		func = func.fget if func.fset is None else func.fset
 	stck = inspect.stack()
 	lcs = stck[1+caller_level][0].f_locals
 	return tuple([lcs[t] for t in getargspecs(func)[0]])
 
-def get_callable_fq_for_code(code):
+def get_callable_fq_for_code(code, locals_dict = None):
 	if code in _code_callable_dict:
-		return _code_callable_dict[code]
+		res = _code_callable_dict[code]
+		if not res[0] is None or locals_dict is None:
+			return res
 	md = inspect.getmodule(code, code.co_filename)
 	if not md is None:
 		nesting = []
 		res, slf = _get_callable_fq_for_code(code, md, md, False, nesting)
-		_code_callable_dict[code] = (res, nesting, slf)
+		if res is None and not locals_dict is None:
+			nesting = []
+			res, slf = _get_callable_from_locals(code, locals_dict, md, False, nesting)
+		else:
+			_code_callable_dict[code] = (res, nesting, slf)
 		return res, nesting, slf
 	else:
 		return None, None, None
+
+def _get_callable_from_locals(code, locals_dict, module, slf, nesting):
+	keys = [key for key in locals_dict]
+	for key in keys:
+		slf2 = slf
+		obj = locals_dict[key]
+		if inspect.isfunction(obj):
+			try:
+				if obj.__module__ == module.__name__ and _code_matches_func(obj, code):
+					return obj, slf2
+			except AttributeError:
+				try:
+					if obj.__func__.__module__ == module.__name__ and \
+							_code_matches_func(obj, code):
+						return obj, slf2
+				except AttributeError:
+					pass
+		elif inspect.isclass(obj) and obj.__module__ == module.__name__:
+			nesting.append(obj)
+			res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting)
+			if not res is None:
+				return res, slf2
+			else:
+				nesting.pop()
+	return None, False
 
 def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 	keys = [key for key in module_or_class.__dict__]
