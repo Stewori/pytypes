@@ -264,8 +264,7 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting
 			if hasattr(module, func_class.__name__):
 				cls2 = getattr(module, func_class.__name__)
 				if hasattr(cls2, func0.__name__):
-					res = getattr(cls2, func0.__name__)
-					return res
+					return getattr(cls2, func0.__name__)
 			else:
 				if nesting is None:
 					nesting = util._get_class_nesting_list(func_class, sys.modules[func_class.__module__])
@@ -278,16 +277,16 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting
 						return getattr(mcls, func0.__name__)
 					except AttributeError:
 						pass
-		else:
-			if nesting is None:
-				nesting = util._get_class_nesting_list_for_staticmethod(decorated_func,
-						sys.modules[func0.__module__], [], set())
-			if not nesting is None:
-					mcls = module
-					try:
-						for cl in nesting:
-							mcls = getattr(mcls, cl.__name__)
-						return getattr(mcls, func0.__name__)
-					except AttributeError:
-						pass
+
+		if nesting is None:
+			nesting = util._get_class_nesting_list_for_staticmethod(decorated_func,
+					sys.modules[func0.__module__], [], set())
+		if not nesting is None:
+				mcls = module
+				try:
+					for cl in nesting:
+						mcls = getattr(mcls, cl.__name__)
+					return getattr(mcls, func0.__name__)
+				except AttributeError:
+					pass
 	return func0
