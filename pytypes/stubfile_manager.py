@@ -264,7 +264,8 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting
 			if hasattr(module, func_class.__name__):
 				cls2 = getattr(module, func_class.__name__)
 				if hasattr(cls2, func0.__name__):
-					return getattr(cls2, func0.__name__)
+					res = getattr(cls2, func0.__name__)
+					return res
 			else:
 				if nesting is None:
 					nesting = util._get_class_nesting_list(func_class, sys.modules[func_class.__module__])

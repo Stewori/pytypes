@@ -4,7 +4,7 @@ Created on 08.11.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked
+from pytypes import typechecked, check_argument_types
 from typing import Generic, TypeVar
 
 @typechecked
@@ -219,3 +219,64 @@ def testfunc_Generic_ret_py2(x):
 def testfunc_Generic_ret_err_py2(x):
 	# actually (int) -> Custom_Generic[int]
 	return Custom_Generic_py2[str](str(x))
+
+
+class testClass_property_py2(object):
+
+	@typechecked
+	@property
+	def testprop_py2(self):
+		# actually () -> int
+		return self._testprop_py2
+
+	@typechecked
+	@testprop_py2.setter
+	def testprop_py2(self, value):
+		# actually (int) -> None
+		self._testprop_py2 = value
+
+	@typechecked
+	@property
+	def testprop2_py2(self):
+		# actually () -> str
+		return self._testprop2_py2
+
+	@testprop2_py2.setter
+	def testprop2_py2(self, value):
+		# actually (str) -> None
+		self._testprop2_py2 = value
+
+	@typechecked
+	@property
+	def testprop3_py2(self):
+		# actually () -> Tuple[int, str]
+		return self._testprop3_py2
+
+	@testprop3_py2.setter
+	def testprop3_py2(self, value):
+		# actually (Tuple[int, str]) -> None
+		check_argument_types()
+		self._testprop3_py2 = value
+
+
+@typechecked
+class testClass_property_class_check_py2(object):
+	@property
+	def testprop_py2(self):
+		# actually () -> int
+		return self._testprop_py2
+
+	@testprop_py2.setter
+	def testprop_py2(self, value):
+		# actually (int) -> None
+		self._testprop_py2 = value
+
+	@property
+	def testprop2_py2(self):
+		# actually () -> float
+		return 'abc'
+
+	@testprop2_py2.setter
+	def testprop2_py2(self, value):
+		# actually (float) -> None
+		pass

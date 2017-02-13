@@ -1428,6 +1428,39 @@ class TestStubfile(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Generic_arg_py2(Custom_Generic(7)))
 		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Generic_ret_err_py2(8))
 
+	def test_property_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		tcp = stub_py2.testClass_property_py2()
+		tcp.testprop_py2 = 7
+		self.assertEqual(tcp.testprop_py2, 7)
+		def tcp_prop1_py2(): tcp.testprop_py2 = 7.2
+		self.assertRaises(InputTypeError, tcp_prop1_py2)
+		tcp._testprop_py2 = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop_py2)
+
+		tcp.testprop2_py2 = 'def'
+		self.assertEqual(tcp.testprop2_py2, 'def')
+		tcp.testprop2_py2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop2_py2)
+
+		tcp.testprop3_py2 = (22, 'ghi')
+		self.assertEqual(tcp.testprop3_py2, (22, 'ghi'))
+		def tcp_prop3_py2(): tcp.testprop3_py2 = 9
+		self.assertRaises(InputTypeError, tcp_prop3_py2)
+		tcp._testprop3_py2 = 9
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop3_py2)
+
+		tcp_ch = stub_py2.testClass_property_class_check_py2()
+		tcp_ch.testprop_py2 = 17
+		self.assertEqual(tcp_ch.testprop_py2, 17)
+		def tcp_ch_prop_py2(): tcp_ch.testprop_py2 = 71.2
+		self.assertRaises(InputTypeError, tcp_ch_prop_py2)
+		tcp_ch._testprop_py2 = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop_py2)
+
+		tcp_ch.testprop2_py2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2_py2)
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
@@ -1506,6 +1539,41 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(stub_py3.testfunc_class_in_list([cl1]), 1)
 		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_class_in_list((cl1,)))
 		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_class_in_list(cl1))
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+	def test_property_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		tcp = stub_py3.testClass_property()
+		tcp.testprop = 7
+		self.assertEqual(tcp.testprop, 7)
+		def tcp_prop1_py3(): tcp.testprop = 7.2
+		self.assertRaises(InputTypeError, tcp_prop1_py3)
+		tcp._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop)
+
+		tcp.testprop2 = 'def'
+		self.assertEqual(tcp.testprop2, 'def')
+		tcp.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop2)
+
+		tcp.testprop3 = (22, 'ghi')
+		self.assertEqual(tcp.testprop3, (22, 'ghi'))
+		def tcp_prop3_py3(): tcp.testprop3 = 9
+		self.assertRaises(InputTypeError, tcp_prop3_py3)
+		tcp._testprop3 = 9
+		self.assertRaises(ReturnTypeError, lambda: tcp.testprop3)
+
+		tcp_ch = stub_py3.testClass_property_class_check()
+		tcp_ch.testprop = 17
+		self.assertEqual(tcp_ch.testprop, 17)
+		def tcp_ch_prop_py3(): tcp_ch.testprop = 71.2
+		self.assertRaises(InputTypeError, tcp_ch_prop_py3)
+		tcp_ch._testprop = 'abc'
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop)
+
+		tcp_ch.testprop2 = 7.2
+		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

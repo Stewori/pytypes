@@ -64,16 +64,19 @@ def _unchecked_backend(func):
 	else:
 		return func
 
-def _actualfunc(func):
+def _actualfunc(func, prop_getter = False):
 	if type(func) == classmethod or type(func) == staticmethod:
-		return _actualfunc(func.__func__)
-	if type(func) == property:
-		return _actualfunc(func.fget if func.fset is None else func.fset)
+		return _actualfunc(func.__func__, prop_getter)
+	if isinstance(func, property):
+		if prop_getter: # force getter
+			return _actualfunc(func.fget, prop_getter)
+		else: # auto decide
+			return _actualfunc(func.fget if func.fset is None else func.fset, prop_getter)
 	# Todo: maybe rename ov_func and ch_func also to __func__
 	elif hasattr(func, 'ov_func'):
-		return _actualfunc((func.ov_func))
+		return _actualfunc((func.ov_func), prop_getter)
 	elif hasattr(func, 'ch_func'):
-		return _actualfunc((func.ch_func))
+		return _actualfunc((func.ch_func), prop_getter)
 	return func
 
 def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack, rec_set):

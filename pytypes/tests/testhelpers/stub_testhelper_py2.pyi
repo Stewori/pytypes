@@ -166,3 +166,59 @@ def testfunc_Generic_ret_py2(x):
 def testfunc_Generic_ret_err_py2(x):
 	# type: (int) -> Custom_Generic_py2[int]
 	pass
+
+
+class testClass_property_py2(object):
+
+	@property
+	def testprop_py2(self):
+		# type: () -> int
+		pass
+
+	@testprop_py2.setter
+	def testprop_py2(self, value):
+		# type: (int) -> None
+		pass
+
+	@property
+	def testprop2_py2(self):
+		# type: () -> str
+		pass
+
+	@testprop2_py2.setter
+	def testprop2_py2(self, value):
+		# type: (str) -> None
+		pass
+
+	@property
+	def testprop3_py2(self):
+		# type: () -> Tuple[int, str]
+		pass
+
+	@testprop3_py2.setter
+	def testprop3_py2(self, value):
+		# type: (Tuple[int, str]) -> None
+		pass
+
+
+class testClass_property_class_check_py2(object):
+	@property
+	def testprop_py2(self):
+		# type: () -> int
+		pass
+
+	@testprop_py2.setter
+	def testprop_py2(self, value):
+		# type: (int) -> None
+		pass
+
+	@property
+	def testprop2_py2(self):
+		# type: () -> float
+		pass
+
+	@testprop2_py2.setter
+	def testprop2_py2(self, value):
+		# type: (float) -> None
+		pass
+

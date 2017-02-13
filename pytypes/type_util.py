@@ -194,8 +194,12 @@ def is_builtin_type(tp):
 def has_type_hints(func0):
 	return _has_type_hints(func0)
 
-def _has_type_hints(func0, nesting = None):
-	func = as_stub_func_if_any(util._actualfunc(func0), func0, None, nesting)
+def _has_type_hints(func0, func_class = None, nesting = None):
+	func = as_stub_func_if_any(util._actualfunc(func0), func0,
+			# todo: Find better solution for this.
+			# as_stub_func_if_any shouldn't rely on func_class == None in certain cases
+			func_class if isinstance(func0, property) else None, nesting)
+	func = util._actualfunc(func)
 	try:
 		tpHints = typing.get_type_hints(func)
 	except NameError:
@@ -307,10 +311,11 @@ def _make_invalid_type_msg(descr, func_name, tp):
 			msg += mask % (', '.join(str(t) for t in tp))
 	return msg
 
-def _funcsigtypes(func0, slf, func_class = None, globs = None):
+def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = False):
 	# Check for stubfile
-	func = as_stub_func_if_any(util._actualfunc(func0), func0, func_class)
-
+	func = as_stub_func_if_any(util._actualfunc(func0, prop_getter), func0, func_class)
+	if isinstance(func, property):
+		func = util._actualfunc(func, prop_getter)
 	try:
 		tpHints = typing.get_type_hints(func)
 	except AttributeError:
