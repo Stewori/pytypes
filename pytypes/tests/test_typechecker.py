@@ -7,8 +7,6 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
-#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
-#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -750,6 +748,10 @@ def testfunc_custom_annotations(a, b):
 testfunc_custom_annotations.__annotations__ = {'a': str, 'b': float, 'return': float}
 
 @annotations
+def testfunc_annotations_from_tpstring_by_decorator(a, b):
+	# type: (str, int) -> int
+	return len(a)/b
+
 def testfunc_annotations_from_tpstring(a, b):
 	# type: (str, int) -> int
 	return len(a)/b
@@ -1141,11 +1143,31 @@ class TestTypecheck(unittest.TestCase):
 
 		pytypes.annotations_override_typestring = annotations_override_typestring_tmp 
 
-	def test_annotations_decorator(self):
+	def test_annotations_from_typestring(self):
+		# via decorator
+		annt = testfunc_annotations_from_tpstring_by_decorator.__annotations__
+		self.assertEqual(annt['a'], str)
+		self.assertEqual(annt['b'], int)
+		self.assertEqual(annt['return'], int)
+
+		# via pytypes-flag
+		annotations_from_typestring_tmp = pytypes.annotations_from_typestring
+		self.assertTrue(not hasattr(testfunc_annotations_from_tpstring, '__annotations__') or
+				len(testfunc_annotations_from_tpstring.__annotations__) == 0)
+		pytypes.annotations_from_typestring = False
+		self.assertEqual(pytypes.get_types(testfunc_annotations_from_tpstring),
+				(Tuple[str, int],int))
+		self.assertTrue(not hasattr(testfunc_annotations_from_tpstring, '__annotations__') or
+				len(testfunc_annotations_from_tpstring.__annotations__) == 0)
+		pytypes.annotations_from_typestring = True
+		self.assertEqual(pytypes.get_types(testfunc_annotations_from_tpstring),
+				(Tuple[str, int],int))
 		annt = testfunc_annotations_from_tpstring.__annotations__
 		self.assertEqual(annt['a'], str)
 		self.assertEqual(annt['b'], int)
 		self.assertEqual(annt['return'], int)
+
+		pytypes.annotations_from_typestring = annotations_from_typestring_tmp
 
 
 class TestTypecheck_class(unittest.TestCase):

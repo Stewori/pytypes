@@ -30,6 +30,7 @@ covariant_Mapping = True
 
 annotations_override_typestring = True
 annotations_from_typestring = False
+strict_annotation_collision_check = False
 
 default_typecheck_depth = 10
 

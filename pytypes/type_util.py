@@ -22,6 +22,11 @@ for tp in typing.__all__:
 if not tuple in _extra_dict:
 	_extra_dict[tuple] = Tuple
 
+if sys.version_info.major >= 3:
+	_basestring = str
+else:
+	_basestring = basestring
+
 def get_generator_yield_type(genr):
 	return get_generator_type(genr).__args__[0]
 
@@ -372,7 +377,7 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 				val = tmp[key]
 				if val is None:
 					val = type(None)
-				elif isinstance(val, basestring):
+				elif isinstance(val, _basestring):
 					val = eval(val, globs)
 				tpHints[key] = val
 		# We're running Python 3 or have custom __annotations__ in Python 2.7
@@ -383,12 +388,16 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 		resType = (make_Tuple(tuple((tpHints[t] if t in tpHints else Any) for t in argNames)),
 				retTp if not retTp is None else type(None))
 		if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None):
-			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
-			if resType != resType2:
-				raise TypeError('%s.%s declares incompatible types:\n'
-					% (func.__module__, func.__name__)
-					+ 'Via hints:   %s\nVia comment: %s'
-					% (type_str(resType), type_str(resType2)))
+			if pytypes.strict_annotation_collision_check:
+				raise TypeError('%s.%s has multiple type declarations.'
+						% (func.__module__, func.__name__))
+			else:
+				resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
+				if resType != resType2:
+					raise TypeError('%s.%s declares incompatible types:\n'
+							% (func.__module__, func.__name__)
+							+ 'Via hints:   %s\nVia comment: %s'
+							% (type_str(resType), type_str(resType2)))
 		try:
 			typing._type_check(resType[0], '') # arg types
 		except TypeError:
@@ -412,7 +421,7 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 		raise TypeError(_make_invalid_type_msg('return type',
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
 	if pytypes.annotations_from_typestring:
-		if not hasattr(func0, '__annotations__'):
+		if not hasattr(func0, '__annotations__') or len(func0.__annotations__) == 0:
 			func0.__annotations__ = _get_type_hints(func0, res[0], res[1])
 	return res
 
