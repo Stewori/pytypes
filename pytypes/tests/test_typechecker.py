@@ -7,11 +7,14 @@ Created on 25.08.2016
 import unittest, sys, os, warnings
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
+#sys.path.insert(0, '/data/workspace/linux/typing-3.5.3.0/python2') # force typing-3.5.3.0
+#sys.path.insert(0, '/data/workspace/linux/pytypes/backup/2.7')     # force typing-3.5.2.2
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
-		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, check_argument_types
+		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
+		check_argument_types, annotations
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping
 from numbers import Real
@@ -736,6 +739,22 @@ class testClass_property_class_check(object):
 		pass
 
 
+def testfunc_custom_annotations_plain(a, b):
+	# type: (str, float) -> float
+	check_argument_types()
+	return len(a)/float(b)
+
+def testfunc_custom_annotations(a, b):
+	check_argument_types()
+	return len(a)/float(b)
+testfunc_custom_annotations.__annotations__ = {'a': str, 'b': float, 'return': float}
+
+@annotations
+def testfunc_annotations_from_tpstring(a, b):
+	# type: (str, int) -> int
+	return len(a)/b
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -1057,6 +1076,76 @@ class TestTypecheck(unittest.TestCase):
 
 		tcp_ch.testprop2 = 7.2
 		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
+
+	def test_custom_annotations(self):
+		annotations_override_typestring_tmp = pytypes.annotations_override_typestring
+
+		hnts = testfunc_custom_annotations.__annotations__
+		self.assertEqual(hnts['a'], str)
+		self.assertEqual(hnts['b'], float)
+		self.assertEqual(hnts['return'], float)
+
+		if sys.version_info.major >= 3:
+			hnts = typing.get_type_hints(testfunc_custom_annotations)
+			self.assertEqual(hnts['a'], str)
+			self.assertEqual(hnts['b'], float)
+			self.assertEqual(hnts['return'], float)
+		else:
+			self.assertIsNone(typing.get_type_hints(testfunc_custom_annotations))
+
+		hnts = pytypes.get_type_hints(testfunc_custom_annotations)
+		self.assertEqual(hnts['a'], str)
+		self.assertEqual(hnts['b'], float)
+		self.assertEqual(hnts['return'], float)
+		self.assertEqual(pytypes.get_types(testfunc_custom_annotations),
+				(typing.Tuple[str, float], float))
+		self.assertEqual(testfunc_custom_annotations('abc', 2.5), 1.2)
+		self.assertRaises(InputTypeError, lambda: testfunc_custom_annotations('abc', 'd'))
+
+		if sys.version_info.major >= 3:
+			self.assertTrue(hasattr(testfunc_custom_annotations_plain, '__annotations__'))
+			self.assertEqual(len(testfunc_custom_annotations_plain.__annotations__), 0)
+			self.assertEqual(len(typing.get_type_hints(testfunc_custom_annotations_plain)), 0)
+		else:
+			self.assertFalse(hasattr(testfunc_custom_annotations_plain, '__annotations__'))
+			self.assertIsNone(typing.get_type_hints(testfunc_custom_annotations_plain))
+
+		hnts = pytypes.get_type_hints(testfunc_custom_annotations_plain)
+		self.assertEqual(hnts['a'], str)
+		self.assertEqual(hnts['b'], float)
+		self.assertEqual(hnts['return'], float)
+		self.assertEqual(get_types(testfunc_custom_annotations_plain),
+				(Tuple[str, float], float))
+		pytypes.annotations_override_typestring = False
+		self.assertEqual(get_types(testfunc_custom_annotations_plain),
+				(Tuple[str, float], float))
+		self.assertEqual(testfunc_custom_annotations_plain('abc', 1.5), 2.0)
+		testfunc_custom_annotations_plain.__annotations__ = \
+				{'a': str, 'b': int, 'return': 'float'}
+		self.assertRaises(TypeError, lambda: testfunc_custom_annotations_plain('abc', 1.5))
+		pytypes.annotations_override_typestring = True
+		self.assertEqual(testfunc_custom_annotations_plain('abc', 1), 3.0)
+		self.assertRaises(InputTypeError,
+				lambda: testfunc_custom_annotations_plain('abc', 1.5))
+		hnts = pytypes.get_type_hints(testfunc_custom_annotations_plain)
+		self.assertEqual(hnts['a'], str)
+		self.assertEqual(hnts['b'], int)
+		self.assertEqual(hnts['return'], float)
+		hnts = testfunc_custom_annotations_plain.__annotations__
+		self.assertEqual(hnts['a'], str)
+		self.assertEqual(hnts['b'], int)
+		self.assertEqual(hnts['return'], 'float')
+		pytypes.annotations_override_typestring = False
+		self.assertRaises(TypeError,
+				lambda: pytypes.get_type_hints(testfunc_custom_annotations_plain))
+
+		pytypes.annotations_override_typestring = annotations_override_typestring_tmp 
+
+	def test_annotations_decorator(self):
+		annt = testfunc_annotations_from_tpstring.__annotations__
+		self.assertEqual(annt['a'], str)
+		self.assertEqual(annt['b'], int)
+		self.assertEqual(annt['return'], int)
 
 
 class TestTypecheck_class(unittest.TestCase):

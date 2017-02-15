@@ -495,12 +495,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 
 		resSigs = []
 		if argType is None or resType is None:
-			if prop_getter:
-				argSig, resSig = _funcsigtypes(toCheck[0].fget, slf or clsm,
-						parent_class, None, prop_getter)
-			else:
-				argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm,
-						parent_class, None, auto_prop_getter)
+			argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm,
+					parent_class, None, prop_getter or auto_prop_getter)
 			if argType is None:
 				argSig = _match_stub_type(argSig)
 			else:
@@ -515,7 +511,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 				toCheck[0], slf or clsm, parent_class, True, prop_getter or auto_prop_getter)
 		resSigs.append(resSig)
 		for ffunc in toCheck[1:]:
-			argSig, resSig = _funcsigtypes(ffunc, slf or clsm, parent_class, None, prop_getter)
+			argSig, resSig = _funcsigtypes(ffunc, slf or clsm, parent_class,
+					None, prop_getter or auto_prop_getter)
 			_checkfunctype(_match_stub_type(argSig), check_args, ffunc,
 					slf or clsm, parent_class)
 			resSigs.append(_match_stub_type(resSig))

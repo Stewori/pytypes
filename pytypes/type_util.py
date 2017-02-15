@@ -195,8 +195,13 @@ def has_type_hints(func0):
 	return _has_type_hints(func0)
 
 def _has_type_hints(func0, func_class = None, nesting = None):
-	func = as_stub_func_if_any(util._actualfunc(func0), func0, func_class, nesting)
+	actual_func = util._actualfunc(func0)
+	func = as_stub_func_if_any(actual_func, func0, func_class, nesting)
+	stub_func = func
 	func = util._actualfunc(func)
+	tpHints = _tpHints_from_annotations(func0, actual_func, stub_func, func)
+	if not tpHints is None:
+		return True
 	try:
 		tpHints = typing.get_type_hints(func)
 	except NameError:
@@ -262,9 +267,8 @@ def type_str(tp):
 def get_types(func):
 	return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
-def _get_types(func, clsm, slf, clss = None):
+def _get_types(func, clsm, slf, clss = None, prop_getter = False):
 	func0 = util._actualfunc(func)
-
 	# check consistency regarding special case with 'self'-keyword
 	if not slf:
 		argNames = util.getargspecs(func0).args
@@ -279,7 +283,7 @@ def _get_types(func, clsm, slf, clss = None):
 			assert util.is_classmethod(func)
 		clss = util.get_class_that_defined_method(func)
 		assert hasattr(clss, func.__name__)
-	args, res = _funcsigtypes(func, slf or clsm, clss)
+	args, res = _funcsigtypes(func, slf or clsm, clss, None, prop_getter)
 	return _match_stub_type(args), _match_stub_type(res)
 
 def get_type_hints(func):
@@ -287,8 +291,16 @@ def get_type_hints(func):
 	'''
 	if not has_type_hints(func):
 		return {}
+	return _get_type_hints(func)
+
+def _get_type_hints(func, args = None, res = None):
+	if args is None or res is None:
+		args2, res2 = get_types(func)
+		if args is None:
+			args = args2
+		if res is None:
+			res = res2
 	slf = 1 if util.is_method(func) else 0
-	args, res = get_types(func)
 	argNames = util.getargspecs(util._actualfunc(func)).args
 	result = {}
 	if not args is Any:
@@ -297,6 +309,12 @@ def get_type_hints(func):
 			result[argNames[i]] = prms[i-slf]
 	result['return'] = res
 	return result
+
+def annotations(func):
+	'''Intended as decorator.
+	'''
+	func.__annotations__ = get_type_hints(func)
+	return func
 
 def _make_invalid_type_msg(descr, func_name, tp):
 	msg = 'Invalid %s in %s:\n    %s is not a type.' % (descr, func_name, str(tp))
@@ -308,18 +326,32 @@ def _make_invalid_type_msg(descr, func_name, tp):
 			msg += mask % (', '.join(str(t) for t in tp))
 	return msg
 
+def _tpHints_from_annotations(*args):
+	for func in args:
+		if not func is None and hasattr(func, '__annotations__'):
+			res = func.__annotations__
+			if not res is None and len(res) > 0:
+				return res
+	return None
+
 def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = False):
 	# Check for stubfile
-	func = as_stub_func_if_any(util._actualfunc(func0, prop_getter), func0, func_class)
+	actual_func = util._actualfunc(func0, prop_getter)
+	func = as_stub_func_if_any(actual_func, func0, func_class)
+	stub_func = None
 	if isinstance(func, property):
+		stub_func = func
 		func = util._actualfunc(func, prop_getter)
 	try:
 		tpHints = typing.get_type_hints(func)
 	except AttributeError:
 		tpHints = None
 	tpStr = _get_typestrings(func, slf)
-	if (tpStr is None or tpStr[0] is None) and (tpHints is None or not tpHints):
-		# Maybe raise warning here
+	hints_from_annotations = False
+	if tpHints is None or not tpHints:
+		tpHints = _tpHints_from_annotations(func0, actual_func, stub_func, func)
+		hints_from_annotations = True
+	if (tpStr is None or tpStr[0] is None) and tpHints is None:
 		return Any, Any
 	if not (tpStr is None or tpStr[0] is None) and tpStr[0].find('...') != 0:
 		numArgs = len(util.getargspecs(func).args) - 1 if slf else 0
@@ -333,14 +365,24 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 		else:
 			globs = sys.modules[func.__module__].__dict__
 	if not tpHints is None and tpHints:
-		# We're running Python 3
-		argNames = inspect.getfullargspec(func).args
+		if hints_from_annotations:
+			tmp = tpHints
+			tpHints = {}
+			for key in tmp:
+				val = tmp[key]
+				if val is None:
+					val = type(None)
+				elif isinstance(val, basestring):
+					val = eval(val, globs)
+				tpHints[key] = val
+		# We're running Python 3 or have custom __annotations__ in Python 2.7
+		argNames = util.getargspecs(func).args
 		if slf:
 			argNames = argNames[1:]
 		retTp = tpHints['return'] if 'return' in tpHints else Any
 		resType = (make_Tuple(tuple((tpHints[t] if t in tpHints else Any) for t in argNames)),
 				retTp if not retTp is None else type(None))
-		if not (tpStr is None or tpStr[0] is None):
+		if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None):
 			resType2 = _funcsigtypesfromstring(*tpStr, globals = globs)
 			if resType != resType2:
 				raise TypeError('%s.%s declares incompatible types:\n'
@@ -369,6 +411,9 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 	except TypeError:
 		raise TypeError(_make_invalid_type_msg('return type',
 				util._fully_qualified_func_name(func, slf, func_class), res[1]))
+	if pytypes.annotations_from_typestring:
+		if not hasattr(func0, '__annotations__'):
+			func0.__annotations__ = _get_type_hints(func0, res[0], res[1])
 	return res
 
 def _issubclass_Mapping_covariant(subclass, superclass):
