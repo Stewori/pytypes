@@ -675,6 +675,10 @@ def testfunc_check_argument_types2(a):
 	# type: (Sequence[float]) -> None
 	check_argument_types()
 
+def testfunc_check_argument_types_empty():
+	# type: () -> None
+	check_argument_types()
+
 
 class testClass_property(object):
 
@@ -1001,6 +1005,7 @@ class TestTypecheck(unittest.TestCase):
 
 		self.assertIsNone(testfunc_check_argument_types(2, 3, 'qvwx'))
 		self.assertIsNone(testfunc_check_argument_types2([3, 2., 1]))
+		self.assertIsNone(testfunc_check_argument_types_empty())
 
 
 		pytypes.apply_numeric_tower = False
@@ -1575,6 +1580,9 @@ class TestStubfile(unittest.TestCase):
 		tcp_ch.testprop2_py2 = 7.2
 		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2_py2)
 
+		self.assertEqual(get_member_types(tcp, 'testprop_py2'), (Tuple[int], type(None)))
+		self.assertEqual(get_member_types(tcp, 'testprop_py2', True), (Tuple[()], int))
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
@@ -1688,6 +1696,9 @@ class TestStubfile(unittest.TestCase):
 
 		tcp_ch.testprop2 = 7.2
 		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
+
+		self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
+		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -1887,6 +1898,9 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
 		tcp_ch.testprop2 = 7.2
 		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
+
+		self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
+		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
