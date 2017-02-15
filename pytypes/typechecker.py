@@ -225,6 +225,8 @@ def override(func):
 
 	if pytypes.check_override_at_runtime:
 		def checker_ov(*args, **kw):
+			if hasattr(checker_ov, '__annotations__') and len(checker_ov.__annotations__) > 0:
+				checker_ov.ov_func.__annotations__ = checker_ov.__annotations__
 			argSpecs = util.getargspecs(func)
 
 			args_kw = args
@@ -438,6 +440,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	else:
 		checkParents = False
 	def checker_tp(*args, **kw):
+		if hasattr(checker_tp, '__annotations__') and len(checker_tp.__annotations__) > 0:
+			checker_tp.ch_func.__annotations__ = checker_tp.__annotations__
 		# check consistency regarding special case with 'self'-keyword
 		slf = False
 

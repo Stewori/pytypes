@@ -751,6 +751,18 @@ def testfunc_custom_annotations(a, b):
 	return len(a)/float(b)
 testfunc_custom_annotations.__annotations__ = {'a': str, 'b': float, 'return': float}
 
+@typechecked
+def testfunc_custom_annotations_typechecked(a, b):
+	return len(a)/float(b)
+testfunc_custom_annotations_typechecked.__annotations__ = \
+		{'a': str, 'b': int, 'return': float}
+
+@typechecked
+def testfunc_custom_annotations_typechecked_err(a, b):
+	return a+str(b)
+testfunc_custom_annotations_typechecked_err.__annotations__ = \
+		{'a': str, 'b': float, 'return': int}
+
 @annotations
 def testfunc_annotations_from_tpstring_by_decorator(a, b):
 	# type: (str, int) -> int
@@ -1111,6 +1123,14 @@ class TestTypecheck(unittest.TestCase):
 				(typing.Tuple[str, float], float))
 		self.assertEqual(testfunc_custom_annotations('abc', 2.5), 1.2)
 		self.assertRaises(InputTypeError, lambda: testfunc_custom_annotations('abc', 'd'))
+
+		self.assertEqual(testfunc_custom_annotations_typechecked('qvw', 2), 1.5)
+		self.assertRaises(InputTypeError,
+				lambda: testfunc_custom_annotations_typechecked('qvw', 2.2))
+		self.assertRaises(InputTypeError,
+				lambda: testfunc_custom_annotations_typechecked_err(7, 1.5))
+		self.assertRaises(ReturnTypeError,
+				lambda: testfunc_custom_annotations_typechecked_err('hij', 1.5))
 
 		if sys.version_info.major >= 3:
 			self.assertTrue(hasattr(testfunc_custom_annotations_plain, '__annotations__'))
