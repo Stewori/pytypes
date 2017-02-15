@@ -107,7 +107,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		make_Tuple, make_Union, annotations
+		make_Tuple, make_Union, annotations, get_member_types
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod
 from .stubfile_manager import get_stub_module, as_stub_func_if_any

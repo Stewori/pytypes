@@ -272,8 +272,16 @@ def type_str(tp):
 def get_types(func):
 	return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
+# still experimental, incomplete and hardly tested
+def get_member_types(obj, member_name, prop_getter = False):
+	cls = obj.__class__
+	member = getattr(cls, member_name)
+	slf = not (isinstance(member, staticmethod) or isinstance(member, classmethod))
+	clsm = isinstance(member, classmethod)
+	return _get_types(member, clsm, slf, cls, prop_getter)
+
 def _get_types(func, clsm, slf, clss = None, prop_getter = False):
-	func0 = util._actualfunc(func)
+	func0 = util._actualfunc(func, prop_getter)
 	# check consistency regarding special case with 'self'-keyword
 	if not slf:
 		argNames = util.getargspecs(func0).args
@@ -283,7 +291,7 @@ def _get_types(func, clsm, slf, clss = None, prop_getter = False):
 					print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
 	if clss is None and (slf or clsm):
 		if slf:
-			assert util.is_method(func)
+			assert util.is_method(func) or isinstance(func, property)
 		if clsm:
 			assert util.is_classmethod(func)
 		clss = util.get_class_that_defined_method(func)

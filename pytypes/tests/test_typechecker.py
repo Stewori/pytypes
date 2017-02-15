@@ -12,7 +12,7 @@ pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
 		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
-		check_argument_types, annotations
+		check_argument_types, annotations, get_member_types
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping
 from numbers import Real
@@ -1078,6 +1078,9 @@ class TestTypecheck(unittest.TestCase):
 
 		tcp_ch.testprop2 = 7.2
 		self.assertRaises(ReturnTypeError, lambda: tcp_ch.testprop2)
+
+		self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
+		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
 	def test_custom_annotations(self):
 		annotations_override_typestring_tmp = pytypes.annotations_override_typestring
