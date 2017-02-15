@@ -225,6 +225,8 @@ def _has_type_hints(func0, func_class = None, nesting = None):
 		return False
 
 def type_str(tp):
+	if isinstance(tp, tuple):
+		return '('+', '.join([type_str(tp0) for tp0 in tp])+')'
 	try:
 		return type_str(tp.__orig_class__)
 	except AttributeError:
