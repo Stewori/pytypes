@@ -6,7 +6,8 @@ Created on 13.12.2016
 
 import sys, types, inspect
 import typing; from typing import Tuple, Dict, List, Set, Union, Any, Generator, Callable, \
-		TupleMeta, GenericMeta, CallableMeta, Sequence, Mapping, TypeVar
+		TupleMeta, GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, \
+		Generic
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
@@ -26,6 +27,10 @@ if sys.version_info.major >= 3:
 	_basestring = str
 else:
 	_basestring = basestring
+
+EMPTY = TypeVar('EMPTY', bound=Container, covariant=True)
+class Empty(Generic[EMPTY]):
+	pass
 
 def get_generator_yield_type(genr):
 	return get_generator_type(genr).__args__[0]
@@ -177,13 +182,19 @@ def _deep_type(obj, checked, depth):
 		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
 		res = make_Tuple(tpl)
 	elif res == list:
+		if len(obj) == 0:
+			return Empty[List]
 		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
 		res = List[make_Union(tpl)]
 	elif res == dict:
+		if len(obj) == 0:
+			return Empty[Dict]
 		tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.keys())
 		tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.values())
 		res = Dict[make_Union(tpl1), make_Union(tpl2)]
 	elif res == set:
+		if len(obj) == 0:
+			return Empty[Set]
 		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
 		res = Set[make_Union(tpl)]
 	elif res == types.GeneratorType:
@@ -191,6 +202,11 @@ def _deep_type(obj, checked, depth):
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
 		# For old-style instances return the actual class:
 		return obj.__class__
+	elif _issubclass_2(res, Container) and len(obj) == 0:
+		return Empty[res]
+	elif hasattr(res, '__origin__') and \
+			_issubclass_2(res.__origin__, Container) and len(obj) == 0:
+		return Empty[res.__origin__]
 	return res
 
 def is_builtin_type(tp):
@@ -233,7 +249,8 @@ def type_str(tp):
 		pass
 	tp = _match_stub_type(tp)
 	impl = ('__builtin__', 'builtins', '__main__')
-	if inspect.isclass(tp) and not hasattr(typing, tp.__name__):
+	if inspect.isclass(tp) and not isinstance(tp, GenericMeta) \
+			and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]
 			if not (module.__package__ is None or module.__package__ == ''
@@ -260,6 +277,8 @@ def type_str(tp):
 		tpl_params = [type_str(param) for param in prms]
 		return 'Tuple['+', '.join(tpl_params)+']'
 	elif hasattr(tp, '__args__'):
+		if tp.__args__ is None:
+			return tp.__name__
 		params = [type_str(param) for param in tp.__args__]
 		if hasattr(tp, '__result__'):
 			return tp.__name__+'[['+', '.join(params)+'], '+type_str(tp.__result__)+']'
@@ -286,7 +305,7 @@ def _get_types(func, clsm, slf, clss = None, prop_getter = False):
 	func0 = util._actualfunc(func, prop_getter)
 	# check consistency regarding special case with 'self'-keyword
 	if not slf:
-		argNames = util.getargspecs(func0).args
+		argNames = util.getargnames(util.getargspecs(func0))
 		if len(argNames) > 0:
 			if clsm:
 				if argNames[0] != 'cls':
@@ -316,7 +335,7 @@ def _get_type_hints(func, args = None, res = None):
 		if res is None:
 			res = res2
 	slf = 1 if util.is_method(func) else 0
-	argNames = util.getargspecs(util._actualfunc(func)).args
+	argNames = util.getargnames(util.getargspecs(util._actualfunc(func)))
 	result = {}
 	if not args is Any:
 		prms = get_Tuple_params(args)
@@ -391,7 +410,7 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 					val = eval(val, globs)
 				tpHints[key] = val
 		# We're running Python 3 or have custom __annotations__ in Python 2.7
-		argNames = util.getargspecs(func).args
+		argNames = util.getargnames(util.getargspecs(func))
 		if slf:
 			argNames = argNames[1:]
 		retTp = tpHints['return'] if 'return' in tpHints else Any
@@ -448,20 +467,6 @@ def _issubclass_Mapping_covariant(subclass, superclass):
 	return issubclass(subclass, superclass)
 
 def _find_Generic_super_origin(subclass, superclass_origin):
-	if hasattr(subclass, '__orig_bases__'):
-		return _find_Generic_super_origin_py36(subclass, superclass_origin)
-	stack = [subclass]
-	while len(stack) > 0:
-		bs = stack.pop()
-		if isinstance(bs, GenericMeta):
-			if (bs.__origin__ is superclass_origin or \
-					(bs.__origin__ is None and bs is superclass_origin)):
-				return bs.__parameters__
-			stack.extend(bs.__bases__)
-	return None
-
-def _find_Generic_super_origin_py36(subclass, superclass_origin):
-	# Special version for Python 3.6
 	stack = [subclass]
 	param_map = {}
 	while len(stack) > 0:
@@ -480,7 +485,10 @@ def _find_Generic_super_origin_py36(subclass, superclass_origin):
 					ors = bs.__origin__.__parameters__[i]
 					if bs.__parameters__[i] != ors:
 						param_map[ors] = bs.__parameters__[i]
-			stack.extend(bs.__orig_bases__)
+			try:
+				stack.extend(bs.__orig_bases__)
+			except AttributeError:
+				stack.extend(bs.__bases__)
 	return None
 
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
@@ -491,16 +499,21 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
 			for prm in prms]
 
 def _issubclass_Generic(subclass, superclass):
+	# this method is based on code from typing module 3.5.2.2
 	if subclass is None:
 		return False
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 	if isinstance(subclass, TupleMeta):
-		try:
-			subclass = Sequence[make_Union(get_Tuple_params(subclass))]
-		except AttributeError:
-			# Python 3.6
-			subclass = Sequence[make_Union(subclass.__args__)]
+		tpl_prms = get_Tuple_params(subclass)
+		if not tpl_prms is None and len(tpl_prms) == 0:
+			# (This section is required because Empty shall not be
+			# used on Tuples.)
+			# an empty Tuple is any Sequence, regardless of type
+			# note that we needn't consider superclass beeing a tuple,
+			# because that should have been checked in _issubclass_Tuple
+			return issubclass(typing.Sequence, superclass.__origin__)
+		subclass = Sequence[make_Union(tpl_prms)]
 	if isinstance(subclass, GenericMeta):
 		# For a class C(Generic[T]) where T is co-variant,
 		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
@@ -557,8 +570,8 @@ def _issubclass_Generic(subclass, superclass):
 				args = _select_Generic_superclass_parameters(subclass, superclass)
 				for i in range(len(prms)):
 					if prms[i].__covariant__:
-						# Maybe return False here, depending on some strictness-flag?
-						pass
+						if pytypes.strict_unknown_check:
+							return False
 					elif prms[i].__contravariant__:
 						# Subclass-value must be wider than or equal to Any, i.e. must be Any:
 						if not args[i] is Any:
@@ -580,8 +593,8 @@ def _issubclass_Generic(subclass, superclass):
 					if not superclass.__args__[i] is Any:
 						return False
 				elif prms[i].__contravariant__:
-					# Maybe return False here, depending on some strictness-flag?
-					pass
+					if pytypes.strict_unknown_check:
+						return False
 				else:
 					return False
 			return True
@@ -593,6 +606,7 @@ def _issubclass_Generic(subclass, superclass):
 	return _issubclass_2(subclass, superclass.__extra__)
 
 def _issubclass_Tuple(subclass, superclass):
+	# this method is based on code from typing module 3.5.2.2
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 	if not isinstance(subclass, type):
@@ -616,6 +630,7 @@ def _issubclass_Tuple(subclass, superclass):
 				for x, p in zip(sub_args, super_args)))
 
 def _issubclass_Union(subclass, superclass):
+	# this method is based on code from typing module 3.5.2.2
 	super_args = get_Union_params(superclass)
 	if super_args is None:
 		return is_Union(subclass)
@@ -658,6 +673,17 @@ def _issubclass(subclass, superclass):
 			return True
 	if superclass in _extra_dict:
 		superclass = _extra_dict[superclass]
+	try:
+		if _issubclass_2(subclass, Empty):
+			if _issubclass_2(superclass, Container):
+				return _issubclass_2(subclass.__args__[0], superclass)
+			try:
+				if _issubclass_2(superclass.__origin__, Container):
+					return _issubclass_2(subclass.__args__[0], superclass.__origin__)
+			except TypeError:
+				pass
+	except TypeError:
+		pass
 	return _issubclass_2(subclass, superclass)
 
 def _issubclass_2(subclass, superclass):
@@ -715,9 +741,10 @@ def _isinstance(obj, cls):
 			return not pytypes.check_iterables
 		else:
 			return _issubclass(itp, cls.__args__[0])
-
 	if isinstance(cls, CallableMeta):
 		return _isinstance_Callable(obj, cls)
+	if obj == {}:
+		return issubclass(typing.Dict, cls.__origin__)
 	return _issubclass(deep_type(obj), cls)
 
 def _make_generator_error_message(tp, gen, expected_tp, incomp_text):

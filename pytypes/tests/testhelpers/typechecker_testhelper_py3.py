@@ -501,3 +501,222 @@ class testClass_property_class_check(object):
 	@testprop2.setter
 	def testprop2(self, value: float) -> None:
 		pass
+
+
+@typechecked
+def testfunc_varargs1(*argss: float) -> Tuple[int, float]:
+	res = 1.0
+	for arg in argss:
+		res *= arg
+	return len(argss), res
+
+@typechecked
+def testfunc_varargs2(a: str, b: int, c: None,
+		*varg: int) -> Tuple[int, str]:
+	res = 1
+	for arg in varg:
+		res *= arg
+	return res, a*b
+
+@typechecked
+def testfunc_varargs3(*args: int, **kwds: float) -> Tuple[str, float]:
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return longest*(args[0]//len(args)), kwds[longest]
+
+@typechecked
+def testfunc_varargs4(**kwds: float) -> float:
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return 0 if longest == '' else kwds[longest]
+
+@typechecked
+def testfunc_varargs5(a1: int, a2: str, *vargss: float,
+		**vkwds: int) -> List[int]:
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2]]
+
+@typechecked
+def testfunc_varargs6(a1: int, a2: str, *vargss: float,
+		b1: int, b2: str, **vkwds: int) -> List[int]:
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2], b1, len(b2)]
+
+@typechecked
+def testfunc_varargs6b(a1, a2, *vargss, b1, b2, **vkwds):
+	# type: (int, str, float, int, str, int) -> List[int]
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2], b1, len(b2)]
+
+@typechecked
+def testfunc_varargs_err(a1: int, a2: str, *vargss: float,
+		**vkwds: int) -> List[int]:
+	return [len(vargss), str(vargss[a1]), vkwds[a2]]
+
+@typechecked
+class testclass_vararg():
+	def testmeth_varargs1(self, *vargs: Tuple[str, int]) -> int:
+		res = 1
+		for arg in vargs:
+			res += len(arg[0])*arg[1]
+		return res-len(self.__class__.__name__)
+
+	def testmeth_varargs2(self, q1: int, q2: str, *varargs: float,
+			**varkw: int) -> List[int]:
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__)]
+
+	def testmeth_varargs3(self, q1: int, q2: str, *varargs: float,
+			w1: float, w2: Tuple[int, str], **varkw: int) -> List[int]:
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__), int(w1*w2[0]), len(w2[1])]
+
+	def testmeth_varargs_3b(self, q1, q2, *varargs, w1, w2, **varkw):
+		# type: (int, str, float, float, Tuple[int, str], int) -> List[int]
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__), int(w1*w2[0]), len(w2[1])]
+
+	@staticmethod
+	def testmeth_varargs_static1(*vargs_st: float) -> Tuple[int, float]:
+		res = 1.0
+		for arg in vargs_st:
+			res *= arg
+		return len(vargs_st), res
+
+	@staticmethod
+	def testmeth_varargs_static2(q1_st: int, q2_st: str, *varargs_st: float,
+			**varkw_st: int) -> List[int]:
+		return [len(varargs_st), len(str(varargs_st[q1_st])), varkw_st[q2_st]]
+
+	@classmethod
+	def testmeth_varargs_class1(cls, *vargs_cls: Tuple[str, int]) -> int:
+		res = 1
+		for arg in vargs_cls:
+			res += len(arg[0])*arg[1]
+		return res-len(cls.__name__)
+
+	@classmethod
+	def testmeth_varargs_class2(cls, q1_cls: int, q2_cls: str,
+			*varargs_cls: float, **varkw_cls: int) -> List[int]:
+		return [len(varargs_cls), len(str(varargs_cls[q1_cls])),
+				varkw_cls[q2_cls], len(cls.__name__)]
+
+	@property
+	def prop1(self) -> str:
+		return self._prop1
+
+	@prop1.setter
+	def prop1(self, *vargs_prop: str) -> None:
+		self._prop1 = vargs_prop[0]
+
+def testfunc_varargs_ca1(*argss: float) -> Tuple[int, float]:
+	check_argument_types()
+	res = 1.0
+	for arg in argss:
+		res *= arg
+	return len(argss), res
+
+def testfunc_varargs_ca2(a: str, b: int, c: None,
+		*varg: int) -> Tuple[int, str]:
+	check_argument_types()
+	res = 1
+	for arg in varg:
+		res *= arg
+	return res, a*b
+
+def testfunc_varargs_ca3(*args: int, **kwds: float) -> Tuple[str, float]:
+	check_argument_types()
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return longest*(args[0]//len(args)), kwds[longest]
+
+def testfunc_varargs_ca4(**kwds: float) -> float:
+	check_argument_types()
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return 0 if longest == '' else kwds[longest]
+
+def testfunc_varargs_ca5(a1: int, a2: str, *vargss: float,
+		**vkwds: int) -> List[int]:
+	check_argument_types()
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2]]
+
+def testfunc_varargs_ca6(a1: int, a2: str, *vargss: float,
+		b1: int, b2: str, **vkwds: int) -> List[int]:
+	check_argument_types()
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2], b1, len(b2)]
+
+def testfunc_varargs_ca6b(a1, a2, *vargss, b1, b2, **vkwds):
+	# type: (int, str, float, int, str, int) -> List[int]
+	check_argument_types()
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2], b1, len(b2)]
+
+class testclass_vararg_ca():
+	def testmeth_varargs_ca1(self, *vargs: Tuple[str, int]) -> int:
+		check_argument_types()
+		res = 1
+		for arg in vargs:
+			res += len(arg[0])*arg[1]
+		return res-len(self.__class__.__name__)
+
+	def testmeth_varargs_ca2(self, q1: int, q2: str,
+			*varargs: float, **varkw: int) -> List[int]:
+		check_argument_types()
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__)]
+
+	def testmeth_varargs_ca3(self, q1: int, q2: str, *varargs: float,
+			w1: float, w2: Tuple[int, str], **varkw: int) -> List[int]:
+		check_argument_types()
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__), int(w1*w2[0]), len(w2[1])]
+
+	def testmeth_varargs_ca3b(self, q1, q2, *varargs, w1, w2, **varkw):
+		# type: (int, str, float, float, Tuple[int, str], int) -> List[int]
+		check_argument_types()
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__), int(w1*w2[0]), len(w2[1])]
+
+	@staticmethod
+	def testmeth_varargs_static_ca1(*vargs_st: float) -> Tuple[int, float]:
+		check_argument_types()
+		res = 1.0
+		for arg in vargs_st:
+			res *= arg
+		return len(vargs_st), res
+
+	@staticmethod
+	def testmeth_varargs_static_ca2(q1_st: int, q2_st: str,
+			*varargs_st: float, **varkw_st: int) -> List[int]:
+		check_argument_types()
+		return [len(varargs_st), len(str(varargs_st[q1_st])), varkw_st[q2_st]]
+
+	@classmethod
+	def testmeth_varargs_class_ca1(cls, *vargs_cls: Tuple[str, int]) -> int:
+		check_argument_types()
+		res = 1
+		for arg in vargs_cls:
+			res += len(arg[0])*arg[1]
+		return res-len(cls.__name__)
+
+	@classmethod
+	def testmeth_varargs_class_ca2(cls, q1_cls: int, q2_cls: str,
+			*varargs_cls: float, **varkw_cls: int) -> List[int]:
+		check_argument_types()
+		return [len(varargs_cls), len(str(varargs_cls[q1_cls])),
+				varkw_cls[q2_cls], len(cls.__name__)]
+
+	@property
+	def prop_ca1(self) -> str:
+		check_argument_types()
+		return self._prop_ca1
+
+	@prop_ca1.setter
+	def prop_ca1(self, *vargs_prop: str) -> None:
+		check_argument_types()
+		self._prop_ca1 = vargs_prop[0]

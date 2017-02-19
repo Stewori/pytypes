@@ -56,6 +56,135 @@ def getargspecs(func):
 	else:
 		return inspect.getargspec(func)
 
+def getargnames(argspecs):
+	args = argspecs.args
+	vargs = argspecs.varargs
+	try:
+		kw = argspecs.keywords
+	except AttributeError:
+		kw = argspecs.varkw
+	try:
+		kwonly = argspecs.kwonlyargs
+	except AttributeError:
+		kwonly = None
+	res = []
+	if not args is None:
+		res.extend(args)
+	if not vargs is None:
+		res.append(vargs)
+	if not kwonly is None:
+		res.extend(kwonly)
+	if not kw is None:
+		res.append(kw)
+	return res
+
+def getargskw(args, kw, argspecs):
+	return _getargskw(args, kw, argspecs)[0]
+
+def _getargskw(args, kw, argspecs):
+	res = []
+	err = False
+	try:
+		kwds = argspecs.keywords
+	except AttributeError:
+		kwds = argspecs.varkw
+	if not kwds is None:
+		used = set()
+	if len(args) > len(argspecs.args):
+		if not argspecs.varargs is None:
+			# include the remaining args as varargs
+			res.extend(args[:len(argspecs.args)])
+			res.append(args[len(argspecs.args):])
+		else:
+			# note an err, but still add all args for tracking
+			err = True
+			res.extend(args)
+	elif len(args) < len(argspecs.args):
+		res.extend(args)
+		# we'll try to get the remaining args from kw or defaults
+		ipos = -len(args)+len(res)
+		for name in argspecs.args[len(args):]:
+			if name in kw:
+				res.append(kw[name])
+				if not kwds is None:
+					used.add(name)
+			elif not argspecs.defaults is None:
+				# Todo: Guard failure here and set err accordingly
+				res.append(argspecs.defaults[ipos])
+			else:
+				err = True
+			ipos += 1
+		if not argspecs.varargs is None:
+			res.append(tuple())
+	else:
+		res.extend(args)
+		if not argspecs.varargs is None:
+			res.append(tuple())
+	try:
+		# eventually process kw-only args
+		ipos = -len(argspecs.kwonlyargs)
+		for name in argspecs.kwonlyargs:
+			if name in kw:
+				res.append(kw[name])
+				if not kwds is None:
+					used.add(name)
+			else:
+				# Todo: Guard failure here and set err accordingly
+				if not argspecs.kwonlydefaults is None and \
+						len(argspecs.kwonlydefaults) > ipos:
+					res.append(argspecs.kwonlydefaults[ipos])
+				else:
+					err = True
+			ipos += 1
+	except AttributeError:
+		pass
+	except TypeError:
+		err = True
+	if not kwds is None:
+		if len(used) > 0:
+			kw2 = {}
+			if len(used) < len(kw):
+				for name in kw:
+					if not name in used:
+						kw2[name] = kw[name]
+			res.append(kw2)
+		else:
+			res.append(kw)
+	return tuple(res), err
+
+def fromargskw(argskw, argspecs, slf_or_clsm = False):
+	res_args = argskw
+	try:
+		kwds = argspecs.keywords
+	except AttributeError:
+		kwds = argspecs.varkw
+	if not kwds is None:
+		res_kw = argskw[-1]
+		res_args = argskw[:-1]
+	else:
+		res_kw = None
+	if not argspecs.varargs is None:
+		vargs_pos = (len(argspecs.args)-1) \
+				if slf_or_clsm else len(argspecs.args)
+		if vargs_pos > 0:
+			res_lst = list(argskw[:vargs_pos])
+			res_lst.extend(argskw[vargs_pos])
+			res_args = tuple(res_lst)
+		else:
+			res_args = argskw[0]
+	try:
+		if len(argspecs.kwonlyargs) > 0:
+			res_kw = {} if res_kw is None else dict(res_kw)
+			ipos = -len(argspecs.kwonlyargs) - (0 if kwds is None else 1)
+			for name in argspecs.kwonlyargs:
+				res_kw[name] = argskw[ipos]
+				ipos += 1
+	except AttributeError:
+		pass
+	if res_kw is None:
+		res_kw = {}
+	return res_args, res_kw
+
 def _unchecked_backend(func):
 	if hasattr(func, 'ov_func'):
 		return _unchecked_backend(func.ov_func)
@@ -160,7 +289,7 @@ def get_class_that_defined_method(meth):
 
 def is_method(func):
 	func0 = _actualfunc(func)
-	argNames = getargspecs(func0).args
+	argNames = getargnames(getargspecs(func0))
 	if len(argNames) > 0:
 		if argNames[0] == 'self':
 			if inspect.ismethod(func):
@@ -217,24 +346,26 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 		return ('%s.%s') % (func0.__module__, func0.__name__)
 
 def get_current_function(caller_level = 0):
-	return get_current_function_fq(1+caller_level)[0]
+	return _get_current_function_fq(1+caller_level)[0][0]
 
-def get_current_function_fq(caller_level = 0):
+def _get_current_function_fq(caller_level = 0):
 	stck = inspect.stack()
-	res = get_callable_fq_for_code(stck[1+caller_level][0].f_code)
+	code = stck[1+caller_level][0].f_code
+	res = get_callable_fq_for_code(code)
 	if res[0] is None and len(stck) > 2:
-		res = get_callable_fq_for_code(stck[1+caller_level][0].f_code,
-				stck[2+caller_level][0].f_locals)
-	return res
+		res = get_callable_fq_for_code(code, stck[2+caller_level][0].f_locals)
+	return res, code
 
-def get_current_args(caller_level = 0, func = None):
+def get_current_args(caller_level = 0, func = None, argNames = None):
+	if argNames is None:
+		argNames = getargnames(getargspecs(func))
 	if func is None:
 		func = get_current_function(caller_level+1)
 	if isinstance(func, property):
 		func = func.fget if func.fset is None else func.fset
 	stck = inspect.stack()
 	lcs = stck[1+caller_level][0].f_locals
-	return tuple([lcs[t] for t in getargspecs(func)[0]])
+	return tuple([lcs[t] for t in argNames])
 
 def get_callable_fq_for_code(code, locals_dict = None):
 	if code in _code_callable_dict:
@@ -291,7 +422,19 @@ def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 				slf2 = False
 			elif isinstance(obj, property):
 				slf2 = True
-				obj = obj.fget if obj.fset is None else obj.fset
+				if not obj.fset is None:
+					try:
+						if obj.fset.__module__ == module.__name__ and \
+								_code_matches_func(obj.fset, code):
+							return getattr(module_or_class, key), slf2
+					except AttributeError:
+						try:
+							if obj.fset.__func__.__module__ == module.__name__ and \
+									_code_matches_func(obj.fset, code):
+								return getattr(module_or_class, key), slf2
+						except AttributeError:
+							pass
+				obj = obj.fget
 			try:
 				if obj.__module__ == module.__name__ and _code_matches_func(obj, code):
 					return getattr(module_or_class, key), slf2

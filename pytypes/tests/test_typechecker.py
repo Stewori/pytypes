@@ -14,7 +14,7 @@ from pytypes import typechecked, override, no_type_check, get_types, get_type_hi
 		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
 		check_argument_types, annotations, get_member_types
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-		Generic, Iterable, Iterator, Sequence, Callable, Mapping
+		Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
 from numbers import Real
 import abc; from abc import abstractmethod
 
@@ -292,9 +292,9 @@ class testClass4(str):
 		return '-'.join((str(a), str(b), str(cls)))
 
 	@staticmethod
-	def testmeth_static2(a, b):
+	def testmeth_static2(a, q):
 		# type: (int, Real) -> str
-		return '-'.join((str(a), str(b), 'static'))
+		return '-'.join((str(a), str(q), 'static'))
 
 
 class testClass5_base(object):
@@ -773,6 +773,200 @@ def testfunc_annotations_from_tpstring(a, b):
 	return len(a)/b
 
 
+@typechecked
+def testfunc_varargs1(*argss):
+	# type: (float) -> Tuple[int, float]
+	res = 1.0
+	for arg in argss:
+		res *= arg
+	return len(argss), res
+
+@typechecked
+def testfunc_varargs2(a, b, c, *varg):
+	# type: (str, int, None, int) -> Tuple[int, str]
+	res = 1
+	for arg in varg:
+		res *= arg
+	return res, a*b
+
+@typechecked
+def testfunc_varargs3(*args, **kwds):
+	# type: (int, float) -> Tuple[str, float]
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return longest*(args[0]//len(args)), \
+			0 if longest == '' else kwds[longest]
+
+@typechecked
+def testfunc_varargs4(**kwds):
+	# type: (float) -> float
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return 0 if longest == '' else kwds[longest]
+
+@typechecked
+def testfunc_varargs5(a1, a2, *vargss, **vkwds):
+	# type: (int, str, float, int) -> List[int]
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2]]
+
+@typechecked
+def testfunc_varargs_err(a1, a2, *vargss, **vkwds):
+	# type: (int, str, float, int) -> List[int]
+	return [len(vargss), str(vargss[a1]), vkwds[a2]]
+
+@typechecked
+class testclass_vararg(object):
+	def testmeth_varargs1(self, *vargs):
+		# type: (Tuple[str, int]) -> int
+		res = 1
+		for arg in vargs:
+			res += len(arg[0])*arg[1]
+		return res-len(self.__class__.__name__)
+
+	def testmeth_varargs2(self, q1, q2, *varargs, **varkw):
+		# type: (int, str, float, int) -> List[int]
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__)]
+	
+	@staticmethod
+	def testmeth_varargs_static1(*vargs_st):
+		# type: (float) -> Tuple[int, float]
+		res = 1.0
+		for arg in vargs_st:
+			res *= arg
+		return len(vargs_st), res
+
+	@staticmethod
+	def testmeth_varargs_static2(q1_st, q2_st, *varargs_st, **varkw_st):
+		# type: (int, str, float, int) -> List[int]
+		return [len(varargs_st), len(str(varargs_st[q1_st])), varkw_st[q2_st]]
+
+	@classmethod
+	def testmeth_varargs_class1(cls, *vargs_cls):
+		# type: (Tuple[str, int]) -> int
+		res = 1
+		for arg in vargs_cls:
+			res += len(arg[0])*arg[1]
+		return res-len(cls.__name__)
+
+	@classmethod
+	def testmeth_varargs_class2(cls, q1_cls, q2_cls, *varargs_cls, **varkw_cls):
+		# type: (int, str, float, int) -> List[int]
+		return [len(varargs_cls), len(str(varargs_cls[q1_cls])),
+				varkw_cls[q2_cls], len(cls.__name__)]
+
+	@property
+	def prop1(self):
+		# type: () -> str
+		return self._prop1
+
+	@prop1.setter
+	def prop1(self, *vargs_prop):
+		# type: (str) -> None
+		self._prop1 = vargs_prop[0]
+
+def testfunc_varargs_ca1(*argss):
+	# type: (float) -> Tuple[int, float]
+	check_argument_types()
+	res = 1.0
+	for arg in argss:
+		res *= arg
+	return len(argss), res
+
+def testfunc_varargs_ca2(a, b, c, *varg):
+	# type: (str, int, None, int) -> Tuple[int, str]
+	check_argument_types()
+	res = 1
+	for arg in varg:
+		res *= arg
+	return res, a*b
+
+def testfunc_varargs_ca3(*args, **kwds):
+	# type: (int, float) -> Tuple[str, float]
+	check_argument_types()
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return longest*(args[0]//len(args)), kwds[longest]
+
+def testfunc_varargs_ca4(**kwds):
+	# type: (float) -> float
+	check_argument_types()
+	longest = ''
+	for key in kwds:
+		if len(key) > len(longest):
+			longest = key
+	return 0 if longest == '' else kwds[longest]
+
+def testfunc_varargs_ca5(a1, a2, *vargss, **vkwds):
+	# type: (int, str, float, int) -> List[int]
+	check_argument_types()
+	return [len(vargss), len(str(vargss[a1])), vkwds[a2]]
+
+class testclass_vararg_ca(object):
+	def testmeth_varargs_ca1(self, *vargs):
+		# type: (Tuple[str, int]) -> int
+		check_argument_types()
+		res = 1
+		for arg in vargs:
+			res += len(arg[0])*arg[1]
+		return res-len(self.__class__.__name__)
+
+	def testmeth_varargs_ca2(self, q1, q2, *varargs, **varkw):
+		# type: (int, str, float, int) -> List[int]
+		check_argument_types()
+		return [len(varargs), len(str(varargs[q1])), varkw[q2],
+				len(self.__class__.__name__)]
+	
+	@staticmethod
+	def testmeth_varargs_static_ca1(*vargs_st):
+		# type: (float) -> Tuple[int, float]
+		check_argument_types()
+		res = 1.0
+		for arg in vargs_st:
+			res *= arg
+		return len(vargs_st), res
+
+	@staticmethod
+	def testmeth_varargs_static_ca2(q1_st, q2_st, *varargs_st, **varkw_st):
+		# type: (int, str, float, int) -> List[int]
+		check_argument_types()
+		return [len(varargs_st), len(str(varargs_st[q1_st])), varkw_st[q2_st]]
+
+	@classmethod
+	def testmeth_varargs_class_ca1(cls, *vargs_cls):
+		# type: (Tuple[str, int]) -> int
+		check_argument_types()
+		res = 1
+		for arg in vargs_cls:
+			res += len(arg[0])*arg[1]
+		return res-len(cls.__name__)
+
+	@classmethod
+	def testmeth_varargs_class_ca2(cls, q1_cls, q2_cls, *varargs_cls, **varkw_cls):
+		# type: (int, str, float, int) -> List[int]
+		check_argument_types()
+		return [len(varargs_cls), len(str(varargs_cls[q1_cls])),
+				varkw_cls[q2_cls], len(cls.__name__)]
+
+	@property
+	def prop_ca1(self):
+		# type: () -> str
+		check_argument_types()
+		return self._prop_ca1
+
+	@prop_ca1.setter
+	def prop_ca1(self, *vargs_prop):
+		# type: (str) -> None
+		check_argument_types()
+		self._prop_ca1 = vargs_prop[0]
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -790,11 +984,16 @@ class TestTypecheck(unittest.TestCase):
 
 	def test_classmethod(self):
 		tc = testClass('efgh')
-		self.assertEqual(tc.testmeth_class(23, 1.1), "23-1.1-<class '__main__.testClass'>")
-		self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
-		self.assertEqual(tc.testmeth_class2(23, 1.1), "23-1.1-<class '__main__.testClass'>")
-		self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
-		self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
+		self.assertEqual(tc.testmeth_class(23, 1.1),
+				"23-1.1-<class '__main__.testClass'>")
+		self.assertRaises(InputTypeError, lambda:
+				tc.testmeth_class(23, '1.1'))
+		self.assertEqual(tc.testmeth_class2(23, 1.1),
+				"23-1.1-<class '__main__.testClass'>")
+		self.assertRaises(InputTypeError, lambda:
+				tc.testmeth_class2(23, '1.1'))
+		self.assertRaises(ReturnTypeError, lambda:
+				tc.testmeth_class2_err(23, 1.1))
 
 	def test_method(self):
 		tc2 = testClass2('ijkl')
@@ -812,52 +1011,67 @@ class TestTypecheck(unittest.TestCase):
 	def test_staticmethod(self):
 		tc = testClass('efgh')
 		self.assertEqual(tc.testmeth_static(12, 0.7), '12-0.7-static')
-		self.assertRaises(InputTypeError, lambda: tc.testmeth_static(12, [3]))
+		self.assertRaises(InputTypeError, lambda:
+				tc.testmeth_static(12, [3]))
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
-		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ('a', 'b'), 1.9))
+		self.assertRaises(InputTypeError, lambda:
+				tc.testmeth_static2(11, ('a', 'b'), 1.9))
 
 	def test_abstract_override(self):
 		tc3 = testClass3()
-		self.assertEqual(tc3.testmeth(1, 2.5), "1-2.5-<class '__main__.testClass3'>")
+		self.assertEqual(tc3.testmeth(1, 2.5),
+				"1-2.5-<class '__main__.testClass3'>")
 
 	def test_get_types(self):
 		tc = testClass('mnop')
 		tc2 = testClass2('qrst')
 		tc3 = testClass3()
-		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
-		self.assertEqual(get_types(testfunc2), (Tuple[int, Real, testClass], Tuple[int, float]))
+		self.assertEqual(get_types(testfunc),
+				(Tuple[int, Real, str], Tuple[int, Real]))
+		self.assertEqual(get_types(testfunc2),
+				(Tuple[int, Real, testClass], Tuple[int, float]))
 		self.assertEqual(get_types(testfunc4), (Any, Any))
 		self.assertEqual(get_types(tc2.testmeth), (Tuple[int, Real], str))
 		self.assertEqual(get_types(testClass2.testmeth), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc3.testmeth), (Any, Any))
-		self.assertEqual(get_types(testClass3Base.testmeth), (Tuple[int, Real], Union[str, int]))
+		self.assertEqual(get_types(testClass3Base.testmeth),
+				(Tuple[int, Real], Union[str, int]))
 		self.assertEqual(get_types(tc.testmeth2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_class), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_class2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
-		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+		self.assertEqual(get_types(testfunc),
+				(Tuple[int, Real, str], Tuple[int, Real]))
 
 	def test_sequence(self):
 		self.assertEqual(testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
 		self.assertEqual(testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
-		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
-		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
-		self.assertRaises(InputTypeError, lambda: testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
 		self.assertEqual(testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
 		self.assertEqual(testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
-		self.assertRaises(ReturnTypeError, lambda: testfunc_Seq_ret_err(29, 'def'))
+		self.assertRaises(ReturnTypeError, lambda:
+				testfunc_Seq_ret_err(29, 'def'))
 
 	def test_iterable(self):
 		self.assertEqual(testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
 		self.assertEqual(testfunc_Iter_str_arg('defg'), [100, 101, 102, 103])
-		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg(7, 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Iter_arg(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
 		self.assertEqual(testfunc_Iter_arg([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
 		res = testfunc_Iter_arg({9, 8, 7, 6}, 'vwxy'); res.sort()
 		self.assertEqual(res, [6, 7, 8, 9])
-		res = testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		res = testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy')
+		res.sort()
 		self.assertEqual(res, [16, 17, 18, 19])
 		self.assertEqual(testfunc_Iter_ret(), [1, 2, 3, 4, 5])
 		self.assertRaises(ReturnTypeError, lambda: testfunc_Iter_ret_err())
@@ -871,9 +1085,12 @@ class TestTypecheck(unittest.TestCase):
 		self.assertIsNone(testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
 		self.assertIsNone(testfunc_Mapping_arg(7, {'7': 4, 'c': '8'}))
 		self.assertIsNone(testfunc_Mapping_arg(5, {'5': 'A', 'c': '8'}))
-		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {4: 4, 3: '8'}))
-		self.assertRaises(InputTypeError, lambda: testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
-		self.assertEqual(testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Dict_arg(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
+		self.assertEqual(
+				testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
 		self.assertRaises(ReturnTypeError, lambda: testfunc_Dict_ret_err(6))
 
 	def test_callable(self):
@@ -889,17 +1106,24 @@ class TestTypecheck(unittest.TestCase):
 			# type: (str, int) -> int
 			return '_'+s+'*'*i
 
-		self.assertTrue(pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
-		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
-		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
+		self.assertTrue(
+				pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
+		self.assertFalse(
+				pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
+		self.assertFalse(
+				pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
 
 		self.assertEqual(testfunc_Callable_arg(clb, 'pqrs'), '_pqrs****')
-		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb2, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: testfunc_Callable_arg(clb3, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: testfunc_Callable_call_err(clb, 'tuvw'))
-		self.assertEqual(testfunc_Callable_arg(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
-		self.assertRaises(InputTypeError,
-				lambda: testfunc_Callable_call_err(lambda s, i: '__'+s+'-'*i, 'tuvw'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Callable_arg(clb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Callable_arg(clb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Callable_call_err(clb, 'tuvw'))
+		self.assertEqual(testfunc_Callable_arg(
+				lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Callable_call_err(lambda s, i: '__'+s+'-'*i, 'tuvw'))
 		fnc = testfunc_Callable_ret(5, 'qvwx')
 		self.assertEqual(fnc.__class__.__name__, 'function')
 		self.assertEqual(fnc.__name__, 'm')
@@ -912,18 +1136,23 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(test_gen.send('ddffd'), 5)
 		self.assertRaises(InputTypeError, lambda: test_gen.send(7))
 		test_gen2 = testfunc_Generator()
-		self.assertIsNone(test_gen2.next() if hasattr(test_gen2, 'next') else test_gen2.__next__())
+		self.assertIsNone(test_gen2.next()
+				if hasattr(test_gen2, 'next') else test_gen2.__next__())
 		self.assertEqual(test_gen2.send('defg'), 4)
 		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
-		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_arg(test_gen))
+		self.assertRaises(TypeCheckError, lambda:
+				testfunc_Generator_arg(test_gen))
 		self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
 
 	def test_custom_generic(self):
 		self.assertEqual(testfunc_Generic_arg(Custom_Generic[str]('abc')), 'abc')
 		self.assertEqual(testfunc_Generic_ret(5).v(), 5)
-		self.assertRaises(InputTypeError, lambda: testfunc_Generic_arg(Custom_Generic[int](9)))
-		self.assertRaises(InputTypeError, lambda: testfunc_Generic_arg(Custom_Generic(7)))
-		self.assertRaises(ReturnTypeError, lambda: testfunc_Generic_ret_err(8))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Generic_arg(Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_Generic_arg(Custom_Generic(7)))
+		self.assertRaises(ReturnTypeError, lambda:
+				testfunc_Generic_ret_err(8))
 
 	def test_various(self):
 		self.assertEqual(get_type_hints(testfunc),
@@ -931,17 +1160,26 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(pytypes.deep_type(('abc', [3, 'a', 7], 4.5)),
 				Tuple[str, List[Union[int, str]], float])
 		tc2 = testClass2('bbb')
-		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth2c), testClass2)
-		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth2c), testClass2)
-		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth2b), testClass2)
-		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth2b), testClass2)
-		self.assertEqual(pytypes.get_class_that_defined_method(tc2.testmeth3), testClass2)
-		self.assertEqual(pytypes.get_class_that_defined_method(testClass2.testmeth3), testClass2)
-		self.assertRaises(ValueError, lambda: pytypes.get_class_that_defined_method(testfunc))
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				tc2.testmeth2c), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				testClass2.testmeth2c), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				tc2.testmeth2b), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				testClass2.testmeth2b), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				tc2.testmeth3), testClass2)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				testClass2.testmeth3), testClass2)
+		self.assertRaises(ValueError, lambda:
+				pytypes.get_class_that_defined_method(testfunc))
 		# old-style:
 		tc3 = testClass3()
-		self.assertEqual(pytypes.get_class_that_defined_method(tc3.testmeth), testClass3)
-		self.assertEqual(pytypes.get_class_that_defined_method(testClass3.testmeth), testClass3)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				tc3.testmeth), testClass3)
+		self.assertEqual(pytypes.get_class_that_defined_method(
+				testClass3.testmeth), testClass3)
 
 	def test_unparameterized(self):
 		# invariant type-vars
@@ -974,6 +1212,42 @@ class TestTypecheck(unittest.TestCase):
 		self.assertTrue(pytypes.is_subtype(tuple, Sequence))
 		self.assertTrue(pytypes.is_subtype(tuple, Sequence[Any]))
 
+	def test_empty(self):
+		empty_dict = pytypes.Empty[Dict]
+		self.assertEqual(pytypes.deep_type({}), empty_dict)
+		self.assertEqual(pytypes.type_str(empty_dict), 'Empty[Dict]')
+		self.assertTrue(pytypes.is_subtype(empty_dict, pytypes.Empty))
+		self.assertFalse(pytypes.is_subtype(Dict[str, int], empty_dict))
+		self.assertTrue(pytypes.is_subtype(empty_dict, Dict[str, int]))
+		self.assertTrue(pytypes.is_subtype(empty_dict, Dict))
+
+		empty_lst = pytypes.Empty[List]
+		self.assertEqual(pytypes.deep_type([]), empty_lst)
+		self.assertEqual(pytypes.type_str(empty_lst), 'Empty[List]')
+		self.assertTrue(pytypes.is_subtype(empty_lst, pytypes.Empty))
+		self.assertFalse(pytypes.is_subtype(List[str], empty_lst))
+		self.assertTrue(pytypes.is_subtype(empty_lst, List[int]))
+		self.assertTrue(pytypes.is_subtype(empty_lst, List))
+		self.assertFalse(pytypes.is_subtype(empty_lst, empty_dict))
+		self.assertFalse(pytypes.is_subtype(empty_dict, empty_lst))
+
+		empty_seq = pytypes.Empty[Sequence]
+		empty_con = pytypes.Empty[typing.Container]
+		self.assertTrue(pytypes.is_subtype(Dict[str, int],
+				typing.Container[str]))
+		self.assertFalse(pytypes.is_subtype(empty_dict, empty_seq))
+		self.assertTrue(pytypes.is_subtype(empty_dict, empty_con))
+		self.assertTrue(pytypes.is_subtype(empty_lst, empty_seq))
+		self.assertFalse(pytypes.is_subtype(empty_seq, empty_lst))
+
+		empty_set = pytypes.Empty[Set]
+		self.assertEqual(pytypes.deep_type(set()), empty_set)
+		self.assertEqual(pytypes.type_str(empty_set), 'Empty[Set]')
+		self.assertTrue(pytypes.is_subtype(empty_set, pytypes.Empty))
+		self.assertFalse(pytypes.is_subtype(Set[int], empty_set))
+		self.assertTrue(pytypes.is_subtype(empty_set, Set[int]))
+		self.assertTrue(pytypes.is_subtype(empty_set, Set))
+
 	def test_numeric_tower(self):
 		num_tow_tmp = pytypes.apply_numeric_tower
 		pytypes.apply_numeric_tower = True
@@ -995,25 +1269,37 @@ class TestTypecheck(unittest.TestCase):
 
 		self.assertEqual(testfunc_numeric_tower_float(3), '3')
 		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float('abc'))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(True))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float(1+3j))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float('abc'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float(True))
 
 		self.assertEqual(testfunc_numeric_tower_complex(5), '5')
 		self.assertEqual(testfunc_numeric_tower_complex(8.7), '8.7')
 		self.assertEqual(testfunc_numeric_tower_complex(1+3j), '(1+3j)')
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex('abc'))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(True))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex('abc'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex(True))
 
-		self.assertEqual(testfunc_numeric_tower_tuple((3, 'abc')), "(3, 'abc')")
-		self.assertEqual(testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((1+3j, 'abc')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(('abc', 'def')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((True, 'abc')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(True))
+		self.assertEqual(
+				testfunc_numeric_tower_tuple((3, 'abc')), "(3, 'abc')")
+		self.assertEqual(
+				testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple((1+3j, 'abc')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple(('abc', 'def')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple((True, 'abc')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple(True))
 
 		self.assertEqual(testfunc_numeric_tower_return('defg'), 4)
-		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
+		self.assertRaises(ReturnTypeError, lambda:
+				testfunc_numeric_tower_return_err('defg'))
 
 		self.assertIsNone(testfunc_check_argument_types(2, 3, 'qvwx'))
 		self.assertIsNone(testfunc_check_argument_types2([3, 2., 1]))
@@ -1037,30 +1323,48 @@ class TestTypecheck(unittest.TestCase):
 		self.assertFalse(pytypes.is_subtype(Tuple[int, float], Sequence[float]))
 		self.assertFalse(pytypes.is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
 
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(3))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float(3))
 		self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(1+3j))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float('abc'))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_float(True))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float(1+3j))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float('abc'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_float(True))
 
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(5))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(8.7))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex(5))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex(8.7))
 		self.assertEqual(testfunc_numeric_tower_complex(1+3j), '(1+3j)')
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex('abc'))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_complex(True))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex('abc'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_complex(True))
 
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((3, 'abc')))
-		self.assertEqual(testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((1+3j, 'abc')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(('abc', 'def')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple((True, 'abc')))
-		self.assertRaises(InputTypeError, lambda: testfunc_numeric_tower_tuple(True))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple((3, 'abc')))
+		self.assertEqual(
+				testfunc_numeric_tower_tuple((1.7, 'abc')), "(1.7, 'abc')")
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple((1+3j, 'abc')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple(('abc', 'def')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple((True, 'abc')))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_numeric_tower_tuple(True))
 
-		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return('defg'))
-		self.assertRaises(ReturnTypeError, lambda: testfunc_numeric_tower_return_err('defg'))
+		self.assertRaises(ReturnTypeError, lambda:
+				testfunc_numeric_tower_return('defg'))
+		self.assertRaises(ReturnTypeError, lambda:
+				testfunc_numeric_tower_return_err('defg'))
 
-		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types(2, 3, 'qvwx'))
-		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types2([3, 2., 1]))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_check_argument_types(2, 3, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_check_argument_types2([3, 2., 1]))
 
 		pytypes.apply_numeric_tower = num_tow_tmp
 
@@ -1122,7 +1426,8 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(pytypes.get_types(testfunc_custom_annotations),
 				(typing.Tuple[str, float], float))
 		self.assertEqual(testfunc_custom_annotations('abc', 2.5), 1.2)
-		self.assertRaises(InputTypeError, lambda: testfunc_custom_annotations('abc', 'd'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_custom_annotations('abc', 'd'))
 
 		self.assertEqual(testfunc_custom_annotations_typechecked('qvw', 2), 1.5)
 		self.assertRaises(InputTypeError,
@@ -1133,12 +1438,17 @@ class TestTypecheck(unittest.TestCase):
 				lambda: testfunc_custom_annotations_typechecked_err('hij', 1.5))
 
 		if sys.version_info.major >= 3:
-			self.assertTrue(hasattr(testfunc_custom_annotations_plain, '__annotations__'))
-			self.assertEqual(len(testfunc_custom_annotations_plain.__annotations__), 0)
-			self.assertEqual(len(typing.get_type_hints(testfunc_custom_annotations_plain)), 0)
+			self.assertTrue(
+					hasattr(testfunc_custom_annotations_plain, '__annotations__'))
+			self.assertEqual(
+					len(testfunc_custom_annotations_plain.__annotations__), 0)
+			self.assertEqual(
+					len(typing.get_type_hints(testfunc_custom_annotations_plain)), 0)
 		else:
-			self.assertFalse(hasattr(testfunc_custom_annotations_plain, '__annotations__'))
-			self.assertIsNone(typing.get_type_hints(testfunc_custom_annotations_plain))
+			self.assertFalse(
+					hasattr(testfunc_custom_annotations_plain, '__annotations__'))
+			self.assertIsNone(
+					typing.get_type_hints(testfunc_custom_annotations_plain))
 
 		hnts = pytypes.get_type_hints(testfunc_custom_annotations_plain)
 		self.assertEqual(hnts['a'], str)
@@ -1152,7 +1462,8 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(testfunc_custom_annotations_plain('abc', 1.5), 2.0)
 		testfunc_custom_annotations_plain.__annotations__ = \
 				{'a': str, 'b': int, 'return': 'float'}
-		self.assertRaises(TypeError, lambda: testfunc_custom_annotations_plain('abc', 1.5))
+		self.assertRaises(TypeError, lambda:
+				testfunc_custom_annotations_plain('abc', 1.5))
 		pytypes.annotations_override_typestring = True
 		self.assertEqual(testfunc_custom_annotations_plain('abc', 1), 3.0)
 		self.assertRaises(InputTypeError,
@@ -1180,12 +1491,15 @@ class TestTypecheck(unittest.TestCase):
 
 		# via pytypes-flag
 		annotations_from_typestring_tmp = pytypes.annotations_from_typestring
-		self.assertTrue(not hasattr(testfunc_annotations_from_tpstring, '__annotations__') or
+
+		self.assertTrue(not hasattr(
+				testfunc_annotations_from_tpstring, '__annotations__') or
 				len(testfunc_annotations_from_tpstring.__annotations__) == 0)
 		pytypes.annotations_from_typestring = False
 		self.assertEqual(pytypes.get_types(testfunc_annotations_from_tpstring),
 				(Tuple[str, int],int))
-		self.assertTrue(not hasattr(testfunc_annotations_from_tpstring, '__annotations__') or
+		self.assertTrue(not hasattr(
+				testfunc_annotations_from_tpstring, '__annotations__') or
 				len(testfunc_annotations_from_tpstring.__annotations__) == 0)
 		pytypes.annotations_from_typestring = True
 		self.assertEqual(pytypes.get_types(testfunc_annotations_from_tpstring),
@@ -1197,15 +1511,194 @@ class TestTypecheck(unittest.TestCase):
 
 		pytypes.annotations_from_typestring = annotations_from_typestring_tmp
 
+	def test_varargs(self):
+		self.assertEqual(testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(testfunc_varargs1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs1(16.4, '2', 3.2))
+		self.assertEqual(testfunc_varargs2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(testfunc_varargs3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(testfunc_varargs4(cx = 7, d = 9), 7)
+		self.assertEqual(testfunc_varargs4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(testfunc_varargs4(), 0)
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs4(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs4(cx = 7.1, d = '9'))
+		self.assertEqual(testfunc_varargs5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs5(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs5(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs5())
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs_err(
+				3.0, 'qvw', 3.3, 9, v=6, x=-8, qvw=9.9))
+		self.assertRaises(ReturnTypeError, lambda: testfunc_varargs_err(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		tcv = testclass_vararg()
+		self.assertEqual(tcv.testmeth_varargs1(
+				('k', 7), ('bxx', 19), ('bxy', 27)), 130)
+		self.assertEqual(tcv.testmeth_varargs1(), -15)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs2(
+				2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7), [3, 4, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static1(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static1((10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static1('10, 4', 1.0, -4.2))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(testclass_vararg.testmeth_varargs_class1(), -15)
+		self.assertEqual(testclass_vararg.testmeth_varargs_class1(
+				('abc', -12), ('txxt', 2)), -43)
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class1(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class1(
+				('abc', -12), 'txxt'))
+		self.assertEqual(testclass_vararg.testmeth_varargs_class2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class2())
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop1 = 'test_prop1'
+		self.assertEqual(tcv.prop1, 'test_prop1')
+		def _set_prop1(): tcv.prop1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		tcv._prop1 = 8
+		self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
+
+	def test_varargs_check_argument_types(self):
+		self.assertEqual(testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(testfunc_varargs_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca1(16.4, '2', 3.2))
+		self.assertEqual(testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(testfunc_varargs_ca3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(testfunc_varargs_ca4(cx = 7, d = 9), 7)
+		self.assertEqual(testfunc_varargs_ca4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(testfunc_varargs_ca4(), 0)
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: testfunc_varargs_ca4(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_varargs_ca4(cx = 7.1, d = '9'))
+		self.assertEqual(testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs_ca5(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: testfunc_varargs_ca5(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: testfunc_varargs_ca5())
+		tcv = testclass_vararg_ca()
+		self.assertEqual(tcv.testmeth_varargs_ca1(
+				('k', 7), ('bxx', 19), ('bxy', 27)), 127)
+		self.assertEqual(tcv.testmeth_varargs_ca1(), -18)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 19])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca1(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca1((10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca1('10, 4', 1.0, -4.2))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca1(), -18)
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12), ('txxt', 2)), -46)
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca1(('abc', -12), 'txxt'))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 19])
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca2())
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop_ca1 = 'test_prop1'
+		#print tcv.prop_ca1
+		self.assertEqual(tcv.prop_ca1, 'test_prop1')
+		def _set_prop1(): tcv.prop_ca1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		# No point in checking for ReturnTypeError here;
+		# check_argument_types wouldn't catch it.
+
 
 class TestTypecheck_class(unittest.TestCase):
 	def test_classmethod(self):
 		tc = testClass4('efghi')
-		self.assertEqual(tc.testmeth_class(23, 1.1), "23-1.1-<class '__main__.testClass4'>")
+		self.assertEqual(tc.testmeth_class(23, 1.1),
+				"23-1.1-<class '__main__.testClass4'>")
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
 		# Tests @no_type_check:
-		self.assertEqual(tc.testmeth_class_raw('23', 1.1), "23-1.1-<class '__main__.testClass4'>")
-		self.assertEqual(tc.testmeth_class2(23, 1.1), "23-1.1-<class '__main__.testClass4'>")
+		self.assertEqual(tc.testmeth_class_raw('23', 1.1),
+				"23-1.1-<class '__main__.testClass4'>")
+		self.assertEqual(tc.testmeth_class2(23, 1.1),
+				"23-1.1-<class '__main__.testClass4'>")
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
 		self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
 
@@ -1224,7 +1717,8 @@ class TestTypecheck_class(unittest.TestCase):
 		# Tests @no_type_check:
 		self.assertEqual(tc.testmeth_static_raw('12', 0.7), '12-0.7-static')
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
-		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ('a', 'b'), 1.9))
+		self.assertRaises(InputTypeError, lambda:
+				tc.testmeth_static2(11, ('a', 'b'), 1.9))
 
 
 class TestTypecheck_module(unittest.TestCase):
@@ -1250,7 +1744,8 @@ class TestTypecheck_module(unittest.TestCase):
 class Test_check_argument_types(unittest.TestCase):
 	def test_function(self):
 		self.assertIsNone(testfunc_check_argument_types(2, 3.0, 'qvwx'))
-		self.assertRaises(InputTypeError, lambda: testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda:
+				testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
 
 	def test_methods(self):
 		cl = testClass_check_argument_types()
@@ -1258,9 +1753,12 @@ class Test_check_argument_types(unittest.TestCase):
 		self.assertIsNone(cl.testClassmeth_check_argument_types(8))
 		self.assertIsNone(cl.testStaticmeth_check_argument_types(9))
 
-		self.assertRaises(InputTypeError, lambda: cl.testMeth_check_argument_types('7'))
-		self.assertRaises(InputTypeError, lambda: cl.testClassmeth_check_argument_types(8.5))
-		self.assertRaises(InputTypeError, lambda: cl.testStaticmeth_check_argument_types((9,)))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testMeth_check_argument_types('7'))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testClassmeth_check_argument_types(8.5))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testStaticmeth_check_argument_types((9,)))
 
 	def test_inner_method(self):
 		def testf1():
@@ -1403,7 +1901,8 @@ class TestStubfile(unittest.TestCase):
 
 		# Test static method:
 		self.assertEqual(5, stub_py2.class1_py2.static_meth_py2(66, 'efg'))
-		self.assertRaises(InputTypeError, lambda: stub_py2.class1_py2.static_meth_py2(66, ('efg',)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.class1_py2.static_meth_py2(66, ('efg',)))
 		hints = get_type_hints(stub_py2.class1_py2.static_meth_py2)
 		self.assertEqual(hints['c'], str)
 		self.assertEqual(hints['d'], Any)
@@ -1420,24 +1919,28 @@ class TestStubfile(unittest.TestCase):
 		# Test staticmethod with nested classes/instances:
 		self.assertEqual(7,
 				stub_py2.class1_py2.class1_inner_py2.inner_static_meth_py2(66.1, 'efg'))
-		self.assertRaises(InputTypeError,
-				lambda: stub_py2.class1_py2.class1_inner_py2.inner_static_meth_py2(66, ('efg',)))
-		hints = get_type_hints(stub_py2.class1_py2.class1_inner_py2.inner_static_meth_py2)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.class1_py2.class1_inner_py2.inner_static_meth_py2(66, ('efg',)))
+		hints = get_type_hints(
+				stub_py2.class1_py2.class1_inner_py2.inner_static_meth_py2)
 		self.assertEqual(hints['c'], str)
 		self.assertEqual(hints['d'], float)
 		self.assertEqual(hints['return'], int)
 		self.assertEqual(7, cl1.class1_inner_py2.inner_static_meth_py2(66.1, 'efg'))
-		self.assertRaises(InputTypeError,
-				lambda: cl1.class1_inner_py2.inner_static_meth_py2(66, ('efg',)))
-		self.assertEqual(hints, get_type_hints(cl1.class1_inner_py2.inner_static_meth_py2))
+		self.assertRaises(InputTypeError, lambda:
+				cl1.class1_inner_py2.inner_static_meth_py2(66, ('efg',)))
+		self.assertEqual(
+				hints, get_type_hints(cl1.class1_inner_py2.inner_static_meth_py2))
 		cl1_inner = stub_py2.class1_py2.class1_inner_py2()
 		self.assertEqual(7, cl1_inner.inner_static_meth_py2(66.1, 'efg'))
-		self.assertRaises(InputTypeError, lambda: cl1_inner.inner_static_meth_py2(66, ('efg',)))
+		self.assertRaises(InputTypeError, lambda:
+				cl1_inner.inner_static_meth_py2(66, ('efg',)))
 		self.assertEqual(hints, get_type_hints(cl1_inner.inner_static_meth_py2))
 
 		# Test classmethod:
 		self.assertEqual(462.0, stub_py2.class1_py2.class_meth_py2('ghi', 77))
-		self.assertRaises(InputTypeError, lambda: stub_py2.class1_py2.class_meth_py2(99, 77))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.class1_py2.class_meth_py2(99, 77))
 
 		# Test subclass and class-typed parameter:
 		cl2 = stub_py2.class2_py2()
@@ -1450,8 +1953,10 @@ class TestStubfile(unittest.TestCase):
 		self.assertIsNone(stub_py2.testfunc_None_ret_py2(2, 3.0))
 		self.assertEqual(stub_py2.testfunc_None_arg_py2(4, None), 16)
 		self.assertEqual(stub_py2.testfunc_class_in_list_py2([cl1]), 1)
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_class_in_list_py2((cl1,)))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_class_in_list_py2(cl1))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_class_in_list_py2((cl1,)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_class_in_list_py2(cl1))
 
 
 # Todo: Add some of these tests for stubfile
@@ -1477,30 +1982,45 @@ class TestStubfile(unittest.TestCase):
 	def test_sequence_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
 		self.assertEqual(stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw'))), 2)
-		self.assertEqual(stub_py2.testfunc_Seq_arg_py2([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2({(3, 'ab'), (8, 'qvw')}))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw', 2))))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Seq_arg_py2([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertEqual(
+				stub_py2.testfunc_Seq_arg_py2([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Seq_arg_py2({(3, 'ab'), (8, 'qvw')}))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Seq_arg_py2([(3, 1), (8, 'qvw'), (4, 'cd')]))
 		self.assertEqual(stub_py2.testfunc_Seq_ret_List_py2(7, 'mno'), [7, 'mno'])
 		self.assertEqual(stub_py2.testfunc_Seq_ret_Tuple_py2(3, 'mno'), (3, 'mno'))
-		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Seq_ret_err_py2(29, 'def'))
+		self.assertRaises(ReturnTypeError, lambda:
+				stub_py2.testfunc_Seq_ret_err_py2(29, 'def'))
 
 	def test_iterable_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
-		self.assertEqual(stub_py2.testfunc_Iter_arg_py2((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
-		self.assertEqual(stub_py2.testfunc_Iter_str_arg_py2('defg'), [100, 101, 102, 103])
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2((9, '8', 7, 6), 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2(7, 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2([9, 8, 7, '6'], 'vwxy'))
-		self.assertEqual(stub_py2.testfunc_Iter_arg_py2([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
+		self.assertEqual(stub_py2.testfunc_Iter_arg_py2((9, 8, 7, 6), 'vwxy'),
+				[9, 8, 7, 6])
+		self.assertEqual(stub_py2.testfunc_Iter_str_arg_py2('defg'),
+				[100, 101, 102, 103])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Iter_arg_py2((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Iter_arg_py2(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Iter_arg_py2([9, 8, 7, '6'], 'vwxy'))
+		self.assertEqual(stub_py2.testfunc_Iter_arg_py2([9, 8, 7, 6], 'vwxy'),
+				[9, 8, 7, 6])
 		res = stub_py2.testfunc_Iter_arg_py2({9, 8, 7, 6}, 'vwxy'); res.sort()
 		self.assertEqual(res, [6, 7, 8, 9])
-		res = stub_py2.testfunc_Iter_arg_py2({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		res = stub_py2.testfunc_Iter_arg_py2(
+				{19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy')
+		res.sort()
 		self.assertEqual(res, [16, 17, 18, 19])
 		self.assertEqual(stub_py2.testfunc_Iter_ret_py2(), [1, 2, 3, 4, 5])
-		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Iter_ret_err_py2())
+		self.assertRaises(ReturnTypeError, lambda:
+				stub_py2.testfunc_Iter_ret_err_py2())
 		ti = test_iterable((2, 4, 6))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Iter_arg_py2(ti, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Iter_arg_py2(ti, 'vwxy'))
 		# tia = stub_py2.test_iterable_annotated_py2((3, 6, 9))
 		# self.assertEqual(stub_py2.testfunc_Iter_arg_py2(tia, 'vwxy'), [3, 6, 9])
 
@@ -1510,10 +2030,14 @@ class TestStubfile(unittest.TestCase):
 		self.assertIsNone(stub_py2.testfunc_Dict_arg_py2(5, {'5': 'A', 'c': '8'}))
 		self.assertIsNone(stub_py2.testfunc_Mapping_arg_py2(7, {'7': 4, 'c': '8'}))
 		self.assertIsNone(stub_py2.testfunc_Mapping_arg_py2(5, {'5': 'A', 'c': '8'}))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Dict_arg_py2(5, {4: 4, 3: '8'}))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Dict_arg_py2(5, {'5': (4,), 'c': '8'}))
-		self.assertEqual(stub_py2.testfunc_Dict_ret_py2('defg'), {'defgdefg': 'defg', 'defg': 4})
-		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Dict_ret_err_py2(6))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Dict_arg_py2(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Dict_arg_py2(5, {'5': (4,), 'c': '8'}))
+		self.assertEqual(stub_py2.testfunc_Dict_ret_py2('defg'),
+				{'defgdefg': 'defg', 'defg': 4})
+		self.assertRaises(ReturnTypeError, lambda:
+				stub_py2.testfunc_Dict_ret_err_py2(6))
 
 	def test_callable_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
@@ -1533,17 +2057,24 @@ class TestStubfile(unittest.TestCase):
 		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
 		self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
 
-		self.assertEqual(stub_py2.testfunc_Callable_arg_py2(clb, 'pqrs'), '_pqrs****')
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_arg_py2(clb2, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_arg_py2(clb3, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Callable_call_err_py2(clb, 'tuvw'))
-		self.assertEqual(stub_py2.testfunc_Callable_arg_py2(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
-		self.assertRaises(InputTypeError,
-				lambda: stub_py2.testfunc_Callable_call_err_py2(lambda s, i: '__'+s+'-'*i, 'tuvw'))
+		self.assertEqual(
+				stub_py2.testfunc_Callable_arg_py2(clb, 'pqrs'), '_pqrs****')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Callable_arg_py2(clb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Callable_arg_py2(clb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Callable_call_err_py2(clb, 'tuvw'))
+		self.assertEqual(stub_py2.testfunc_Callable_arg_py2(
+				lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Callable_call_err_py2(
+				lambda s, i: '__'+s+'-'*i, 'tuvw'))
 		fnc = stub_py2.testfunc_Callable_ret_py2(5, 'qvwx')
 		self.assertEqual(fnc.__class__.__name__, 'function')
 		self.assertEqual(fnc.__name__, 'm')
-		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Callable_ret_err_py2())
+		self.assertRaises(ReturnTypeError, lambda:
+				stub_py2.testfunc_Callable_ret_err_py2())
 
 	def test_generator_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
@@ -1553,19 +2084,26 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(test_gen.send('ddffd'), 5)
 		self.assertRaises(InputTypeError, lambda: test_gen.send(7))
 		test_gen2 = stub_py2.testfunc_Generator_py2()
-		self.assertIsNone(test_gen2.next() if hasattr(test_gen2, 'next') else test_gen2.__next__())
+		self.assertIsNone(test_gen2.next()
+				if hasattr(test_gen2, 'next') else test_gen2.__next__())
 		self.assertEqual(test_gen2.send('defg'), 4)
 		self.assertRaises(ReturnTypeError, lambda: test_gen2.send('fail'))
-		self.assertRaises(TypeCheckError, lambda: stub_py2.testfunc_Generator_arg_py2(test_gen))
-		self.assertRaises(TypeCheckError, lambda: stub_py2.testfunc_Generator_ret_py2())
+		self.assertRaises(TypeCheckError, lambda:
+				stub_py2.testfunc_Generator_arg_py2(test_gen))
+		self.assertRaises(TypeCheckError, lambda:
+				stub_py2.testfunc_Generator_ret_py2())
 
 	def test_custom_generic_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
-		self.assertEqual(stub_py2.testfunc_Generic_arg_py2(stub_py2.Custom_Generic_py2[str]('abc')), 'abc')
+		self.assertEqual(stub_py2.testfunc_Generic_arg_py2(
+				stub_py2.Custom_Generic_py2[str]('abc')), 'abc')
 		self.assertEqual(stub_py2.testfunc_Generic_ret_py2(5).v(), 5)
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Generic_arg_py2(Custom_Generic[int](9)))
-		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_Generic_arg_py2(Custom_Generic(7)))
-		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_Generic_ret_err_py2(8))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Generic_arg_py2(Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_Generic_arg_py2(Custom_Generic(7)))
+		self.assertRaises(ReturnTypeError, lambda:
+				stub_py2.testfunc_Generic_ret_err_py2(8))
 
 	def test_property_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
@@ -1604,6 +2142,194 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(get_member_types(tcp, 'testprop_py2', True), (Tuple[()], int))
 
 
+	def test_varargs_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.testfunc_varargs1_py2(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(stub_py2.testfunc_varargs1_py2(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs1_py2((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs1_py2(16.4, '2', 3.2))
+		self.assertEqual(stub_py2.testfunc_varargs2_py2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs2_py2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs2_py2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs2_py2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(stub_py2.testfunc_varargs3_py2(
+				14, 3, -4, a=8, ab=7.7, q=-3.2), ('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs3_py2(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs3_py2((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs3_py2(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(stub_py2.testfunc_varargs4_py2(cx = 7, d = 9), 7)
+		self.assertEqual(stub_py2.testfunc_varargs4_py2(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(stub_py2.testfunc_varargs4_py2(), 0)
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs4_py2(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs4_py2(cx = 7.1, d = '9'))
+		self.assertEqual(stub_py2.testfunc_varargs5_py2(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs5_py2(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs5_py2(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs5_py2(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs5_py2())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_err_py2(
+				3.0, 'qvw', 3.3, 9, v=6, x=-8, qvw=9.9))
+		self.assertRaises(ReturnTypeError, lambda: stub_py2.testfunc_varargs_err_py2(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		tcv = stub_py2.testclass_vararg_py2()
+		self.assertEqual(tcv.testmeth_varargs1_py2(
+				('k', 7), ('bxx', 19), ('bxy', 27)), 126)
+		self.assertEqual(tcv.testmeth_varargs1_py2(), -19)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs1_py2(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs2_py2(
+				2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7), [3, 4, 7, 20])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs2_py2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(stub_py2.testclass_vararg_py2.testmeth_varargs_static1_py2(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(stub_py2.testclass_vararg_py2.testmeth_varargs_static1_py2(),
+				(0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_static1_py2(
+				(10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_static1_py2(
+				'10, 4', 1.0, -4.2))
+		self.assertEqual(stub_py2.testclass_vararg_py2.testmeth_varargs_static2_py2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_static2_py2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(
+				stub_py2.testclass_vararg_py2.testmeth_varargs_class1_py2(), -19)
+		self.assertEqual(stub_py2.testclass_vararg_py2.testmeth_varargs_class1_py2(
+				('abc', -12), ('txxt', 2)), -47)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_class1_py2(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_class1_py2(
+				('abc', -12), 'txxt'))
+		self.assertEqual(stub_py2.testclass_vararg_py2.testmeth_varargs_class2_py2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 20])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_class2_py2())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_py2.testmeth_varargs_class2_py2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop1_py2 = 'test_prop1'
+		self.assertEqual(tcv.prop1_py2, 'test_prop1')
+		def _set_prop1_py2(): tcv.prop1_py2 = 8
+		self.assertRaises(InputTypeError, _set_prop1_py2)
+		tcv._prop1_py2 = 8
+		self.assertRaises(ReturnTypeError, lambda: tcv.prop1_py2)
+
+	def test_varargs_check_argument_types_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.testfunc_varargs_ca1_py2(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(stub_py2.testfunc_varargs_ca1_py2(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca1_py2((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca1_py2(16.4, '2', 3.2))
+		self.assertEqual(stub_py2.testfunc_varargs_ca2_py2(
+				'cdef', 3, None, 5, 4, 7, 17, -2), (-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca2_py2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca2_py2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca2_py2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(stub_py2.testfunc_varargs_ca3_py2(
+				14, 3, -4, a=8, ab=7.7, q=-3.2), ('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca3_py2(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca3_py2((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca3_py2(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(stub_py2.testfunc_varargs_ca4_py2(cx = 7, d = 9), 7)
+		self.assertEqual(stub_py2.testfunc_varargs_ca4_py2(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(stub_py2.testfunc_varargs_ca4_py2(), 0)
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py2.testfunc_varargs_ca4_py2(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testfunc_varargs_ca4_py2(cx = 7.1, d = '9'))
+		self.assertEqual(stub_py2.testfunc_varargs_ca5_py2(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs_ca5_py2(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs_ca5_py2(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py2.testfunc_varargs_ca5_py2(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py2.testfunc_varargs_ca5_py2())
+		tcv = stub_py2.testclass_vararg_ca_py2()
+		self.assertEqual(tcv.testmeth_varargs_ca1_py2(
+				('k', 7), ('bxx', 19), ('bxy', 27)), 123)
+		self.assertEqual(tcv.testmeth_varargs_ca1_py2(), -22)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca1_py2(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs_ca2_py2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 23])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca2_py2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca1_py2(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca1_py2(),
+				(0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca1_py2(
+				(10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca1_py2(
+				'10, 4', 1.0, -4.2))
+		self.assertEqual(stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca2_py2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_static_ca2_py2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca1_py2(), -22)
+		self.assertEqual(stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca1_py2(
+				('abc', -12), ('txxt', 2)), -50)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca1_py2(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca1_py2(
+				('abc', -12), 'txxt'))
+		self.assertEqual(stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca2_py2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 23])
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca2_py2())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.testclass_vararg_ca_py2.testmeth_varargs_class_ca2_py2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop_ca1_py2 = 'test_prop1'
+		self.assertEqual(tcv.prop_ca1_py2, 'test_prop1')
+		def _set_prop1_py2(): tcv.prop_ca1_py2 = 8
+		self.assertRaises(InputTypeError, _set_prop1_py2)
+		# No point in checking for ReturnTypeError here;
+		# check_argument_types wouldn't catch it.
+
+
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
 	def test_plain_3_5_stub(self):
@@ -1634,7 +2360,8 @@ class TestStubfile(unittest.TestCase):
 
 		# Test static method:
 		self.assertEqual(5, stub_py3.class1.static_meth(66, 'efg'))
-		self.assertRaises(InputTypeError, lambda: stub_py3.class1.static_meth(66, ('efg',)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.class1.static_meth(66, ('efg',)))
 		hints = get_type_hints(stub_py3.class1.static_meth)
 		self.assertEqual(hints['c'], str)
 		self.assertEqual(hints['d'], Any)
@@ -1720,6 +2447,280 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
 		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+	def test_varargs_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		self.assertEqual(stub_py3.testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(stub_py3.testfunc_varargs1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs1(16.4, '2', 3.2))
+		self.assertEqual(stub_py3.testfunc_varargs2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(stub_py3.testfunc_varargs3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(stub_py3.testfunc_varargs4(cx = 7, d = 9), 7)
+		self.assertEqual(stub_py3.testfunc_varargs4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(stub_py3.testfunc_varargs4(), 0)
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs4(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs4(cx = 7.1, d = '9'))
+		self.assertEqual(stub_py3.testfunc_varargs5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs5(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs5(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs5())
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs_err(
+				3.0, 'qvw', 3.3, 9, v=6, x=-8, qvw=9.9))
+		self.assertRaises(ReturnTypeError, lambda: stub_py3.testfunc_varargs_err(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+
+		# Python 3 specific: kw-only args:
+		self.assertEqual(stub_py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(stub_py3.testfunc_varargs6(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs6())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		self.assertEqual(stub_py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(stub_py3.testfunc_varargs6b(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6b(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs6b())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6b(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+		
+		tcv = stub_py3.testclass_vararg()
+		self.assertEqual(tcv.testmeth_varargs1(('k', 7), ('bxx', 19), ('bxy', 27)), 130)
+		self.assertEqual(tcv.testmeth_varargs1(), -15)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_static1(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_static1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_static1((10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_static1('10, 4', 1.0, -4.2))
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_class1(), -15)
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_class1(
+				('abc', -12), ('txxt', 2)), -43)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_class1(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_class1(('abc', -12), 'txxt'))
+		self.assertEqual(stub_py3.testclass_vararg.testmeth_varargs_class2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_class2())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg.testmeth_varargs_class2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop1 = 'test_prop1'
+		self.assertEqual(tcv.prop1, 'test_prop1')
+		def _set_prop1(): tcv.prop1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		tcv._prop1 = 8
+		self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+	def test_varargs_check_argument_types_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		self.assertEqual(stub_py3.testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(stub_py3.testfunc_varargs_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca1(16.4, '2', 3.2))
+		self.assertEqual(stub_py3.testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(stub_py3.testfunc_varargs_ca3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(stub_py3.testfunc_varargs_ca4(cx = 7, d = 9), 7)
+		self.assertEqual(stub_py3.testfunc_varargs_ca4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(stub_py3.testfunc_varargs_ca4(), 0)
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py3.testfunc_varargs_ca4(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca4(cx = 7.1, d = '9'))
+		self.assertEqual(stub_py3.testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs_ca5(
+				3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_varargs_ca5(
+				3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py3.testfunc_varargs_ca5())
+
+		# Python 3 specific: kw-only args:
+		self.assertEqual(stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py3.testfunc_varargs_ca6())
+		self.assertRaises(TypeError, lambda:
+				stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		self.assertEqual(stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6b(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: stub_py3.testfunc_varargs_ca6b())
+		self.assertRaises(TypeError, lambda:
+				stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		tcv = stub_py3.testclass_vararg_ca()
+		self.assertEqual(
+				tcv.testmeth_varargs_ca1(('k', 7), ('bxx', 19), ('bxy', 27)), 127)
+		self.assertEqual(tcv.testmeth_varargs_ca1(), -18)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 19])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca1(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(
+				stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca1(
+				(10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca1(
+				'10, 4', 1.0, -4.2))
+		self.assertEqual(stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca1(), -18)
+		self.assertEqual(stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12), ('txxt', 2)), -46)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12), 'txxt'))
+		self.assertEqual(stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 19])
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca2())
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.testclass_vararg_ca.testmeth_varargs_class_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop_ca1 = 'test_prop1'
+		self.assertEqual(tcv.prop_ca1, 'test_prop1')
+		def _set_prop1(): tcv.prop_ca1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		# No point in checking for ReturnTypeError here; check_argument_types wouldn't catch it.
+
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
@@ -1762,7 +2763,8 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		tc = py3.testClass('ijkl2')
 		tc2 = py3.testClass2('ijkl3')
 		self.assertEqual(tc.testmeth_forward(5, tc2), 11)
-		self.assertEqual(typing.get_type_hints(tc.testmeth_forward), get_type_hints(tc.testmeth_forward))
+		self.assertEqual(typing.get_type_hints(tc.testmeth_forward),
+				get_type_hints(tc.testmeth_forward))
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, 7))
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_forward(5, tc))
 
@@ -1782,25 +2784,32 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		tc = py3.testClass('mnop')
 		tc2 = py3.testClass2('qrst')
 		tc3 = py3.testClass3()
-		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
-		self.assertEqual(get_types(py3.testfunc2), (Tuple[int, Real, py3.testClass], Tuple[int, float]))
+		self.assertEqual(get_types(py3.testfunc),
+				(Tuple[int, Real, str], Tuple[int, Real]))
+		self.assertEqual(get_types(py3.testfunc2),
+				(Tuple[int, Real, py3.testClass], Tuple[int, float]))
 		self.assertEqual(get_types(tc2.testmeth), (Tuple[int, Real], str))
 		self.assertEqual(get_types(py3.testClass2.testmeth), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc3.testmeth), (Any, Any))
-		self.assertEqual(get_types(py3.testClass3Base.testmeth), (Tuple[int, Real], Union[str, int]))
+		self.assertEqual(get_types(py3.testClass3Base.testmeth),
+				(Tuple[int, Real], Union[str, int]))
 		self.assertEqual(get_types(tc.testmeth2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_class), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_class2), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static), (Tuple[int, Real], str))
 		self.assertEqual(get_types(tc.testmeth_static2), (Tuple[int, Real], str))
-		self.assertEqual(get_types(py3.testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
+		self.assertEqual(get_types(py3.testfunc),
+				(Tuple[int, Real, str], Tuple[int, Real]))
 
 	def test_sequence_py3(self):
 		self.assertEqual(py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw'))), 2)
 		self.assertEqual(py3.testfunc_Seq_arg([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Seq_arg({(3, 'ab'), (8, 'qvw')}))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Seq_arg(((3, 'ab'), (8, 'qvw', 2))))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Seq_arg([(3, 1), (8, 'qvw'), (4, 'cd')]))
 		self.assertEqual(py3.testfunc_Seq_ret_List(7, 'mno'), [7, 'mno'])
 		self.assertEqual(py3.testfunc_Seq_ret_Tuple(3, 'mno'), (3, 'mno'))
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Seq_ret_err(29, 'def'))
@@ -1808,13 +2817,17 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_iterable_py3(self):
 		self.assertEqual(py3.testfunc_Iter_arg((9, 8, 7, 6), 'vwxy'), [9, 8, 7, 6])
 		self.assertEqual(py3.testfunc_Iter_str_arg('defg'), [100, 101, 102, 103])
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg(7, 'vwxy'))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Iter_arg((9, '8', 7, 6), 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Iter_arg(7, 'vwxy'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Iter_arg([9, 8, 7, '6'], 'vwxy'))
 		self.assertEqual(py3.testfunc_Iter_arg([9, 8, 7, 6], 'vwxy'), [9, 8, 7, 6])
 		res = py3.testfunc_Iter_arg({9, 8, 7, 6}, 'vwxy'); res.sort()
 		self.assertEqual(res, [6, 7, 8, 9])
-		res = py3.testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy'); res.sort()
+		res = py3.testfunc_Iter_arg({19: 'a', 18: 'b', 17: 'c', 16: 'd'}, 'vwxy')
+		res.sort()
 		self.assertEqual(res, [16, 17, 18, 19])
 		self.assertEqual(py3.testfunc_Iter_ret(), [1, 2, 3, 4, 5])
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Iter_ret_err())
@@ -1828,8 +2841,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 'A', 'c': '8'}))
 		self.assertIsNone(py3.testfunc_Mapping_arg(7, {'7': 4, 'c': '8'}))
 		self.assertIsNone(py3.testfunc_Mapping_arg(5, {'5': 'A', 'c': '8'}))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {4: 4, 3: '8'}))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Dict_arg(5, {4: 4, 3: '8'}))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Dict_arg(5, {'5': (4,), 'c': '8'}))
 		self.assertEqual(py3.testfunc_Dict_ret('defg'), {'defgdefg': 'defg', 'defg': 4})
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Dict_ret_err(6))
 
@@ -1839,10 +2854,14 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertFalse(pytypes.is_of_type(py3.pclb, typing.Callable[[str, int], float]))
 
 		self.assertEqual(py3.testfunc_Callable_arg(py3.pclb, 'pqrs'), '_pqrs****')
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb2, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_arg(py3.pclb3, 'pqrs'))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Callable_call_err(py3.pclb, 'tuvw'))
-		self.assertEqual(py3.testfunc_Callable_arg(lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Callable_arg(py3.pclb2, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Callable_arg(py3.pclb3, 'pqrs'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Callable_call_err(py3.pclb, 'tuvw'))
+		self.assertEqual(py3.testfunc_Callable_arg(
+				lambda s, i: '__'+s+'-'*i, 'pqrs'), '__pqrs----')
 		self.assertRaises(InputTypeError,
 				lambda: py3.testfunc_Callable_call_err(lambda s, i: '__'+s+'-'*i, 'tuvw'))
 		fnc = py3.testfunc_Callable_ret(5, 'qvwx')
@@ -1877,8 +2896,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 	def test_custom_generic_py3(self):
 		self.assertEqual(py3.testfunc_Generic_arg(py3.Custom_Generic[str]('abc')), 'abc')
 		self.assertEqual(py3.testfunc_Generic_ret(5).v(), 5)
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Generic_arg(py3.Custom_Generic[int](9)))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_Generic_arg(py3.Custom_Generic(7)))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Generic_arg(py3.Custom_Generic[int](9)))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_Generic_arg(py3.Custom_Generic(7)))
 		self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Generic_ret_err(8))
 
 	def test_various_py3(self):
@@ -1921,6 +2942,270 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
 		self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
 		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
+
+	def test_varargs(self):
+		self.assertEqual(py3.testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(py3.testfunc_varargs1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs1(16.4, '2', 3.2))
+		self.assertEqual(py3.testfunc_varargs2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(py3.testfunc_varargs3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(py3.testfunc_varargs4(cx = 7, d = 9), 7)
+		self.assertEqual(py3.testfunc_varargs4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(py3.testfunc_varargs4(), 0)
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs4(2, 3))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs4(cx = 7.1, d = '9'))
+		self.assertEqual(py3.testfunc_varargs5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs5(3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs5(3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs5(3, 'qvw', (3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs5())
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_err(3.0, 'qvw', 3.3, 9, v=6, x=-8, qvw=9.9))
+		self.assertRaises(ReturnTypeError, lambda:
+				py3.testfunc_varargs_err(3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+
+		# Python 3 specific: kw-only args:
+		self.assertEqual(py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(py3.testfunc_varargs6(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:py3.testfunc_varargs6())
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		self.assertEqual(py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(py3.testfunc_varargs6b(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6b(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda: py3.testfunc_varargs6b())
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6b(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+		
+		tcv = py3.testclass_vararg()
+		self.assertEqual(tcv.testmeth_varargs1(('k', 7), ('bxx', 19), ('bxy', 27)), 130)
+		self.assertEqual(tcv.testmeth_varargs1(), -15)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static1(10, 4, 1.0, -4.2),
+				(4, -168.0))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static1((10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static1('10, 4', 1.0, -4.2))
+		self.assertEqual(testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_static2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(testclass_vararg.testmeth_varargs_class1(), -15)
+		self.assertEqual(testclass_vararg.testmeth_varargs_class1(
+				('abc', -12), ('txxt', 2)), -43)
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class1(('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class1(('abc', -12), 'txxt'))
+		self.assertEqual(testclass_vararg.testmeth_varargs_class2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 16])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class2())
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg.testmeth_varargs_class2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop1 = 'test_prop1'
+		self.assertEqual(tcv.prop1, 'test_prop1')
+		def _set_prop1(): tcv.prop1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		tcv._prop1 = 8
+		self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
+
+	def test_varargs_check_argument_types(self):
+		self.assertEqual(py3.testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
+		self.assertEqual(py3.testfunc_varargs_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca1((16.4, 2, 3.2)))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca1(16.4, '2', 3.2))
+		self.assertEqual(py3.testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7, 17, -2),
+				(-4760, 'cdefcdefcdef'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca2('cdef', 3, 'a', 5, 4, 7, 17, -2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca2('cdef', 3, None, (5, 4, 7, 17, -2)))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca2('cdef', 3, None, 5, 4, 7.1, 17, -2))
+		self.assertEqual(py3.testfunc_varargs_ca3(14, 3, -4, a=8, ab=7.7, q=-3.2),
+				('abababab', 7.7))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca3(14, 3.2, -4, a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca3((14, 3, -4), a=8, b=7.7, q=-3.2))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca3(14, 3, -4, a=8, b='7.7', q=-3.2))
+		self.assertEqual(py3.testfunc_varargs_ca4(cx = 7, d = 9), 7)
+		self.assertEqual(py3.testfunc_varargs_ca4(cx = 7.5, d = 9), 7.5)
+		self.assertEqual(py3.testfunc_varargs_ca4(), 0)
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: py3.testfunc_varargs_ca4(2, 3))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca4(cx = 7.1, d = '9'))
+		self.assertEqual(py3.testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99), [4, 1, 99])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca5(
+				3, 'qvw', 3.3, 3.1, 2.778, 9, v=6.2, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca5(3, 3, 3.3, 3.1, 2.778, 9, v=6, x=-8, qvw=99))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca5(3, 'qvw', (
+				3.3, 3.1, 2.778, 9), v=6, x=-8, qvw=99))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: py3.testfunc_varargs_ca5())
+
+		# Python 3 specific: kw-only args:
+		self.assertEqual(py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: py3.testfunc_varargs_ca6())
+		self.assertRaises(TypeError, lambda:
+				py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		self.assertEqual(py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 3, 19, 27, 3])
+		self.assertEqual(py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3, 4, 6.7,
+				a=2, b=3, b1=27, b2='abc', ac=19), [4, 1, 19, 27, 3])
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6b(2.1, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=27, b2='abc', ac=19))
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda: py3.testfunc_varargs_ca6b())
+		self.assertRaises(TypeError, lambda:
+				py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6b(2, 'ac', 1.2, (3.4, 4.5, 6.7),
+ 				a=2, b=3, b1=1.5, b2='abc', ac=19))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_varargs_ca6b(2, 'ac', 1.2, 3.4, 4.5, 6.7,
+ 				a=2, b=3.5, b1=1.5, b2='abc', ac=19))
+
+		tcv = py3.testclass_vararg_ca()
+		self.assertEqual(tcv.testmeth_varargs_ca1(
+				('k', 7), ('bxx', 19), ('bxy', 27)), 127)
+		self.assertEqual(tcv.testmeth_varargs_ca1(), -18)
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca1(('k', 7), 19, ('bxy', 27)))
+		self.assertEqual(tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8, xt=7),
+				[3, 4, 7, 19])
+		self.assertRaises(InputTypeError, lambda:
+				tcv.testmeth_varargs_ca2(2, 'xt', 1.2, 1.4, -9.2, cx=8.2, xt=7))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca1(
+				10, 4, 1.0, -4.2), (4, -168.0))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca1(), (0, 1.0))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca1((10, 4, 1.0, -4.2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca1('10, 4', 1.0, -4.2))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=7), [2, 3, 2])
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_static_ca2(
+				0, 'cx', 1.2, -9.2, cx=2.1, xt=7))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca1(), -18)
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12), ('txxt', 2)), -46)
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca1(
+				('abc', -12.1), ('txxt', 2)))
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca1(('abc', -12), 'txxt'))
+		self.assertEqual(testclass_vararg_ca.testmeth_varargs_class_ca2(
+				1, 'xt', .2, -92, cx=2, xt=7), [2, 3, 7, 19])
+		# In this case it's an ordinary type-error, because Python catches it before
+		# pytypes gets hands on it to make a more sophisticated InputTypeError:
+		self.assertRaises(TypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca2())
+		self.assertRaises(InputTypeError, lambda:
+				testclass_vararg_ca.testmeth_varargs_class_ca2(
+				0, 'cx', 1.2, -9.2, cx=2, xt=.7))
+		tcv.prop_ca1 = 'test_prop1'
+		#print tcv.prop_ca1
+		self.assertEqual(tcv.prop_ca1, 'test_prop1')
+		def _set_prop1(): tcv.prop_ca1 = 8
+		self.assertRaises(InputTypeError, _set_prop1)
+		# No point in checking for ReturnTypeError here;
+		# check_argument_types wouldn't catch it.
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -1981,7 +3266,8 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
 
 	def test_function(self):
 		self.assertIsNone(py3.testfunc_check_argument_types(2, 3.0, 'qvwx'))
-		self.assertRaises(InputTypeError, lambda: py3.testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
+		self.assertRaises(InputTypeError, lambda:
+				py3.testfunc_check_argument_types(2.7, 3.0, 'qvwx'))
 
 	def test_methods(self):
 		cl = py3.testClass_check_argument_types()
@@ -1989,17 +3275,22 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
 		self.assertIsNone(cl.testClassmeth_check_argument_types(8))
 		self.assertIsNone(cl.testStaticmeth_check_argument_types(9))
 
-		self.assertRaises(InputTypeError, lambda: cl.testMeth_check_argument_types('7'))
-		self.assertRaises(InputTypeError, lambda: cl.testClassmeth_check_argument_types(8.5))
-		self.assertRaises(InputTypeError, lambda: cl.testStaticmeth_check_argument_types((9,)))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testMeth_check_argument_types('7'))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testClassmeth_check_argument_types(8.5))
+		self.assertRaises(InputTypeError, lambda:
+				cl.testStaticmeth_check_argument_types((9,)))
 
 	def test_inner_method(self):
 		self.assertEqual(py3.test_inner_method_testf1(), '(3, 6)')
-		self.assertRaises(InputTypeError, lambda: py3.test_inner_method_testf1_err())
+		self.assertRaises(InputTypeError, lambda:
+				py3.test_inner_method_testf1_err())
 
 	def test_inner_class(self):
 		self.assertEqual(py3.test_inner_class_testf1(), '99')
-		self.assertRaises(InputTypeError, lambda: py3.test_inner_class_testf1_err())
+		self.assertRaises(InputTypeError, lambda:
+				py3.test_inner_class_testf1_err())
 
 
 if __name__ == '__main__':

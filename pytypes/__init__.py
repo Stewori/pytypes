@@ -18,7 +18,8 @@ check_callables = True
 check_iterables = True
 check_generators = True
 
-check_unbound_types = True
+check_unbound_types = True # if true, treat missing parameters as unknown
+strict_unknown_check = False # if false, treat unknown parameters somewhat like Any
 apply_numeric_tower = True # i.e. int is subtype of float is subtype of complex
 
 # For runtime checking it is usually okay to treat Mapping-types as covariant,
@@ -28,7 +29,7 @@ apply_numeric_tower = True # i.e. int is subtype of float is subtype of complex
 # because in Python Mappings are Iterables over the Key-type.
 covariant_Mapping = True
 
-annotations_override_typestring = True
+annotations_override_typestring = False
 annotations_from_typestring = False
 strict_annotation_collision_check = False
 
@@ -107,7 +108,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		make_Tuple, make_Union, annotations, get_member_types
+		make_Tuple, make_Union, annotations, get_member_types, Empty
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod
 from .stubfile_manager import get_stub_module, as_stub_func_if_any

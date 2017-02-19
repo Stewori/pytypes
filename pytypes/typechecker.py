@@ -11,6 +11,7 @@ from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_typ
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
+from pytypes.util import getargspecs
 
 if sys.version_info.major >= 3:
 	import builtins
@@ -224,16 +225,13 @@ def override(func):
 			raise _no_base_method_error(func)
 
 	if pytypes.check_override_at_runtime:
+		specs = util.getargspecs(func)
+		argNames = util.getargnames(specs)
 		def checker_ov(*args, **kw):
 			if hasattr(checker_ov, '__annotations__') and len(checker_ov.__annotations__) > 0:
 				checker_ov.ov_func.__annotations__ = checker_ov.__annotations__
-			argSpecs = util.getargspecs(func)
-
-			args_kw = args
-			if len(kw) > 0:
-				args_kw = tuple([t for t in args] + [kw[name] for name in argSpecs.args[len(args):]])
-
-			if len(argSpecs.args) > 0 and argSpecs.args[0] == 'self':
+			args_kw = util.getargskw(args, kw, specs)
+			if len(argNames) > 0 and argNames[0] == 'self':
 				if hasattr(args_kw[0].__class__, func.__name__) and \
 						ismethod(getattr(args_kw[0], func.__name__)):
 					actual_class = args_kw[0].__class__
@@ -261,7 +259,7 @@ def override(func):
 					# Check arg-count compatibility
 					for ovcls in ovmro:
 						ovf = getattr(ovcls, func.__name__)
-						_check_override_argspecs(func, argSpecs, actual_class.__name__, ovf, ovcls)
+						_check_override_argspecs(func, specs, actual_class.__name__, ovf, ovcls)
 					# Check arg/res-type compatibility
 					meth_types = _funcsigtypes(func, True, args_kw[0].__class__)
 					if has_type_hints(func):
@@ -395,8 +393,31 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 				return False, obj
 	return _isinstance(obj, cls), obj
 
-def _checkfunctype(argSig, check_val, func, slf, func_class, \
-			make_checked_val = False, prop_getter = False):
+def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
+	# todo: Maybe move also slf-logic here
+	vargs = argspecs.varargs
+	try:
+		kw = argspecs.keywords
+	except AttributeError:
+		kw = argspecs.varkw
+	if not vargs is None or not kw is None:
+		arg_type_lst = list(type_util.get_Tuple_params(argSig))
+		if not vargs is None:
+			vargs_pos = (len(argspecs.args)-1) \
+					if slf_or_clsm else len(argspecs.args)
+			arg_type_lst[vargs_pos] = typing.Sequence[arg_type_lst[vargs_pos]]
+		if not kw is None:
+			arg_type_lst[-1] = typing.Dict[str, arg_type_lst[-1]]
+		return typing.Tuple[tuple(arg_type_lst)]
+	else:
+		return argSig
+
+def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
+			prop_getter = False, argspecs = None, var_type = None):
+	if argspecs is None:
+		argspecs = getargspecs(util._actualfunc(func, prop_getter))
+	argSig = _preprocess_typecheck(argSig, argspecs, slf) \
+			if var_type is None else var_type
 	if make_checked_val:
 		result, checked_val = _checkinstance(check_val, argSig, True, func)
 	else:
@@ -434,21 +455,20 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	prop = isinstance(func, property)
 	auto_prop_getter = prop and func.fset is None
 	func0 = util._actualfunc(func, prop_getter)
-
 	if hasattr(func, '_check_parent_types'):
 		checkParents = func._check_parent_types
 	else:
 		checkParents = False
+	specs = util.getargspecs(func0)
+	argNames = util.getargnames(specs)
 	def checker_tp(*args, **kw):
 		if hasattr(checker_tp, '__annotations__') and len(checker_tp.__annotations__) > 0:
 			checker_tp.ch_func.__annotations__ = checker_tp.__annotations__
 		# check consistency regarding special case with 'self'-keyword
 		slf = False
-
-		args_kw = args
-		argNames = util.getargspecs(func0).args
-		if len(kw) > 0:
-			args_kw = tuple([t for t in args] + [kw[name] for name in argNames[len(args):]])
+		args_kw = util.getargskw(args, kw, specs)
+		# Todo: Use argskw_err for better error msg or to fail early
+		# args_kw, argskw_err = util._getargskw(args, kw, specs)
 
 		if len(argNames) > 0:
 			# Todo: Raise warnings instead of printing them
@@ -477,7 +497,6 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 			elif prop or prop_getter:
 				raise TypeError("property without slef-arg: "+str(func))
 			check_args = args_kw
-			
 		if checkParents:
 			if not slf:
 				raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
@@ -511,8 +530,16 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 				resSig = resType
 		else:
 			argSig, resSig = argType, resType
+		make_checked = pytypes.check_callables or \
+				pytypes.check_iterables or pytypes.check_generators
 		checked_val = _checkfunctype(argSig, check_args,
-				toCheck[0], slf or clsm, parent_class, True, prop_getter or auto_prop_getter)
+				toCheck[0], slf or clsm, parent_class, make_checked,
+				prop_getter or auto_prop_getter, specs)
+		if make_checked:
+			checked_args, checked_kw = util.fromargskw(checked_val, specs, slf or clsm)
+		else:
+			checked_args = args
+			checked_kw = kw
 		resSigs.append(resSig)
 		for ffunc in toCheck[1:]:
 			argSig, resSig = _funcsigtypes(ffunc, slf or clsm, parent_class,
@@ -524,19 +551,19 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 		# perform backend-call:
 		if clsm or stat:
 			if len(args_kw) != len(checked_val):
-				res = func.__func__(args[0], *checked_val)
+				res = func.__func__(args[0], *checked_args, **checked_kw)
 			else:
-				res = func.__func__(*checked_val)
+				res = func.__func__(*checked_args, **checked_kw)
 		elif prop:
 			if prop_getter or func.fset is None:
-				res = func.fget(args[0], *checked_val)
+				res = func.fget(args[0], *checked_args, **checked_kw)
 			else:
-				res = func.fset(args[0], *checked_val)
+				res = func.fset(args[0], *checked_args, **checked_kw)
 		else:
 			if len(args_kw) != len(checked_val):
-				res = func(args[0], *checked_val)
+				res = func(args[0], *checked_args, **checked_kw)
 			else:
-				res = func(*checked_val)
+				res = func(*checked_args, **checked_kw)
 
 		checked_res = _checkfuncresult(resSigs[0], res, toCheck[0], \
 				slf or clsm, parent_class, True, prop_getter)
@@ -677,9 +704,19 @@ def is_no_type_check(obj):
 		return False
 
 def check_argument_types(cllable = None, call_args = None):
+	prop = None
+	prop_getter = False
 	if cllable is None:
-		fq = pytypes.util.get_current_function_fq(1)
-		cllable = fq[0]
+		fq, code = pytypes.util._get_current_function_fq(1)
+		if isinstance(fq[0], property):
+			prop = fq[0]
+			if fq[0].fget.__code__ is code:
+				cllable = fq[0].fget
+				prop_getter = True
+			elif not fq[0].fset is None and fq[0].fset.__code__ is code:
+				cllable = fq[0].fset
+		else:
+			cllable = fq[0]
 		slf = fq[2]
 		clsm = pytypes.is_classmethod(fq[0])
 		clss = fq[1][-1] if slf or clsm else None
@@ -687,10 +724,16 @@ def check_argument_types(cllable = None, call_args = None):
 		clsm = pytypes.is_classmethod(cllable)
 		slf = inspect.ismethod(cllable)
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
-	argSig, resSig = _get_types(cllable, clsm, slf, clss)
+	act_func = util._actualfunc(cllable)
+	specs = getargspecs(act_func)
+	if not prop is None:
+		argSig, resSig = _get_types(prop, clsm, slf, clss, prop_getter)
+	else:
+		argSig, resSig = _get_types(cllable, clsm, slf, clss)
 	if call_args is None:
-		call_args = pytypes.util.get_current_args(1, cllable)
+		call_args = pytypes.util.get_current_args(1, cllable, util.getargnames(specs))
 	if slf or clsm:
 		call_args = call_args[1:]
-	pytypes.typechecker._checkfunctype(argSig, call_args, cllable, slf, clss)
+	pytypes.typechecker._checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+			False, False, specs)
 
