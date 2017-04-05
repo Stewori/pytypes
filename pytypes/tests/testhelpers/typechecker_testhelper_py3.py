@@ -720,3 +720,22 @@ class testclass_vararg_ca():
 	def prop_ca1(self, *vargs_prop: str) -> None:
 		check_argument_types()
 		self._prop_ca1 = vargs_prop[0]
+
+@typechecked
+def func_defaults_typecheck(a: str, b, c=4, d=2.5) -> str:
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+def func_defaults_checkargs(a: str, b, c=4, d=2.5) -> str:
+	check_argument_types()
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+@pytypes.annotations
+def func_defaults_annotations(a: str, b, c=4) -> str:
+	b = 'abc'
+	return a+b*c

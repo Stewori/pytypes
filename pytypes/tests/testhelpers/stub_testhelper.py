@@ -4,7 +4,7 @@ Created on 21.10.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked, check_argument_types
+from pytypes import typechecked, check_argument_types, annotations
 from typing import Generic, TypeVar
 
 @typechecked
@@ -471,3 +471,23 @@ class testclass_vararg_ca():
 	def prop_ca1(self, *vargs_prop):
 		check_argument_types()
 		self._prop_ca1 = vargs_prop[0]
+
+
+@typechecked
+def func_defaults_typecheck(a, b, c=4, d=2.5):
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+def func_defaults_checkargs(a, b, c=4, d=2.5):
+	check_argument_types()
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+@annotations
+def func_defaults_annotations(a, b, c=4):
+	b = 'abc'
+	return a+b*c

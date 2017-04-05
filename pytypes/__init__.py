@@ -29,6 +29,7 @@ apply_numeric_tower = True # i.e. int is subtype of float is subtype of complex
 # because in Python Mappings are Iterables over the Key-type.
 covariant_Mapping = True
 
+infer_default_value_types = True
 annotations_override_typestring = False
 annotations_from_typestring = False
 strict_annotation_collision_check = False

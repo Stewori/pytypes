@@ -344,3 +344,16 @@ class testclass_vararg_ca_py2():
 	def prop_ca1_py2(self, *vargs_prop):
 		# type: (str) -> None
 		pass
+
+
+def func_defaults_typecheck_py2(a, b, c, d):
+	# type: (str) -> str
+	pass
+
+def func_defaults_checkargs_py2(a, b, c, d):
+	# type: (str) -> str
+	pass
+
+def func_defaults_annotations_py2(a, b, c):
+	# type: (str) -> str
+	pass

@@ -6,7 +6,7 @@ Created on 13.12.2016
 
 import inspect
 import pytypes
-from typing import Tuple
+from typing import Any
 
 def _striptrailingcomment(s):
 	pos = s.find('#')
@@ -63,24 +63,49 @@ def _get_typestrings(obj, slf):
 def _isargsellipsis(argStr):
 	return argStr[1:-1].strip() == '...'
 
-def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(), selfType = None):
+def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(),
+		selfType = None, argCount = None, unspecified_type = Any, defaults = None):
 	splt = typestring.find('->')
 	if splt == -1:
 		return None
 	argString = typestring[:splt].strip()
 	if _isargsellipsis(argString):
 # 		useEllipsis = True
-		argString = ''.join(('(', ', '.join(['Any' if x is None else x for x in argTypes]), ')'))
+		if not argTypes is None:
+			argString = ''.join(('(', ', '.join(['Any' if x is None else x for x in argTypes]), ')'))
 # 	else:
 # 		useEllipsis = False
+	argTypes0 = argTypes
 	resString = typestring[splt+2:].strip()
+	argTp = eval(argString, globals)
 	if selfType is None:
-		# Note: Tuple constructor automatically normalizes None to NoneType
-		tpl = pytypes.make_Tuple(eval(argString, globals))
+		argTypes = []
 	else:
 		argTypes = [selfType]
-		argTypes += eval(argString, globals)
-		pytypes.make_Tuple(argTypes)
+	try:
+		argTypes += argTp
+	except TypeError:
+		argTypes.append(argTp)
+	uc = 0
+	if not argCount is None:
+		if argTypes0 is None or len(argTypes0) <= len(argTypes):
+			while len(argTypes) < argCount:
+				argTypes.append(unspecified_type)
+				uc += 1
+		else:
+			while len(argTypes) < argCount:
+				if len(argTypes) < len(argTypes0):
+					argTypes.append(argTypes0[len(argTypes)])
+				else:
+					argTypes.append(unspecified_type)
+					uc += 1
+	if not defaults is None:
+		if len(defaults) < uc:
+			uc = len(defaults)
+		for i in range(uc):
+			argTypes[-1-i] = pytypes.deep_type(defaults[-1-i])
+	# Note: Tuple constructor automatically normalizes None to NoneType
+	tpl = pytypes.make_Tuple(tuple(argTypes))
 # 	if useEllipsis:
 # 		tpl.__tuple_use_ellipsis__ = True
 

@@ -967,6 +967,29 @@ class testclass_vararg_ca(object):
 		self._prop_ca1 = vargs_prop[0]
 
 
+@typechecked
+def func_defaults_typecheck(a, b, c=4, d=2.5):
+	# type: (str) -> str
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+def func_defaults_checkargs(a, b, c=4, d=2.5):
+	# type: (str) -> str
+	check_argument_types()
+	try:
+		return a+b*c
+	except TypeError:
+		return 'invalid'
+
+@annotations
+def func_defaults_annotations(a, b, c=4):
+	# type: (str) -> str
+	b = 'abc'
+	return a+b*c
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -1687,6 +1710,62 @@ class TestTypecheck(unittest.TestCase):
 		# No point in checking for ReturnTypeError here;
 		# check_argument_types wouldn't catch it.
 
+	def test_defaults_inferred_types(self):
+		tmp = pytypes.infer_default_value_types
+		pytypes.infer_default_value_types = True
+
+		self.assertEqual(get_types(func_defaults_typecheck),
+				(Tuple[str, Any, int, float], str))
+		self.assertEqual(pytypes.get_type_hints(func_defaults_typecheck),
+						{'a': str, 'c': int, 'return': str, 'd': float})
+		self.assertEqual(func_defaults_typecheck('qvw', 'abc', 2, 1.5), 'qvwabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				func_defaults_typecheck('qvw', 'abc', 3.5))
+		# Todo: Error msg is faulty:
+		# Received: Tuple[str, str, float, int], should be Received: Tuple[str, str, float, float]
+
+		self.assertRaises(InputTypeError, lambda:
+				func_defaults_typecheck('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda: func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(func_defaults_checkargs('qvw', 'abc', 3, 1.5), 'qvwabcabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				func_defaults_checkargs('qvw', 'abc', 3.5))
+		self.assertRaises(InputTypeError, lambda:
+				func_defaults_checkargs('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda: func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(func_defaults_annotations),
+				(Tuple[str, Any, int], str))
+		self.assertEqual(pytypes.get_type_hints(func_defaults_annotations),
+				{'a': str, 'c': int, 'return': str})
+		self.assertEqual(func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = False
+
+		self.assertEqual(get_types(func_defaults_typecheck),
+				(Tuple[str, Any, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(func_defaults_typecheck),
+				{'a': str, 'return': str})
+		self.assertEqual(func_defaults_typecheck('qvw', 'abc', 3.5), 'invalid')
+		self.assertEqual(func_defaults_typecheck('qvw', 'abc', 3.5, 4.1), 'invalid')
+		self.assertRaises(InputTypeError, lambda: func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(func_defaults_checkargs('qvw', 'abc', 3, 1.5), 'qvwabcabcabc')
+		self.assertEqual(func_defaults_checkargs('qvw', 'abc', 3.5), 'invalid')
+		self.assertEqual(func_defaults_checkargs('qvw', 'abc', 3.5, 4.1), 'invalid')
+		self.assertRaises(InputTypeError, lambda: func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(func_defaults_annotations),
+				(Tuple[str, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(func_defaults_annotations),
+				{'a': str, 'return': str})
+		self.assertEqual(func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = tmp
+
 
 class TestTypecheck_class(unittest.TestCase):
 	def test_classmethod(self):
@@ -2329,6 +2408,72 @@ class TestStubfile(unittest.TestCase):
 		# No point in checking for ReturnTypeError here;
 		# check_argument_types wouldn't catch it.
 
+	def test_defaults_inferred_types_plain_2_7_stub(self):
+		tmp = pytypes.infer_default_value_types
+		pytypes.infer_default_value_types = True
+
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(get_types(stub_py2.func_defaults_typecheck_py2),
+				(Tuple[str, Any, int, float], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py2.func_defaults_typecheck_py2),
+						{'a': str, 'c': int, 'return': str, 'd': float})
+		self.assertEqual(stub_py2.func_defaults_typecheck_py2('qvw', 'abc', 2, 1.5),
+				'qvwabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_typecheck_py2('qvw', 'abc', 3.5))
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_typecheck_py2('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_typecheck_py2(7, 'qvw'))
+
+		self.assertEqual(stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3, 1.5),
+				'qvwabcabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3.5))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_checkargs_py2(7, 'qvw'))
+
+		self.assertEqual(get_types(stub_py2.func_defaults_annotations_py2),
+				(Tuple[str, Any, int], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py2.func_defaults_annotations_py2),
+				{'a': str, 'c': int, 'return': str})
+		self.assertEqual(stub_py2.func_defaults_annotations_py2.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = False
+
+		self.assertEqual(get_types(stub_py2.func_defaults_typecheck_py2),
+				(Tuple[str, Any, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py2.func_defaults_typecheck_py2),
+				{'a': str, 'return': str})
+		self.assertEqual(stub_py2.func_defaults_typecheck_py2('qvw', 'abc', 3.5),
+				'invalid')
+		self.assertEqual(stub_py2.func_defaults_typecheck_py2('qvw', 'abc', 3.5, 4.1),
+				'invalid')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_typecheck_py2(7, 'qvw'))
+
+		self.assertEqual(stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3, 1.5),
+				'qvwabcabcabc')
+		self.assertEqual(stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3.5),
+				'invalid')
+		self.assertEqual(stub_py2.func_defaults_checkargs_py2('qvw', 'abc', 3.5, 4.1),
+				'invalid')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.func_defaults_checkargs_py2(7, 'qvw'))
+
+		self.assertEqual(get_types(stub_py2.func_defaults_annotations_py2),
+				(Tuple[str, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(
+				stub_py2.func_defaults_annotations_py2), {'a': str, 'return': str})
+		self.assertEqual(stub_py2.func_defaults_annotations_py2.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = tmp
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 		'Only applicable in Python >= 3.5.')
@@ -2364,7 +2509,6 @@ class TestStubfile(unittest.TestCase):
 				stub_py3.class1.static_meth(66, ('efg',)))
 		hints = get_type_hints(stub_py3.class1.static_meth)
 		self.assertEqual(hints['c'], str)
-		self.assertEqual(hints['d'], Any)
 		self.assertEqual(hints['return'], int)
 
 		# Test static method on instance:
@@ -2372,7 +2516,6 @@ class TestStubfile(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: cl1.static_meth(66, ('efg',)))
 		hints = get_type_hints(cl1.static_meth)
 		self.assertEqual(hints['c'], str)
-		self.assertEqual(hints['d'], Any)
 		self.assertEqual(hints['return'], int)
 
 		# Test staticmethod with nested classes/instances:
@@ -2720,6 +2863,74 @@ class TestStubfile(unittest.TestCase):
 		def _set_prop1(): tcv.prop_ca1 = 8
 		self.assertRaises(InputTypeError, _set_prop1)
 		# No point in checking for ReturnTypeError here; check_argument_types wouldn't catch it.
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+		'Only applicable in Python >= 3.5.')
+	def test_defaults_inferred_types_plain_3_5_stub(self):
+		tmp = pytypes.infer_default_value_types
+		pytypes.infer_default_value_types = True
+
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		self.assertEqual(get_types(stub_py3.func_defaults_typecheck),
+				(Tuple[str, Any, int, float], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py3.func_defaults_typecheck),
+						{'a': str, 'c': int, 'return': str, 'd': float})
+		self.assertEqual(stub_py3.func_defaults_typecheck('qvw', 'abc', 2, 1.5),
+				'qvwabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_typecheck('qvw', 'abc', 3.5))
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_typecheck('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(stub_py3.func_defaults_checkargs('qvw', 'abc', 3, 1.5),
+				'qvwabcabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_checkargs('qvw', 'abc', 3.5))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_checkargs('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(stub_py3.func_defaults_annotations),
+				(Tuple[str, Any, int], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py3.func_defaults_annotations),
+				{'a': str, 'c': int, 'return': str})
+		self.assertEqual(stub_py3.func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = False
+
+		self.assertEqual(get_types(stub_py3.func_defaults_typecheck),
+				(Tuple[str, Any, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(stub_py3.func_defaults_typecheck),
+				{'a': str, 'return': str})
+		self.assertEqual(stub_py3.func_defaults_typecheck('qvw', 'abc', 3.5),
+				'invalid')
+		self.assertEqual(stub_py3.func_defaults_typecheck('qvw', 'abc', 3.5, 4.1),
+				'invalid')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(stub_py3.func_defaults_checkargs('qvw', 'abc', 3, 1.5),
+				'qvwabcabcabc')
+		self.assertEqual(stub_py3.func_defaults_checkargs('qvw', 'abc', 3.5),
+				'invalid')
+		self.assertEqual(stub_py3.func_defaults_checkargs('qvw', 'abc', 3.5, 4.1),
+				'invalid')
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(stub_py3.func_defaults_annotations),
+				(Tuple[str, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(
+				stub_py3.func_defaults_annotations), {'a': str, 'return': str})
+		self.assertEqual(stub_py3.func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = tmp
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -3206,6 +3417,62 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertRaises(InputTypeError, _set_prop1)
 		# No point in checking for ReturnTypeError here;
 		# check_argument_types wouldn't catch it.
+
+	def test_defaults_inferred_types(self):
+		tmp = pytypes.infer_default_value_types
+		pytypes.infer_default_value_types = True
+
+		self.assertEqual(get_types(py3.func_defaults_typecheck),
+				(Tuple[str, Any, int, float], str))
+		self.assertEqual(pytypes.get_type_hints(py3.func_defaults_typecheck),
+						{'a': str, 'c': int, 'return': str, 'd': float})
+		self.assertEqual(py3.func_defaults_typecheck('qvw', 'abc', 2, 1.5), 'qvwabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				py3.func_defaults_typecheck('qvw', 'abc', 3.5))
+		# Todo: Error msg is faulty:
+		# Received: Tuple[str, str, float, int], should be Received: Tuple[str, str, float, float]
+
+		self.assertRaises(InputTypeError, lambda:
+				py3.func_defaults_typecheck('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda: py3.func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(py3.func_defaults_checkargs('qvw', 'abc', 3, 1.5), 'qvwabcabcabc')
+		self.assertRaises(InputTypeError, lambda:
+				py3.func_defaults_checkargs('qvw', 'abc', 3.5))
+		self.assertRaises(InputTypeError, lambda:
+				py3.func_defaults_checkargs('qvw', 'abc', 3.5, 4.1))
+		self.assertRaises(InputTypeError, lambda: py3.func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(py3.func_defaults_annotations),
+				(Tuple[str, Any, int], str))
+		self.assertEqual(pytypes.get_type_hints(py3.func_defaults_annotations),
+				{'a': str, 'c': int, 'return': str})
+		self.assertEqual(py3.func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = False
+
+		self.assertEqual(get_types(py3.func_defaults_typecheck),
+				(Tuple[str, Any, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(py3.func_defaults_typecheck),
+				{'a': str, 'return': str})
+		self.assertEqual(py3.func_defaults_typecheck('qvw', 'abc', 3.5), 'invalid')
+		self.assertEqual(py3.func_defaults_typecheck('qvw', 'abc', 3.5, 4.1), 'invalid')
+		self.assertRaises(InputTypeError, lambda: py3.func_defaults_typecheck(7, 'qvw'))
+
+		self.assertEqual(py3.func_defaults_checkargs('qvw', 'abc', 3, 1.5), 'qvwabcabcabc')
+		self.assertEqual(py3.func_defaults_checkargs('qvw', 'abc', 3.5), 'invalid')
+		self.assertEqual(py3.func_defaults_checkargs('qvw', 'abc', 3.5, 4.1), 'invalid')
+		self.assertRaises(InputTypeError, lambda: py3.func_defaults_checkargs(7, 'qvw'))
+
+		self.assertEqual(get_types(py3.func_defaults_annotations),
+				(Tuple[str, Any, Any], str))
+		self.assertEqual(pytypes.get_type_hints(py3.func_defaults_annotations),
+				{'a': str, 'return': str})
+		self.assertEqual(py3.func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+
+		pytypes.infer_default_value_types = tmp
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

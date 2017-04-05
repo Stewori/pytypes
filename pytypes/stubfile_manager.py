@@ -135,8 +135,12 @@ def get_stub_module(func):
 	if m_key in _stub_modules_loading:
 		_re_match_module(m_name)
 		return _stub_modules_loading[m_key]
-	module_filepath = module.__file__.rpartition(module_filename_delim)[0]+'.pyi'
-	module_filepath2 = _plain_stub2_filename(module.__file__)
+	mdfile = module.__file__
+	# Jython-specific:
+	# This is currently just a crutch; todo: resolve __pyclasspath__ properly!
+	mdfile = mdfile.replace('__pyclasspath__', os.path.realpath(''))
+	module_filepath = mdfile.rpartition(module_filename_delim)[0]+'.pyi'
+	module_filepath2 = _plain_stub2_filename(mdfile)
 	stub_files = _find_stub_files(m_name)
 	if os.path.isfile(module_filepath):
 		stub_files[0].append(module_filepath)
