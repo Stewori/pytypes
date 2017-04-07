@@ -224,56 +224,56 @@ class testClass_property_class_check_py2(object):
 
 
 def testfunc_varargs1_py2(*argss):
-	# type: (float) -> Tuple[int, float]
+	# type: (*float) -> Tuple[int, float]
 	pass
 
 def testfunc_varargs2_py2(a, b, c, *varg):
-	# type: (str, int, None, int) -> Tuple[int, str]
+	# type: (str, int, None, *int) -> Tuple[int, str]
 	pass
 
 def testfunc_varargs3_py2(*args, **kwds):
-	# type: (int, float) -> Tuple[str, float]
+	# type: (*int, **float) -> Tuple[str, float]
 	pass
 
 def testfunc_varargs4_py2(**kwds):
-	# type: (float) -> float
+	# type: (**float) -> float
 	pass
 
 def testfunc_varargs5_py2(a1, a2, *vargss, **vkwds):
-	# type: (int, str, float, int) -> List[int]
+	# type: (int, str, *float, **int) -> List[int]
 	pass
 
 def testfunc_varargs_err_py2(a1, a2, *vargss, **vkwds):
-	# type: (int, str, float, int) -> List[int]
+	# type: (int, str, *float, **int) -> List[int]
 	pass
 
 class testclass_vararg_py2():
 	def testmeth_varargs1_py2(self, *vargs):
-		# type: (Tuple[str, int]) -> int
+		# type: (*Tuple[str, int]) -> int
 		pass
 
 	def testmeth_varargs2_py2(self, q1, q2, *varargs, **varkw):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 	
 	@staticmethod
 	def testmeth_varargs_static1_py2(*vargs_st):
-		# type: (float) -> Tuple[int, float]
+		# type: (*float) -> Tuple[int, float]
 		pass
 
 	@staticmethod
 	def testmeth_varargs_static2_py2(q1_st, q2_st, *varargs_st, **varkw_st):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 
 	@classmethod
 	def testmeth_varargs_class1_py2(cls, *vargs_cls):
-		# type: (Tuple[str, int]) -> int
+		# type: (*Tuple[str, int]) -> int
 		pass
 
 	@classmethod
 	def testmeth_varargs_class2_py2(cls, q1_cls, q2_cls, *varargs_cls, **varkw_cls):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 
 	@property
@@ -283,56 +283,56 @@ class testclass_vararg_py2():
 
 	@prop1_py2.setter
 	def prop1_py2(self, *vargs_prop):
-		# type: (str) -> None
+		# type: (*str) -> None
 		pass
 
 def testfunc_varargs_ca1_py2(*argss):
-	# type: (float) -> Tuple[int, float]
+	# type: (*float) -> Tuple[int, float]
 	pass
 
 def testfunc_varargs_ca2_py2(a, b, c, *varg):
-	# type: (str, int, None, int) -> Tuple[int, str]
+	# type: (str, int, None, *int) -> Tuple[int, str]
 	pass
 
 def testfunc_varargs_ca3_py2(*args, **kwds):
-	# type: (int, float) -> Tuple[str, float]
+	# type: (*int, **float) -> Tuple[str, float]
 	pass
 
 def testfunc_varargs_ca4_py2(**kwds):
-	# type: (float) -> float
+	# type: (**float) -> float
 	pass
 
 def testfunc_varargs_ca5_py2(a1, a2, *vargss, **vkwds):
-	# type: (int, str, float, int) -> List[int]
+	# type: (int, str, *float, **int) -> List[int]
 	pass
 
 class testclass_vararg_ca_py2():
 	def testmeth_varargs_ca1_py2(self, *vargs):
-		# type: (Tuple[str, int]) -> int
+		# type: (*Tuple[str, int]) -> int
 		pass
 
 	def testmeth_varargs_ca2_py2(self, q1, q2, *varargs, **varkw):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 	
 	@staticmethod
 	def testmeth_varargs_static_ca1_py2(*vargs_st):
-		# type: (float) -> Tuple[int, float]
+		# type: (*float) -> Tuple[int, float]
 		pass
 
 	@staticmethod
 	def testmeth_varargs_static_ca2_py2(q1_st, q2_st, *varargs_st, **varkw_st):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 
 	@classmethod
 	def testmeth_varargs_class_ca1_py2(cls, *vargs_cls):
-		# type: (Tuple[str, int]) -> int
+		# type: (*Tuple[str, int]) -> int
 		pass
 
 	@classmethod
 	def testmeth_varargs_class_ca2_py2(cls, q1_cls, q2_cls, *varargs_cls, **varkw_cls):
-		# type: (int, str, float, int) -> List[int]
+		# type: (int, str, *float, **int) -> List[int]
 		pass
 
 	@property
@@ -342,7 +342,7 @@ class testclass_vararg_ca_py2():
 
 	@prop_ca1_py2.setter
 	def prop_ca1_py2(self, *vargs_prop):
-		# type: (str) -> None
+		# type: (*str) -> None
 		pass
 
 

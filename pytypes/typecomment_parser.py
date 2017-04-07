@@ -65,6 +65,7 @@ def _isargsellipsis(argStr):
 
 def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(),
 		selfType = None, argCount = None, unspecified_type = Any, defaults = None):
+	typestring = typestring.replace('*', '') # Todo: Assert that these actually correspond to varargs
 	splt = typestring.find('->')
 	if splt == -1:
 		return None
@@ -115,6 +116,6 @@ def _funcsigtypesfromstring(typestring, argTypes = None, globals = globals(),
 	# To avoid that this creates type(type(None)) if type(None) is already in place:
 	resString = resString.replace('type(None)', 'None')
 	resString = resString.replace('None', 'type(None)')	
-	
+
 	resType = eval(resString, globals)
 	return tpl, resType
