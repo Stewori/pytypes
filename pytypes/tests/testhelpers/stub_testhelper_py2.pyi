@@ -357,3 +357,7 @@ def func_defaults_checkargs_py2(a, b, c, d):
 def func_defaults_annotations_py2(a, b, c):
 	# type: (str) -> str
 	pass
+
+def testfunc_annotations_from_stubfile_by_decorator_py2(a, b):
+	# type: (str, int) -> int
+	pass

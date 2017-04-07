@@ -491,3 +491,7 @@ def func_defaults_checkargs(a, b, c=4, d=2.5):
 def func_defaults_annotations(a, b, c=4):
 	b = 'abc'
 	return a+b*c
+
+@annotations
+def testfunc_annotations_from_stubfile_by_decorator(a, b):
+	return len(a)/b

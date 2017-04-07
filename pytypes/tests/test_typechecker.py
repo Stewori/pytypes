@@ -2474,9 +2474,16 @@ class TestStubfile(unittest.TestCase):
 
 		pytypes.infer_default_value_types = tmp
 
+	def test_annotations_from_stubfile_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.func_defaults_annotations_py2.__annotations__,
+				{'a': str, 'return': str})
+		self.assertEqual(stub_py2.testfunc_annotations_from_stubfile_by_decorator_py2.
+				__annotations__, {'a': str, 'b': int, 'return': int})
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
-		'Only applicable in Python >= 3.5.')
+			'Only applicable in Python >= 3.5.')
 	def test_plain_3_5_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
 
@@ -2553,7 +2560,7 @@ class TestStubfile(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: stub_py3.testfunc_class_in_list(cl1))
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
-		'Only applicable in Python >= 3.5.')
+			'Only applicable in Python >= 3.5.')
 	def test_property_plain_3_5_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
 		tcp = stub_py3.testClass_property()
@@ -2591,7 +2598,7 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
-		'Only applicable in Python >= 3.5.')
+			'Only applicable in Python >= 3.5.')
 	def test_varargs_plain_3_5_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
 		self.assertEqual(stub_py3.testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
@@ -2723,7 +2730,7 @@ class TestStubfile(unittest.TestCase):
 		self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
-		'Only applicable in Python >= 3.5.')
+			'Only applicable in Python >= 3.5.')
 	def test_varargs_check_argument_types_plain_3_5_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
 		self.assertEqual(stub_py3.testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
@@ -2865,7 +2872,7 @@ class TestStubfile(unittest.TestCase):
 		# No point in checking for ReturnTypeError here; check_argument_types wouldn't catch it.
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
-		'Only applicable in Python >= 3.5.')
+			'Only applicable in Python >= 3.5.')
 	def test_defaults_inferred_types_plain_3_5_stub(self):
 		tmp = pytypes.infer_default_value_types
 		pytypes.infer_default_value_types = True
@@ -2931,6 +2938,15 @@ class TestStubfile(unittest.TestCase):
 				{'a': str, 'return': str})
 
 		pytypes.infer_default_value_types = tmp
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+			'Only applicable in Python >= 3.5.')
+	def test_annotations_from_stubfile_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		self.assertEqual(stub_py3.func_defaults_annotations.__annotations__,
+				{'a': str, 'return': str})
+		self.assertEqual(stub_py3.testfunc_annotations_from_stubfile_by_decorator.
+				__annotations__, {'a': str, 'b': int, 'return': int})
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

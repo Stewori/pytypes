@@ -496,3 +496,8 @@ def func_defaults_annotations_py2(a, b, c=4):
 	# actually (str) -> str
 	b = 'abc'
 	return a+b*c
+
+@annotations
+def testfunc_annotations_from_stubfile_by_decorator_py2(a, b):
+	# actually (str, int) -> int
+	return len(a)/b
