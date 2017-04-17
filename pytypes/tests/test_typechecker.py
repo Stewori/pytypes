@@ -11,7 +11,7 @@ import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
-		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
+		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, TypeSyntaxError, \
 		check_argument_types, annotations, get_member_types
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
@@ -990,6 +990,190 @@ def func_defaults_annotations(a, b, c=4):
 	return a+b*c
 
 
+class override_varargs_class_base(object):
+# var-arg tests:
+	def method_vararg1(self, a, b, *args):
+		# type: (int, int, *int) -> int
+		return a+b
+
+	def method_vararg2(self, a, b):
+		# type: (int, int) -> int
+		return a+b
+
+	def method_vararg3(self, a, b, c):
+		# type: (int, int, float) -> int
+		return a+b
+
+	def method_vararg1_err(self, a, b, *args):
+		# type: (int, int, *float) -> int
+		return a+b
+
+	def method_vararg2_err(self, a, b):
+		# type: (float, int) -> int
+		return a+b
+
+	def method_vararg3_err(self, a, b, c):
+		# type: (int, int, float) -> int
+		return a+b
+
+# var-kw tests:
+	def method_varkw1(self, a, b, **kw):
+		# type: (int, int, **int) -> int
+		return a+b
+
+	def method_varkw2(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **int) -> int
+		return a+b
+
+	def method_varkw1_err(self, a, b, **kw):
+		# type: (int, int, **float) -> int
+		return a+b
+
+	def method_varkw2_err(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **float) -> int
+		return a+b
+
+	def method_varkw3_err(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **str) -> int
+		return a+b
+
+# default tests:
+	def method_defaults1(self, a, b):
+		# type: (int, int) -> int
+		return a+b
+
+	def method_defaults2(self, a, b, *vargs):
+		# type: (int, int, *int) -> int
+		return a+b
+
+	def method_defaults1_err(self, a, b):
+		# type: (int, float) -> int
+		return a+b
+
+	def method_defaults2_err(self, a, b, *vargs):
+		# type: (int, int, *float) -> int
+		return a+b
+
+class override_varargs_class(override_varargs_class_base):
+	@override
+	def method_vararg1(self, a, b, *args):
+		# type: (int, float, *int) -> int
+		return len(args)
+
+	@override
+	def method_vararg2(self, a, b, *vargs):
+		# type: (int, float, *str) -> int
+		return a+len(str(b))+len(vargs)
+
+	@override
+	def method_vararg3(self, a, *vgs):
+		# type: (int, *float) -> int
+		return a+len(vgs)
+
+	@override
+	def method_vararg1_err(self, a, b, *args):
+		# type: (int, float, *int) -> int
+		return len(args)
+
+	@override
+	def method_vararg2_err(self, a, b, *vargs):
+		# type: (int, float, *str) -> int
+		return a+len(str(b))+len(vargs)
+
+	@override
+	def method_vararg3_err(self, a, *vgs):
+		# type: (int, *int) -> int
+		return a+len(vgs)
+
+# var-kw tests:
+	@override
+	def method_varkw1(self, a, b, **kw):
+		# type: (int, int, **float) -> int
+		return a+b
+
+	@override
+	def method_varkw2(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **float) -> int
+		return a+b
+
+	@override
+	def method_varkw1_err(self, a, b, **kw):
+		# type: (int, int, **int) -> int
+		return a+b
+
+	@override
+	def method_varkw2_err(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **int) -> int
+		return a+b
+
+	@override
+	def method_varkw3_err(self, a, b, *arg):
+		# type: (int, int, *str) -> int
+		return a+b
+
+# default tests:
+	@override
+	def method_defaults1(self, a, b, c=4.6):
+		# type: (int, int) -> int
+		return a+b
+
+	@override
+	def method_defaults2(self, a, b, c=4, *args):
+		# type: (int, int, float, *int) -> int
+		return a+b
+
+	@override
+	def method_defaults1_err(self, a, b, c=2):
+		# type: (int, int) -> int
+		return a+b
+
+	@override
+	def method_defaults2_err(self, a, b, c=3, *vargs):
+		# type: (int, int, int, *float) -> int
+		return a+b
+
+
+def func_bad_typestring1(a, b, c):
+	# type: (int, *int, float) -> None
+	pass
+
+def func_bad_typestring2(a, b, c):
+	# type: (int, int, **float) -> None
+	pass
+
+def func_bad_typestring3(a, b, *c):
+	# type: (int, *int, *float) -> None
+	pass
+
+def func_bad_typestring4(a, b, *c):
+	# type: (int, **int, **float) -> None
+	pass
+
+def func_bad_typestring5(a, *b, **c):
+	# type: (int, *int, float) -> None
+	pass
+
+def func_bad_typestring6(a, b, *c):
+	# type: (int, int, float) -> None
+	pass
+
+def func_bad_typestring7(a, b, **c):
+	# type: (int, int, float) -> None
+	pass
+
+def func_bad_typestring8(a, *b, **c):
+	# type: (int, int, float) -> None
+	pass
+
+def func_bad_typestring9(a, b, *c):
+	# type: (int, *int, float) -> None
+	pass
+
+def func_bad_typestring10(a, *b, **c):
+	# type: (int, **int, *float) -> None
+	pass
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -1717,7 +1901,7 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(get_types(func_defaults_typecheck),
 				(Tuple[str, Any, int, float], str))
 		self.assertEqual(pytypes.get_type_hints(func_defaults_typecheck),
-						{'a': str, 'c': int, 'return': str, 'd': float})
+				{'a': str, 'c': int, 'return': str, 'd': float})
 		self.assertEqual(func_defaults_typecheck('qvw', 'abc', 2, 1.5), 'qvwabcabc')
 		self.assertRaises(InputTypeError, lambda:
 				func_defaults_typecheck('qvw', 'abc', 3.5))
@@ -1765,6 +1949,28 @@ class TestTypecheck(unittest.TestCase):
 				{'a': str, 'return': str})
 
 		pytypes.infer_default_value_types = tmp
+
+	def test_typestring_varargs_syntax(self):
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring1))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring2))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring3))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring4))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring5))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring6))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring7))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring8))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring9))
+			self.assertRaises(TypeSyntaxError, lambda:
+					pytypes.get_types(func_bad_typestring10))
 
 
 class TestTypecheck_class(unittest.TestCase):
@@ -1900,6 +2106,29 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: tc5.testmeth_cls5(3, '8'))
 		self.assertTrue(hasattr(tc5.testmeth_cls5, 'ch_func'))
 		self.assertFalse(hasattr(tc5.testmeth2_cls5, 'ch_func'))
+
+	def test_override_vararg(self):
+		cl = override_varargs_class()
+		self.assertEqual(cl.method_vararg1(1, 2.3, 4, 5), 2)
+		self.assertEqual(cl.method_vararg2(6, 7.8, 'a', 'b', 'c'), 12)
+		self.assertEqual(cl.method_vararg3(9, 10.1, 11.2, 12.3), 12)
+		self.assertRaises(OverrideError, lambda: cl.method_vararg1_err(3, 4.5, 6, 7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_vararg2_err(8, 9.01, 'd', 'e', 'f'))
+		self.assertRaises(OverrideError, lambda: cl.method_vararg3_err(4, 5, 6))
+		self.assertEqual(cl.method_varkw1(7, 8, m=1.1, n=2.2, x=3.3), 15)
+		self.assertEqual(cl.method_varkw2(9, 10, 'g', 'h', x=2.3, y=3.4, z=7.7), 19)
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw1_err(11, 12, q=22, v=33, w=44))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw2_err(4, 5, 'i', 'j', g=3, h=7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw3_err(14, 15, 'k', 'l'))
+		self.assertEqual(cl.method_defaults1(21, 22), 43)
+		self.assertEqual(cl.method_defaults2(23, 24, 31, 32, 33, 34), 47)
+		self.assertRaises(OverrideError, lambda: cl.method_defaults1_err(101, 102))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_defaults2_err(201, 202, 55.1, 55.2, 55.3))
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time
@@ -3513,6 +3742,87 @@ class TestOverride_Python3_5(unittest.TestCase):
 		self.assertEqual(tc2.testmeth4(1, 2.5), '1-2.5-uvwx')
 		self.assertEqual(tc2.testmeth5(1, 2.5), '1-2.5-uvwx')
 		self.assertRaises(InputTypeError, lambda: tc2.testmeth3('1', 2.5))
+
+	def test_override_vararg(self):
+		cl = py3.override_varargs_class()
+		self.assertEqual(cl.method_vararg1(1, 2.3, 4, 5), 2)
+		self.assertEqual(cl.method_vararg2(6, 7.8, 'a', 'b', 'c'), 12)
+		self.assertEqual(cl.method_vararg3(9, 10.1, 11.2, 12.3), 12)
+		self.assertRaises(OverrideError, lambda: cl.method_vararg1_err(3, 4.5, 6, 7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_vararg2_err(8, 9.01, 'd', 'e', 'f'))
+		self.assertRaises(OverrideError, lambda: cl.method_vararg3_err(4, 5, 6))
+		self.assertEqual(cl.method_varkw1(7, 8, m=1.1, n=2.2, x=3.3), 15)
+		self.assertEqual(cl.method_varkw2(9, 10, 'g', 'h', x=2.3, y=3.4, z=7.7), 19)
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw1_err(11, 12, q=22, v=33, w=44))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw2_err(4, 5, 'i', 'j', g=3, h=7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_varkw3_err(14, 15, 'k', 'l'))
+		self.assertEqual(cl.method_defaults1(21, 22), 43)
+		self.assertEqual(cl.method_defaults2(23, 24, 31, 32, 33, 34), 47)
+		self.assertRaises(OverrideError, lambda: cl.method_defaults1_err(101, 102))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_defaults2_err(201, 202, 55.1, 55.2, 55.3))
+
+		# Python 3 only
+		self.assertEqual(cl.method_kwonly1(
+				1, 2, 3.4, 4.5, q=7.2, xx='ab', xy='cd'), 3)
+		self.assertEqual(cl.method_kwonly2(5, 6, 2.4, 5.7, 8.8, q=17), 28)
+		self.assertEqual(cl.method_kwonly3(9, 10, 11.2, 22.3, v=9.7, q=27), 46)
+		self.assertEqual(cl.method_kwonly4(8.1, 3, 7.4, 33.4, 33.5, 33.6), 4)
+		self.assertEqual(cl.method_kwonly5(
+				5.1, 5.2, 41, 42, 43, q=17.5, v=19, x=99.1, w=27.9), 4)
+		self.assertEqual(cl.method_kwonly6(
+				6.3, 7, 16.1, 16.2, 16.3, q=29, l=12, k=23.3, v=47.9), 39)
+		self.assertEqual(cl.method_kwonly7(
+				61, 62, 63.3, 64, 65.5, 66, q=76, e=11, f=12), 123)
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly1_err(1, 2, 3.4, 4.5, 6.7, q=17))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly2_err(8, 9, 7, 6, 5.4, 3.2))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly3_err(10, 11, 12, 13.4, 15.6, q=22, b=23))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly4_err(0.5, 2, 0.8, 0.9, 0.1, q=78, v='ijk'))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly5_err(12.1, 12.2, 13, 14, q=32, v=33))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly6_err(3.1, 4, 5.1, 5.2, 5.3, q=7, y=67, z=68))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly7_err(79, 90.7, 1.1, q=2, v=3, h=7, k=11.7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly8_err(100, 100.5, 200, 201, 203.3, nx=7, fl=9))
+
+		# Python 3 using Python 2 type hints
+		self.assertEqual(cl.method_kwonly1_py2(
+				1, 2, 3.4, 4.5, q=7.2, xx='ab', xy='cd'), 3)
+		self.assertEqual(cl.method_kwonly2_py2(5, 6, 2.4, 5.7, 8.8, q=17), 28)
+		self.assertEqual(cl.method_kwonly3_py2(9, 10, 11.2, 22.3, v=9.7, q=27), 46)
+		self.assertEqual(cl.method_kwonly4_py2(8.1, 3, 7.4, 33.4, 33.5, 33.6), 4)
+		self.assertEqual(cl.method_kwonly5_py2(
+				5.1, 5.2, 41, 42, 43, q=17.5, v=19, x=99.1, w=27.9), 4)
+		self.assertEqual(cl.method_kwonly6_py2(
+				6.3, 7, 16.1, 16.2, 16.3, q=29, l=12, k=23.3, v=47.9), 39)
+		self.assertEqual(cl.method_kwonly7_py2(
+				61, 62, 63.3, 64, 65.5, 66, q=76, e=11, f=12), 123)
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly1_err_py2(1, 2, 3.4, 4.5, 6.7, q=17))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly2_err_py2(8, 9, 7, 6, 5.4, 3.2))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly3_err_py2(10, 11, 12, 13.4, 15.6, q=22, b=23))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly4_err_py2(0.5, 2, 0.8, 0.9, 0.1, q=78, v='ijk'))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly5_err_py2(12.1, 12.2, 13, 14, q=32, v=33))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly6_err_py2(3.1, 4, 5.1, 5.2, 5.3, q=7, y=67, z=68))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly7_err_py2(79, 90.7, 1.1, q=2, v=3, h=7, k=11.7))
+		self.assertRaises(OverrideError, lambda:
+				cl.method_kwonly8_err_py2(100, 100.5, 200, 201, 203.3, nx=7, fl=9))
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time

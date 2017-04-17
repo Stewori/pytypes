@@ -147,7 +147,7 @@ def testfunc_varargs6(a1: int, a2: str, *vargss: float,
 		b1: int, b2: str, **vkwds: int) -> List[int]: ...
 
 def testfunc_varargs6b(a1, a2, *vargss, b1, b2, **vkwds):
-	# type: (int, str, float, int, str, int) -> List[int]
+	# type: (int, str, *float, int, str, **int) -> List[int]
 	...
 
 def testfunc_varargs_err(a1: int, a2: str, *vargss: float,
@@ -163,7 +163,7 @@ class testclass_vararg():
 			w1: float, w2: Tuple[int, str], **varkw: int) -> List[int]: ...
 
 	def testmeth_varargs_ca3b(self, q1, q2, *varargs, w1, w2, **varkw):
-		# type: (int, str, float, float, Tuple[int, str], int) -> List[int]
+		# type: (int, str, *float, float, Tuple[int, str], **int) -> List[int]
 		...
 
 	@staticmethod
@@ -202,7 +202,7 @@ def testfunc_varargs_ca6(a1: int, a2: str, *vargss: float,
 		b1: int, b2: str, **vkwds: int) -> List[int]: ...
 
 def testfunc_varargs_ca6b(a1, a2, *vargss, b1, b2, **vkwds):
-	# type: (int, str, float, int, str, int) -> List[int]
+	# type: (int, str, *float, int, str, **int) -> List[int]
 	...
 
 class testclass_vararg_ca():
@@ -215,7 +215,7 @@ class testclass_vararg_ca():
 			w1: float, w2: Tuple[int, str], **varkw: int) -> List[int]: ...
 
 	def testmeth_varargs_ca3b(self, q1, q2, *varargs, w1, w2, **varkw):
-		# type: (int, str, float, float, Tuple[int, str], int) -> List[int]
+		# type: (int, str, *float, float, Tuple[int, str], **int) -> List[int]
 		...
 
 	@staticmethod

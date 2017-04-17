@@ -430,7 +430,7 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 	if (tpStr is None or tpStr[0] is None) and tpHints is None:
 		# What about defaults?
 		return Any, Any
-	if not (tpStr is None or tpStr[0] is None) and tpStr[0].find('...') != 0:
+	if not (tpStr is None or tpStr[0] is None) and tpStr[0].find('...') != -1:
 		numArgs = len(argSpecs.args) - 1 if slf else 0
 		while len(tpStr[1]) < numArgs:
 			tpStr[1].append(None)
@@ -470,9 +470,10 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 				raise TypeError('%s.%s has multiple type declarations.'
 						% (func.__module__, func.__name__))
 			else:
-				resType2 = _funcsigtypesfromstring(*tpStr, globals = globs,
+				resType2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, globals = globs,
 						argCount = len(argNames), unspecified_type = unspecified_type,
-						defaults = argSpecs.defaults if infer_defaults else None)
+						defaults = argSpecs.defaults if infer_defaults else None,
+						func = actual_func, func_class = func_class, slf = slf)
 				if resType != resType2:
 					raise TypeError('%s.%s declares incompatible types:\n'
 							% (func.__module__, func.__name__)
@@ -489,9 +490,11 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 			raise TypeError(_make_invalid_type_msg('return type',
 					util._fully_qualified_func_name(func, slf, func_class), resType[1]))
 		return resType
-	res = _funcsigtypesfromstring(*tpStr, globals = globs, argCount = len(argNames),
+	res = _funcsigtypesfromstring(*tpStr, globals = globs, argspec = argSpecs,
+			argCount = len(argNames),
 			defaults = argSpecs.defaults if infer_defaults else None,
-			unspecified_type = unspecified_type)
+			unspecified_type = unspecified_type, func = actual_func,
+			func_class = func_class, slf = slf)
 	try:
 		typing._type_check(res[0], '') # arg types
 	except TypeError:
@@ -507,8 +510,9 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 			if not infer_defaults:
 				func0.__annotations__ = _get_type_hints(func0, res[0], res[1])
 			else:
-				res2 = _funcsigtypesfromstring(*tpStr, globals = globs,
-						argCount = len(argNames), unspecified_type = unspecified_type)
+				res2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, globals = globs,
+						argCount = len(argNames), unspecified_type = unspecified_type,
+						func = actual_func, func_class = func_class, slf = slf)
 				func0.__annotations__ = _get_type_hints(func0, res2[0], res2[1])
 	return res
 

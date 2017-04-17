@@ -95,9 +95,98 @@ def _run_delayed_checks(raise_NameError = False, module_name = None):
 
 atexit.register(_run_delayed_checks, True)
 
+def _preprocess_override(meth_types, base_types, meth_argspec, base_argspec):
+	'''This function linearizes type info of ordinary, vararg, kwonly and varkw
+	arguments, such that override-feasibility can be conveniently checked. 
+	'''
+	try:
+		base_kw = base_argspec.keywords
+		kw = meth_argspec.keywords
+	except AttributeError:
+		base_kw = base_argspec.varkw
+		kw = meth_argspec.varkw
+	try:
+		kwonly = meth_argspec.kwonlyargs
+		base_kwonly = base_argspec.kwonlyargs
+	except AttributeError:
+		kwonly = None
+		base_kwonly = None
+	if meth_argspec.varargs is None and base_argspec.varargs is None \
+			and kw is None and base_kw is None \
+			and kwonly is None and base_kwonly is None \
+			and (meth_argspec.defaults is None or \
+				len(meth_argspec.args) == len(base_argspec.args)):
+		return meth_types, base_types
+	arg_types = type_util.get_Tuple_params(meth_types[0])
+	base_arg_types = type_util.get_Tuple_params(base_types[0])
+	kw_off = len(meth_argspec.args)-1 # -1 for self
+	if not meth_argspec.defaults is None and base_argspec.varargs is None:
+		kw_off -= len(meth_argspec.defaults)
+	base_kw_off = len(base_argspec.args)
+	if base_argspec.varargs is None:
+		base_kw_off -= 1 # one decrement anyway for self
+	arg_types2 = list(arg_types[:kw_off])
+	base_arg_types2 = list(base_arg_types[:base_kw_off])
+	base_vargtype = None
+	vargtype = None
+	base_argnames = None
+	argnames = None
+	if not base_argspec.varargs is None or not base_kw is None:
+		base_argnames = util.getargnames(base_argspec)[1:]
+		if not base_argspec.varargs is None:
+			base_vargtype = base_arg_types[base_argnames.index(base_argspec.varargs)]
+			# Should have been already checked:
+			assert not meth_argspec.varargs is None
+	if not meth_argspec.varargs is None or not kw is None:
+		argnames = util.getargnames(meth_argspec)[1:]
+		if not meth_argspec.varargs is None:
+			vargtype = arg_types[argnames.index(meth_argspec.varargs)]
+	if not meth_argspec.defaults is None:
+		pos = 0
+		if not base_argspec.varargs is None:
+			# fill up parent's types with varg type to account for child's defaults
+			while len(arg_types2) > len(base_arg_types2):
+				base_arg_types2.append(base_vargtype)
+			base_arg_types2.append(base_vargtype) # restore one more for the actual vargtype
+		else:
+			# parent has no vargtype, so fill up child with default-types afap
+			while len(arg_types2) < len(base_arg_types2) and \
+					pos < len(meth_argspec.defaults):
+				arg_types2.append(arg_types[kw_off+pos])
+				pos += 1
+	while len(arg_types2) < len(base_arg_types2):
+		arg_types2.append(vargtype)
+	if not kw is None:
+		kw_type = arg_types[argnames.index(kw)]
+	if not base_kwonly is None:
+		for name in base_kwonly:
+			base_arg_types2.append(base_arg_types[base_argnames.index(name)])
+			if name in argnames:
+				arg_types2.append(arg_types[argnames.index(name)])
+			else:
+				arg_types2.append(kw_type)
+	if not base_kw is None:
+		base_arg_types2.append(base_arg_types[base_argnames.index(base_kw)])
+		arg_types2.append(kw_type)
+	return (type_util.make_Tuple(tuple(arg_types2)), meth_types[1]), \
+			(type_util.make_Tuple(tuple(base_arg_types2)), base_types[1])
+
 def _check_override_types(method, meth_types, class_name, base_method, base_class):
+	# regarding kw:
+	# For child to have wider args than parent:
+	# if parent allows varkw, child must allow varkw too
+	# every kw-only arg of parent must be present in child (as kw-only, ordinary or via var-kw)
+	# if child allows varkw, kw-only args of parent are automatically fulfilled
+	# type of child-varkw must be wider than of parent-varkw
+	# if parent defines kwonly, child's kw-only or ordinary representation of
+	# these args must be wider in type
+	# if child serves parent's kw-only via varkw, child's varkw type must be
+	# wider than any kw-only type of parent
+	# (use Any if nothing else fits)
 	base_types = _match_stub_type(_funcsigtypes(base_method, True, base_class))
 	meth_types = _match_stub_type(meth_types)
+	meth_types, base_types = _preprocess_override(meth_types, base_types,
+			util.getargspecs(method), util.getargspecs(base_method))
 	if has_type_hints(base_method):
 		if not _issubclass(base_types[0], meth_types[0]):
 			fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
@@ -105,9 +194,9 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 			#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
 			#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
 
-			raise OverrideError('%s cannot override %s.\n'
+			raise OverrideError('\n  %s\ncannot override\n  %s.\n'
 					% (fq_name_child, fq_name_parent)
-					+ 'Incompatible argument types: %s is not a supertype of %s.'
+					+ 'Incompatible arg type  %s\nis not supertype of    %s'
 					% (type_str(meth_types[0]), type_str(base_types[0])))
 		if not _issubclass(meth_types[1], base_types[1]):
 			fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
@@ -122,17 +211,86 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 
 def _check_override_argspecs(method, argSpecs, class_name, base_method, base_class):
 	ovargs = util.getargspecs(base_method)
+	vargs_ok = None
+	varkw_ok = None
+	if not ovargs.varargs is None:
+		vargs_ok = not argSpecs.varargs is None
+	elif not argSpecs.varargs is None:
+		vargs_ok = True
+	try:
+		ov_kw = ovargs.keywords
+		kw = argSpecs.keywords
+	except AttributeError:
+		ov_kw = ovargs.varkw
+		kw = argSpecs.varkw
+	# regarding kw - for child to have wider args than parent:
+	# if parent allows varkw, child must allow varkw too
+	# every kw-only arg of parent must be present in child (as kw-only, ordinary or via var-kw)
+	# if child allows varkw, kw-only args of parent are automatically fulfilled
+	try:
+		kwonly = argSpecs.kwonlyargs
+		ov_kwonly = ovargs.kwonlyargs
+	except AttributeError:
+		kwonly = None
+		ov_kwonly = None
+	if not kw is None:
+		varkw_ok = True
+	elif not ov_kw is None:
+		varkw_ok = False
+	elif ov_kwonly is None or len(ov_kwonly) == 0:
+		varkw_ok = True
+	elif not kwonly is None:
+		varkw_ok = True
+		for kwo in ov_kwonly:
+			if not kwo in kwonly and not kwo in argSpecs.args:
+				varkw_ok = False
+				break
+	else:
+		varkw_ok = True
+		for kwo in ov_kwonly:
+			if not kwo in argSpecs.args:
+				varkw_ok = False
+				break
+
+	if not vargs_ok is None and not vargs_ok:
+		fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
+		fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
+		raise OverrideError('%s\n  cannot override\n%s:\n'
+				% (fq_name_child, fq_name_parent)
+				+ "Child-method does not account for parent's var-length args.")
+	elif not varkw_ok:
+		fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
+		fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
+		raise OverrideError('\n%s\n  cannot override\n%s:\n'
+				% (fq_name_child, fq_name_parent)
+				+ "Child-method does not account for parent's keyword(-only) args.")
+	if varkw_ok:
+		req_kw = util.get_required_kwonly_args(argSpecs)
+		ov_req_kw = util.get_required_kwonly_args(ovargs)
+		add_req = []
+		for kwo in req_kw:
+			if not kwo in ov_req_kw:
+				add_req.append(kwo)
+		if len(add_req) > 0:
+			fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
+			fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
+			raise OverrideError('\n%s\n  cannot override\n%s:\n'
+					% (fq_name_child, fq_name_parent)
+					+ "Child-method requires keyword-only arg(s) not required by parent:\n"
+					+ str(add_req))
+	if not vargs_ok is None and vargs_ok and varkw_ok:
+		return
+
 	d1 = 0 if ovargs.defaults is None else len(ovargs.defaults)
 	d2 = 0 if argSpecs.defaults is None else len(argSpecs.defaults)
 	if len(ovargs.args)-d1 < len(argSpecs.args)-d2 or len(ovargs.args) > len(argSpecs.args):
-		fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
-		fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
 		#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
 		#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
-
-		raise OverrideError('%s cannot override %s:\n'
+		fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
+		fq_name_parent = util._fully_qualified_func_name(base_method, True, base_class)
+		raise OverrideError('%s\n  cannot override\n%s:\n'
 				% (fq_name_child, fq_name_parent)
-				+ 'Mismatching argument count. Base-method: %i+%i   submethod: %i+%i'
+				+ 'Mismatching argument count. Base-method: %i+%i   child: %i+%i'
 				% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
 
 def _no_base_method_error(method):
@@ -247,6 +405,9 @@ def override(func):
 								% util._fully_qualified_func_name(func, True, actual_class))
 					ovmro = []
 					base_method_exists = False
+					# todo: What if class is old-style
+					# print 250, actual_class.__name__
+					# print dir(actual_class)
 					for mc in actual_class.__mro__[1:]:
 						if hasattr(mc, func.__name__):
 							ovf = getattr(mc, func.__name__)

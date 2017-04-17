@@ -76,3 +76,72 @@ class TestArg2(TestArg1):
 class TestResult2(TestResult1):
 	pass
 
+class override_varargs_class_base(object):
+# var-arg tests:
+	def method_vararg1(self, a, b, *args):
+		# type: (int, int, *int) -> int
+		return a+b
+
+	def method_vararg2(self, a, b):
+		# type: (int, int) -> int
+		return a+b
+
+	def method_vararg3(self, a, b, c):
+		# type: (int, int, float) -> int
+		return a+b
+
+# var-kw tests:
+	def method_varkw1(self, a, b, **kw):
+		# type: (int, int, **int) -> int
+		return a+b
+
+	def method_varkw2(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **int) -> int
+		return a+b
+
+# default tests:
+	def method_defaults1(self, a, b):
+		# type: (int, int) -> int
+		return a+b
+
+	def method_defaults2(self, a, b, *vargs):
+		# type: (int, int, *int) -> int
+		return a+b
+
+class override_varargs_class(override_varargs_class_base):
+	@override
+	def method_vararg1(self, a, b, *args):
+		# type: (int, float, *int) -> int
+		return len(args)
+
+	@override
+	def method_vararg2(self, a, b, *vargs):
+		# type: (int, float, *str) -> int
+		return a+len(str(b))+len(vargs)
+
+	@override
+	def method_vararg3(self, a, *vgs):
+		# type: (int, *float) -> int
+		return a+len(vgs)
+
+# var-kw tests:
+	@override
+	def method_varkw1(self, a, b, **kw):
+		# type: (int, int, **float) -> int
+		return a+b
+
+	@override
+	def method_varkw2(self, a, b, *arg, **kw):
+		# type: (int, int, *str, **float) -> int
+		return a+b
+
+# default tests:
+	@override
+	def method_defaults1(self, a, b, c=4.6):
+		# type: (int, int) -> int
+		return a+b
+
+	@override
+	def method_defaults2(self, a, b, c=4, *args):
+		# type: (int, int, float, *int) -> int
+		return a+b

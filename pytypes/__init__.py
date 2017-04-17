@@ -98,10 +98,11 @@ if not hasattr(typing, '_generic_new'):
 		return res
 	typing.Generic.__new__ = __Generic__new__
 
-class TypeCheckError(Exception): pass
+class TypeCheckError(TypeError): pass
 class InputTypeError(TypeCheckError): pass
 class ReturnTypeError(TypeCheckError): pass
-class OverrideError(TypeCheckError): pass
+class OverrideError(TypeError): pass
+class TypeSyntaxError(TypeError): pass
 
 # We import some public API for central access:
 from .type_util import deep_type, is_builtin_type, has_type_hints, \

@@ -56,6 +56,19 @@ def getargspecs(func):
 	else:
 		return inspect.getargspec(func)
 
+def get_required_kwonly_args(argspecs):
+	try:
+		kwonly = argspecs.kwonlyargs
+		if argspecs.kwonlydefaults is None:
+			return kwonly
+		res = []
+		for name in kwonly:
+			if not name in argspecs.kwonlydefaults:
+				res.append(name)
+		return res
+	except AttributeError:
+		return []
+
 def getargnames(argspecs):
 	args = argspecs.args
 	vargs = argspecs.varargs
@@ -130,9 +143,13 @@ def _getargskw(args, kw, argspecs):
 					used.add(name)
 			else:
 				# Todo: Guard failure here and set err accordingly
+#				This assumed kwonlydefaults to be a list:
+#				if not argspecs.kwonlydefaults is None and \
+#						len(argspecs.kwonlydefaults) > ipos:
+#					res.append(argspecs.kwonlydefaults[ipos])
 				if not argspecs.kwonlydefaults is None and \
-						len(argspecs.kwonlydefaults) > ipos:
-					res.append(argspecs.kwonlydefaults[ipos])
+						name in argspecs.kwonlydefaults:
+					res.append(argspecs.kwonlydefaults[name])
 				else:
 					err = True
 			ipos += 1
