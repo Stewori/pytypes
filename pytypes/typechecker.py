@@ -394,7 +394,7 @@ def override(func):
 						ismethod(getattr(args_kw[0], func.__name__)):
 					actual_class = args_kw[0].__class__
 					if util._actualfunc(getattr(args_kw[0], func.__name__)) != func:
-						for acls in args_kw[0].__class__.__mro__:
+						for acls in util.mro(args_kw[0].__class__):
 							if not is_builtin_type(acls):
 								if hasattr(acls, func.__name__) and func.__name__ in acls.__dict__ and \
 										util._actualfunc(acls.__dict__[func.__name__]) == func:
@@ -405,10 +405,7 @@ def override(func):
 								% util._fully_qualified_func_name(func, True, actual_class))
 					ovmro = []
 					base_method_exists = False
-					# todo: What if class is old-style
-					# print 250, actual_class.__name__
-					# print dir(actual_class)
-					for mc in actual_class.__mro__[1:]:
+					for mc in util.mro(actual_class)[1:]:
 						if hasattr(mc, func.__name__):
 							ovf = getattr(mc, func.__name__)
 							base_method_exists = True
@@ -663,7 +660,7 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 				raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
 					% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
 			toCheck = []
-			for cls in args_kw[0].__class__.__mro__:
+			for cls in util.mro(args_kw[0].__class__):
 				if hasattr(cls, func0.__name__):
 					ffunc = getattr(cls, func0.__name__)
 					if has_type_hints(util._actualfunc(ffunc)):

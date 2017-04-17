@@ -112,7 +112,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
 		make_Tuple, make_Union, annotations, get_member_types, Empty
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
-		get_class_that_defined_method, is_method, is_class, is_classmethod
+		get_class_that_defined_method, is_method, is_class, is_classmethod, mro
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \

@@ -485,3 +485,27 @@ def _code_matches_func(func, code):
 					return _code_matches_func(func.__func__, code)
 				except AttributeError:
 					return False
+
+def old_mro(clss, dest = []):
+	if not clss in dest:
+		dest.append(clss)
+		for clss2 in clss.__bases__:
+			old_mro(clss2, dest)
+	return dest
+
+def new_mro(clss, dest = []):
+	# not very efficient, but should be rarely used anyway
+	if not clss in dest:
+		dest.append(clss)
+	for clss2 in clss.__bases__:
+		if not clss2 in dest:
+			dest.append(clss2)
+	for clss2 in clss.__bases__:
+		new_mro(clss2, dest)
+	return dest
+
+def mro(clss):
+	try:
+		return clss.__mro__
+	except AttributeError:
+		return old_mro(clss)
