@@ -8,7 +8,7 @@ import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
-		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types
+		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, _find_parent_funcs
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 from pytypes.util import getargspecs
@@ -278,12 +278,12 @@ def _check_override_argspecs(method, argSpecs, class_name, base_method, base_cla
 					% (fq_name_child, fq_name_parent)
 					+ "Child-method requires keyword-only arg(s) not required by parent:\n"
 					+ str(add_req))
-	if not vargs_ok is None and vargs_ok and varkw_ok:
-		return
 
 	d1 = 0 if ovargs.defaults is None else len(ovargs.defaults)
 	d2 = 0 if argSpecs.defaults is None else len(argSpecs.defaults)
-	if len(ovargs.args)-d1 < len(argSpecs.args)-d2 or len(ovargs.args) > len(argSpecs.args):
+	if (ovargs.varargs is None and len(ovargs.args)-d1 < len(argSpecs.args)-d2) or \
+			(argSpecs.varargs is None and len(ovargs.args) > len(argSpecs.args)) or \
+			(not vargs_ok is None and not vargs_ok) or not varkw_ok:
 		#assert fq_name_child == ('%s.%s.%s' % (method.__module__, class_name, method.__name__))
 		#assert fq_name_parent == ('%s.%s.%s' % (base_method.__module__, base_class.__name__, base_method.__name__))
 		fq_name_child = util._fully_qualified_func_name(method, True, None, class_name)
@@ -558,14 +558,42 @@ def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
 		kw = argspecs.keywords
 	except AttributeError:
 		kw = argspecs.varkw
+	try:
+		kwonly = argspecs.kwonlyargs
+	except AttributeError:
+		kwonly = None
 	if not vargs is None or not kw is None:
 		arg_type_lst = list(type_util.get_Tuple_params(argSig))
 		if not vargs is None:
 			vargs_pos = (len(argspecs.args)-1) \
 					if slf_or_clsm else len(argspecs.args)
-			arg_type_lst[vargs_pos] = typing.Sequence[arg_type_lst[vargs_pos]]
+			# IndexErrors in this section indicate that a child-method was
+			# checked against a parent's type-info with the child featuring
+			# a more wider type on signature level (e.g. adding vargs)
+			try:
+				vargs_type = typing.Sequence[arg_type_lst[vargs_pos]]
+			except IndexError:
+				vargs_type = typing.Sequence[typing.Any]
+			try:
+				arg_type_lst[vargs_pos] = vargs_type
+			except IndexError:
+				arg_type_lst.append(vargs_type)
 		if not kw is None:
-			arg_type_lst[-1] = typing.Dict[str, arg_type_lst[-1]]
+			kw_pos = len(argspecs.args)
+			if slf_or_clsm:
+				kw_pos -= 1
+			if not vargs is None:
+				kw_pos += 1
+			if not kwonly is None:
+				kw_pos += len(kwonly)
+			try:
+				kw_type = typing.Dict[str, arg_type_lst[kw_pos]]
+			except IndexError:
+				kw_type = typing.Dict[str, typing.Any]
+			try:
+				arg_type_lst[kw_pos] = kw_type
+			except IndexError:
+				arg_type_lst.append(kw_type)
 		return typing.Tuple[tuple(arg_type_lst)]
 	else:
 		return argSig
@@ -613,13 +641,15 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	prop = isinstance(func, property)
 	auto_prop_getter = prop and func.fset is None
 	func0 = util._actualfunc(func, prop_getter)
-	if hasattr(func, '_check_parent_types'):
-		checkParents = func._check_parent_types
-	else:
-		checkParents = False
 	specs = util.getargspecs(func0)
 	argNames = util.getargnames(specs)
 	def checker_tp(*args, **kw):
+		if pytypes.always_check_parent_types:
+			checkParents = True
+		elif hasattr(func, '_check_parent_types'):
+			checkParents = func._check_parent_types
+		else:
+			checkParents = False
 		if hasattr(checker_tp, '__annotations__') and len(checker_tp.__annotations__) > 0:
 			checker_tp.ch_func.__annotations__ = checker_tp.__annotations__
 		# check consistency regarding special case with 'self'-keyword
@@ -657,14 +687,13 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 			check_args = args_kw
 		if checkParents:
 			if not slf:
-				raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
-					% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
-			toCheck = []
-			for cls in util.mro(args_kw[0].__class__):
-				if hasattr(cls, func0.__name__):
-					ffunc = getattr(cls, func0.__name__)
-					if has_type_hints(util._actualfunc(ffunc)):
-						toCheck.append(ffunc)
+				if not pytypes.always_check_parent_types:
+					raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
+							% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
+				else:
+					toCheck = (func,)
+			else:
+				toCheck = _find_parent_funcs(func, args_kw[0].__class__)
 		else:
 			toCheck = (func,)
 
@@ -884,14 +913,26 @@ def check_argument_types(cllable = None, call_args = None):
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
 	act_func = util._actualfunc(cllable)
 	specs = getargspecs(act_func)
-	if not prop is None:
-		argSig, resSig = _get_types(prop, clsm, slf, clss, prop_getter)
-	else:
-		argSig, resSig = _get_types(cllable, clsm, slf, clss)
 	if call_args is None:
 		call_args = pytypes.util.get_current_args(1, cllable, util.getargnames(specs))
 	if slf or clsm:
 		call_args = call_args[1:]
-	_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
-			False, False, specs)
-
+	if not prop is None:
+		argSig, _ = _get_types(prop, clsm, slf, clss, prop_getter)
+		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+				False, False, specs)
+	else:
+		if slf and pytypes.always_check_parent_types:
+			cls_list = []
+			to_check = _find_parent_funcs(cllable, clss, cls_list)
+			for i in range(len(to_check)):
+				clss = cls_list[i]
+				act_func = util._actualfunc(to_check[i])
+				specs = getargspecs(act_func)
+				argSig, _ = _get_types(to_check[i], clsm, slf, clss)
+				_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+						False, False, specs)
+		else:
+			argSig, _ = _get_types(cllable, clsm, slf, clss)
+			_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+					False, False, specs)

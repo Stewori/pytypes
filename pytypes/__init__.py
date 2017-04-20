@@ -13,6 +13,7 @@ global_checking = False
 
 check_override_at_runtime = False
 check_override_at_class_definition_time = True
+always_check_parent_types = True
 
 check_callables = True
 check_iterables = True

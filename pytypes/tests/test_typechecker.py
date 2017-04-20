@@ -10,6 +10,7 @@ if __name__ == '__main__':
 import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
+pytypes.always_check_parent_types = False
 from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
 		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, TypeSyntaxError, \
 		check_argument_types, annotations, get_member_types
@@ -221,10 +222,24 @@ class testClass3Base():
 		pass
 
 class testClass3(testClass3Base):
-
 	@typechecked
 	@override
 	def testmeth(self, a, b):
+		return '-'.join((str(a), str(b), str(type(self))))
+
+class testClass3_no_override(testClass3Base):
+	@typechecked
+	def testmeth(self, a, b):
+		return '-'.join((str(a), str(b), str(type(self))))
+
+class testClass3_no_override_err(testClass3Base):
+	@typechecked
+	def testmeth(self, a, b):
+		return 7.5
+
+class testClass3_no_override_check_argtypes(testClass3Base):
+	def testmeth(self, a, b):
+		check_argument_types()
 		return '-'.join((str(a), str(b), str(type(self))))
 
 
@@ -1133,6 +1148,43 @@ class override_varargs_class(override_varargs_class_base):
 		return a+b
 
 
+class varagrs_call_class_base(object):
+	def testmeth1(self, a, b):
+		# type: (int, float) -> float
+		return a+b
+
+	def testmeth2(self, a, b):
+		# type: (int, float) -> float
+		return a+b
+
+	def testmeth3(self, a, b):
+		# type: (int, float) -> float
+		return a+b
+
+	def testmeth4(self, a, b):
+		# type: (int, float) -> float
+		return a+b
+
+@typechecked
+class varagrs_call_class(varagrs_call_class_base):
+	
+	@override
+	def testmeth1(self, a, b, *vargs):
+		return a+b
+
+	@override
+	def testmeth2(self, a, b, **kw):
+		return a+b
+
+	@override
+	def testmeth3(self, a, b, *args, **kwords):
+		return a+b
+
+	@override
+	def testmeth4(self, a, b, c, *varargs):
+		return a+b
+
+
 def func_bad_typestring1(a, b, c):
 	# type: (int, *int, float) -> None
 	pass
@@ -1223,6 +1275,44 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
 		self.assertRaises(InputTypeError, lambda:
 				tc.testmeth_static2(11, ('a', 'b'), 1.9))
+
+	def test_parent_typecheck_no_override(self):
+		tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+		
+		cl3 = testClass3_no_override()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertTrue(cl3.testmeth(3, '5').startswith('3-5-'))
+		cl3 = testClass3_no_override_err()
+		self.assertEqual(cl3.testmeth(3, 5), 7.5)
+		self.assertEqual(cl3.testmeth(3, '5'), 7.5)
+		cl3 = testClass3_no_override_check_argtypes()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertTrue(cl3.testmeth(3, '5').startswith('3-5-'))
+
+		pytypes.always_check_parent_types = True
+
+		cl3 = testClass3_no_override()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+		cl3 = testClass3_no_override_err()
+		self.assertRaises(ReturnTypeError, lambda: cl3.testmeth(3, 5))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+		cl3 = testClass3_no_override_check_argtypes()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+
+		pytypes.always_check_parent_types = tmp
+
+	def test_parent_typecheck_other_signature(self):
+		vcc = varagrs_call_class()
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth1(1, '2', 'a'))
+		self.assertEqual(vcc.testmeth1(1, 2, 'a'), 3)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth2('3', 4, q = 'b'))
+		self.assertEqual(vcc.testmeth2(3, 4, q = 'b'), 7)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth3(5.7, 6, 'c', k = 'd'))
+		self.assertEqual(vcc.testmeth3(5, 6, 'c', k = 'd'), 11)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth4(7, 8, 9, 'e', 'f'))
 
 	def test_abstract_override(self):
 		tc3 = testClass3()
@@ -3230,6 +3320,44 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_static(12, [3]))
 		self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
 		self.assertRaises(InputTypeError, lambda: tc.testmeth_static2(11, ('a', 'b'), 1.9))
+
+	def test_parent_typecheck_no_override_py3(self):
+		tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+		
+		cl3 = py3.testClass3_no_override()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertTrue(cl3.testmeth(3, '5').startswith('3-5-'))
+		cl3 = py3.testClass3_no_override_err()
+		self.assertEqual(cl3.testmeth(3, 5), 7.5)
+		self.assertEqual(cl3.testmeth(3, '5'), 7.5)
+		cl3 = py3.testClass3_no_override_check_argtypes()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertTrue(cl3.testmeth(3, '5').startswith('3-5-'))
+
+		pytypes.always_check_parent_types = True
+
+		cl3 = py3.testClass3_no_override()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+		cl3 = py3.testClass3_no_override_err()
+		self.assertRaises(ReturnTypeError, lambda: cl3.testmeth(3, 5))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+		cl3 = py3.testClass3_no_override_check_argtypes()
+		self.assertTrue(cl3.testmeth(3, 5).startswith('3-5-'))
+		self.assertRaises(InputTypeError, lambda: cl3.testmeth(3, '5'))
+
+		pytypes.always_check_parent_types = tmp
+
+	def test_parent_typecheck_other_signature_py3(self):
+		vcc = py3.varagrs_call_class()
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth1(1, '2', 'a'))
+		self.assertEqual(vcc.testmeth1(1, 2, 'a'), 3)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth2('3', 4, q = 'b'))
+		self.assertEqual(vcc.testmeth2(3, 4, q = 'b'), 7)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth3(5.7, 6, 'c', k = 'd'))
+		self.assertEqual(vcc.testmeth3(5, 6, 'c', k = 'd'), 11)
+		self.assertRaises(InputTypeError, lambda: vcc.testmeth4(7, 8, 9, 'e', 'f'))
 
 	def test_abstract_override_py3(self):
 		tc3 = py3.testClass3()

@@ -148,6 +148,21 @@ class testClass3(testClass3Base):
 	def testmeth(self, a, b):
 		return "-".join((str(a), str(b), str(type(self))))
 
+class testClass3_no_override(testClass3Base):
+	@typechecked
+	def testmeth(self, a, b):
+		return '-'.join((str(a), str(b), str(type(self))))
+
+class testClass3_no_override_err(testClass3Base):
+	@typechecked
+	def testmeth(self, a, b):
+		return 7.5
+
+class testClass3_no_override_check_argtypes(testClass3Base):
+	def testmeth(self, a, b):
+		check_argument_types()
+		return '-'.join((str(a), str(b), str(type(self))))
+
 
 def testClass2_defTimeCheck():
 	class testClass2b(testClass2Base):
@@ -1125,3 +1140,35 @@ class override_varargs_class(override_varargs_class_base):
 		# type: (int, float, *float, **int) -> int
 		# child drops kw-only in favor of wrong-typed (vs var-kw) var-kw
 		return a+b+q+v
+
+class varagrs_call_class_base(object):
+	def testmeth1(self, a: int, b: float) -> float:
+		return a+b
+
+	def testmeth2(self, a: int, b: float) -> float:
+		return a+b
+
+	def testmeth3(self, a: int, b: float) -> float:
+		return a+b
+
+	def testmeth4(self, a: int, b: float) -> float:
+		return a+b
+
+@typechecked
+class varagrs_call_class(varagrs_call_class_base):
+	
+	@override
+	def testmeth1(self, a, b, *vargs):
+		return a+b
+
+	@override
+	def testmeth2(self, a, b, **kw):
+		return a+b
+
+	@override
+	def testmeth3(self, a, b, *args, **kwords):
+		return a+b
+
+	@override
+	def testmeth4(self, a, b, c, *varargs):
+		return a+b

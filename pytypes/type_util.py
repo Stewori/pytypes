@@ -852,3 +852,19 @@ def generator_checker_py2(gen, gen_type):
 		if not gen_type.__args__[1] is Any and not _isinstance(sn, gen_type.__args__[1]):
 			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
 					gen_type.__args__[1], 'has incompatible send type'))
+
+def _find_parent_funcs(func, cls, cls_list = None):
+	res = []
+	func0 = util._actualfunc(func)
+	for cls in util.mro(cls):
+		if hasattr(cls, func0.__name__):
+			ffunc = getattr(cls, func0.__name__)
+			if has_type_hints(util._actualfunc(ffunc)):
+				res.append(ffunc)
+				if not cls_list is None:
+					cls_list.append(cls)
+	if len(res) == 0:
+		res.append(func)
+		if not cls_list is None:
+			cls_list.append(cls)
+	return res
