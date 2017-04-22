@@ -868,3 +868,12 @@ def _find_parent_funcs(func, cls, cls_list = None):
 		if not cls_list is None:
 			cls_list.append(cls)
 	return res
+
+def _find_typed_parent_func(func, cls):
+	func0 = util._actualfunc(func)
+	for cls1 in util.mro(cls):
+		if hasattr(cls1, func0.__name__):
+			ffunc = getattr(cls1, func0.__name__)
+			if has_type_hints(util._actualfunc(ffunc)):
+				return ffunc, cls1
+	return None, None

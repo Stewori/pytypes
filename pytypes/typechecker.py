@@ -8,7 +8,8 @@ import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
-		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, _find_parent_funcs
+		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, _find_parent_funcs, \
+		_find_typed_parent_func
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 from pytypes.util import getargspecs
@@ -691,11 +692,12 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 					raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
 							% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
 				else:
-					toCheck = (func,)
+					toCheck = func
 			else:
-				toCheck = _find_parent_funcs(func, args_kw[0].__class__)
+				tfunc, _ = _find_typed_parent_func(func, args_kw[0].__class__)
+				toCheck = tfunc if not tfunc is None else func
 		else:
-			toCheck = (func,)
+			toCheck = func
 
 		parent_class = None
 		if slf:
@@ -703,9 +705,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 		elif clsm:
 			parent_class = args_kw[0]
 
-		resSigs = []
 		if argType is None or resType is None:
-			argSig, resSig = _funcsigtypes(toCheck[0], slf or clsm,
+			argSig, resSig = _funcsigtypes(toCheck, slf or clsm,
 					parent_class, None, prop_getter or auto_prop_getter)
 			if argType is None:
 				argSig = _match_stub_type(argSig)
@@ -720,20 +721,13 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 		make_checked = pytypes.check_callables or \
 				pytypes.check_iterables or pytypes.check_generators
 		checked_val = _checkfunctype(argSig, check_args,
-				toCheck[0], slf or clsm, parent_class, make_checked,
+				toCheck, slf or clsm, parent_class, make_checked,
 				prop_getter or auto_prop_getter, specs)
 		if make_checked:
 			checked_args, checked_kw = util.fromargskw(checked_val, specs, slf or clsm)
 		else:
 			checked_args = args
 			checked_kw = kw
-		resSigs.append(resSig)
-		for ffunc in toCheck[1:]:
-			argSig, resSig = _funcsigtypes(ffunc, slf or clsm, parent_class,
-					None, prop_getter or auto_prop_getter)
-			_checkfunctype(_match_stub_type(argSig), check_args, ffunc,
-					slf or clsm, parent_class)
-			resSigs.append(_match_stub_type(resSig))
 
 		# perform backend-call:
 		if clsm or stat:
@@ -752,11 +746,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 			else:
 				res = func(*checked_args, **checked_kw)
 
-		checked_res = _checkfuncresult(resSigs[0], res, toCheck[0], \
+		checked_res = _checkfuncresult(resSig, res, toCheck, \
 				slf or clsm, parent_class, True, prop_getter)
-		for i in range(1, len(resSigs)):
-			_checkfuncresult(resSigs[i], res, toCheck[i], slf or clsm, parent_class, \
-					prop_getter = prop_getter)
 		return checked_res
 
 	checker_tp.ch_func = func
@@ -922,17 +913,14 @@ def check_argument_types(cllable = None, call_args = None):
 		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
 				False, False, specs)
 	else:
-		if slf and pytypes.always_check_parent_types:
-			cls_list = []
-			to_check = _find_parent_funcs(cllable, clss, cls_list)
-			for i in range(len(to_check)):
-				clss = cls_list[i]
-				act_func = util._actualfunc(to_check[i])
+		if slf :
+			if pytypes.always_check_parent_types or \
+					util._is_current_function_override_decorated(1):
+				cllable, clss = _find_typed_parent_func(cllable, clss)
+				if cllable is None:
+					return
+				act_func = util._actualfunc(cllable)
 				specs = getargspecs(act_func)
-				argSig, _ = _get_types(to_check[i], clsm, slf, clss)
-				_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
-						False, False, specs)
-		else:
-			argSig, _ = _get_types(cllable, clsm, slf, clss)
-			_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
-					False, False, specs)
+		argSig, _ = _get_types(cllable, clsm, slf, clss)
+		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+				False, False, specs)

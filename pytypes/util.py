@@ -373,6 +373,14 @@ def _get_current_function_fq(caller_level = 0):
 		res = get_callable_fq_for_code(code, stck[2+caller_level][0].f_locals)
 	return res, code
 
+def _is_current_function_override_decorated(caller_level = 0):
+	stck = inspect.stack()
+	for stckln in stck[2+caller_level:]:
+		if stckln[3] == 'checker_ov' and stckln[1].endswith('typechecker.py') and \
+				stckln[1].find('pytypes') != -1:
+			return True
+	return False
+
 def get_current_args(caller_level = 0, func = None, argNames = None):
 	if argNames is None:
 		argNames = getargnames(getargspecs(func))
