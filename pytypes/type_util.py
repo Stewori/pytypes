@@ -4,14 +4,15 @@ Created on 13.12.2016
 @author: Stefan Richthofer
 '''
 
-import sys, types, inspect
+from inspect import isfunction, ismethod, ismethoddescriptor, isclass, ismodule
 import typing; from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
 		GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
-import pytypes
+import  sys, types, pytypes
 
+_annotated_modules = {}
 _extra_dict = {}
 for tp in typing.__all__:
 	tpa = getattr(typing, tp)
@@ -248,7 +249,7 @@ def type_str(tp):
 		pass
 	tp = _match_stub_type(tp)
 	impl = ('__builtin__', 'builtins', '__main__')
-	if inspect.isclass(tp) and not isinstance(tp, GenericMeta) \
+	if isclass(tp) and not isinstance(tp, GenericMeta) \
 			and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]
@@ -348,16 +349,6 @@ def _get_type_hints(func, args = None, res = None, infer_defaults = None):
 				result[argNames[i]] = prms[i-slf]
 	result['return'] = res
 	return result
-
-def annotations(func):
-	'''Intended as decorator.
-	'''
-	if not has_type_hints(func):
-		# What about defaults?
-		func.__annotations__ =  {}
-	func.__annotations__ = _get_type_hints(func,
-			infer_defaults = False)
-	return func
 
 def _make_invalid_type_msg(descr, func_name, tp):
 	msg = 'Invalid %s in %s:\n    %s is not a type.' % (descr, func_name, str(tp))
@@ -853,27 +844,87 @@ def generator_checker_py2(gen, gen_type):
 			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
 					gen_type.__args__[1], 'has incompatible send type'))
 
-def _find_parent_funcs(func, cls, cls_list = None):
-	res = []
-	func0 = util._actualfunc(func)
-	for cls in util.mro(cls):
-		if hasattr(cls, func0.__name__):
-			ffunc = getattr(cls, func0.__name__)
-			if has_type_hints(util._actualfunc(ffunc)):
-				res.append(ffunc)
-				if not cls_list is None:
-					cls_list.append(cls)
-	if len(res) == 0:
-		res.append(func)
-		if not cls_list is None:
-			cls_list.append(cls)
-	return res
-
-def _find_typed_parent_func(func, cls):
-	func0 = util._actualfunc(func)
+def _find_typed_base_method(meth, cls):
+	meth0 = util._actualfunc(meth)
 	for cls1 in util.mro(cls):
-		if hasattr(cls1, func0.__name__):
-			ffunc = getattr(cls1, func0.__name__)
-			if has_type_hints(util._actualfunc(ffunc)):
-				return ffunc, cls1
+		if hasattr(cls1, meth0.__name__):
+			fmeth = getattr(cls1, meth0.__name__)
+			if has_type_hints(util._actualfunc(fmeth)):
+				return fmeth, cls1
 	return None, None
+
+def annotations_func(func):
+	'''Intended as decorator.
+	'''
+	if not has_type_hints(func):
+		# What about defaults?
+		func.__annotations__ =  {}
+	func.__annotations__ = _get_type_hints(func,
+			infer_defaults = False)
+	return func
+
+def annotations_class(cls):
+	assert(isclass(cls))
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in cls.__dict__]
+	for key in keys:
+		memb = cls.__dict__[key]
+		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or \
+				isinstance(memb, property)):
+			annotations_func(memb)
+		elif isclass(memb):
+			annotations_class(memb)
+	return cls
+
+def annotations_module(md):
+	'''Intended to typecheck modules that were not annotated
+	with @typechecked without modifying their code.
+	md must be a module or a module name contained in sys.modules.
+	'''
+	if isinstance(md, str):
+		if md in sys.modules:
+			md = sys.modules[md]
+			if md is None:
+				return md
+	assert(ismodule(md))
+	if md.__name__ in _annotated_modules and \
+			_annotated_modules[md.__name__] == len(md.__dict__):
+		return md
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in md.__dict__]
+	for key in keys:
+		memb = md.__dict__[key]
+		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
+				and memb.__module__ == md.__name__:
+			annotations_func(memb)
+		elif isclass(memb) and memb.__module__ == md.__name__:
+			annotations_class(memb)
+	_annotated_modules[md.__name__] = len(md.__dict__)
+	return md
+
+def annotations(memb):
+	'''Intended as decorator.
+	'''
+	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+		return annotations_func(memb)
+	if isclass(memb):
+		return annotations_class(memb)
+	if ismodule(memb):
+		return annotations_module(memb)
+	return memb
+
+def _catch_up_global_annotations():
+	for mod_name in sys.modules:
+		if not mod_name in _annotated_modules:
+			try:
+				md = sys.modules[mod_name]
+			except KeyError:
+				md = None
+			if not md is None and ismodule(md):
+				annotations_module(mod_name)

@@ -7,7 +7,11 @@ Created on 12.12.2016
 import typing
 
 checking_enabled = False
+typelogging_enabled = True
 global_checking = False
+global_auto_override = False
+global_annotations = False
+global_typelog = False
 
 # Some behavior flags:
 
@@ -50,6 +54,27 @@ def set_global_checking(flag = True, retrospective = True):
 	if global_checking and retrospective:
 		_catch_up_global_checking()
 	return global_checking
+
+def set_global_auto_override(flag = True, retrospective = True):
+	global global_auto_override
+	global_auto_override = flag
+	if global_auto_override and retrospective:
+		_catch_up_global_auto_override()
+	return global_auto_override
+
+def set_global_annotations(flag = True, retrospective = True):
+	global global_annotations
+	global_annotations = flag
+	if global_checking and retrospective:
+		_catch_up_global_annotations()
+	return global_annotations
+
+def set_global_typelog(flag = True, retrospective = True):
+	global global_typelog
+	global_typelog = flag
+	if global_typelog and retrospective:
+		_catch_up_global_typelog()
+	return global_typelog
 
 # This way we glue typechecking to activeness of the assert statement by default,
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
@@ -111,13 +136,15 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		make_Tuple, make_Union, annotations, get_member_types, Empty
+		make_Tuple, make_Union, annotations, get_member_types, Empty, \
+		_catch_up_global_annotations
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		get_class_that_defined_method, is_method, is_class, is_classmethod, mro
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \
-		check_argument_types, _catch_up_global_checking
+		check_argument_types, _catch_up_global_checking, _catch_up_global_auto_override, \
+		_catch_up_global_typelog
 
 # Some exemplary overrides for this modules's global settings:
 

@@ -8,11 +8,11 @@ import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
-		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, _find_parent_funcs, \
-		_find_typed_parent_func
+		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, \
+		_find_typed_base_method
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
-from pytypes.util import getargspecs
+from pytypes.util import getargspecs, _actualfunc
 
 if sys.version_info.major >= 3:
 	import builtins
@@ -21,6 +21,8 @@ else:
 
 not_type_checked = set()
 _fully_typechecked_modules = {}
+_auto_override_modules = {}
+_fully_typelogged_modules = {}
 
 _delayed_checks = []
 
@@ -40,16 +42,29 @@ def pytypes___import__(name, *x):
 					if mod_name_full in sys.modules:
 						_re_match_module(mod_name_full, True)
 	_run_delayed_checks(True, name)
-	if pytypes.global_checking:
+	if pytypes.global_checking or pytypes.global_auto_override or \
+			pytypes.global_annotations or pytypes.global_typelog:
 		if (len(x) >= 3):
 			if x[2] is None:
 				if name in sys.modules:
-					typechecked_module(name)
+					if pytypes.global_checking:
+						typechecked_module(name)
+					if pytypes.global_typelog:
+						typelogged_module(name)
+					if pytypes.global_auto_override:
+						auto_override_module(name)
+					if pytypes.global_annotations:
+						type_util.annotations_module(name)
 			else:
 				for mod_name in x[2]:
 					mod_name_full = name+'.'+mod_name
 					if mod_name_full in sys.modules:
-						typechecked_module(mod_name_full, True)
+						if pytypes.global_checking:
+							typechecked_module(mod_name_full, True)
+						if pytypes.global_auto_override:
+							auto_override_module(mod_name_full, True)
+						if pytypes.global_annotations:
+							type_util.annotations_module(mod_name_full)
 	return res
 builtins.__import__ = pytypes___import__
 
@@ -316,6 +331,8 @@ def override(func):
 	#   This is difficult to achieve in case of a call to super. Runtime-override checking
 	#   would use the subclass-self and thus unintentionally would also check the submethod's
 	#   signature. We actively avoid this here.
+	func.override_checked = True
+	_actualfunc(func).override_checked = True
 	if pytypes.check_override_at_class_definition_time:
 		# We need some trickery here, because details of the class are not yet available
 		# as it is just getting defined. Luckily we can get base-classes via inspect.stack():
@@ -394,11 +411,11 @@ def override(func):
 				if hasattr(args_kw[0].__class__, func.__name__) and \
 						ismethod(getattr(args_kw[0], func.__name__)):
 					actual_class = args_kw[0].__class__
-					if util._actualfunc(getattr(args_kw[0], func.__name__)) != func:
+					if _actualfunc(getattr(args_kw[0], func.__name__)) != func:
 						for acls in util.mro(args_kw[0].__class__):
 							if not is_builtin_type(acls):
 								if hasattr(acls, func.__name__) and func.__name__ in acls.__dict__ and \
-										util._actualfunc(acls.__dict__[func.__name__]) == func:
+										_actualfunc(acls.__dict__[func.__name__]) == func:
 									actual_class = acls
 					if func.__name__ == '__init__':
 						raise OverrideError(
@@ -602,7 +619,7 @@ def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
 			prop_getter = False, argspecs = None, var_type = None):
 	if argspecs is None:
-		argspecs = getargspecs(util._actualfunc(func, prop_getter))
+		argspecs = getargspecs(_actualfunc(func, prop_getter))
 	argSig = _preprocess_typecheck(argSig, argspecs, slf) \
 			if var_type is None else var_type
 	if make_checked_val:
@@ -628,6 +645,10 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 				slf, func_class, resSig, 'returned incompatible type', prop_getter))
 	return checked_val
 
+# This is just a stub for now
+def typelogged_func(func):
+	return func
+
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
@@ -641,8 +662,8 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	stat = isinstance(func, staticmethod)
 	prop = isinstance(func, property)
 	auto_prop_getter = prop and func.fset is None
-	func0 = util._actualfunc(func, prop_getter)
-	specs = util.getargspecs(func0)
+	func0 = _actualfunc(func, prop_getter)
+	specs = getargspecs(func0)
 	argNames = util.getargnames(specs)
 	def checker_tp(*args, **kw):
 		if pytypes.always_check_parent_types:
@@ -694,7 +715,7 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 				else:
 					toCheck = func
 			else:
-				tfunc, _ = _find_typed_parent_func(func, args_kw[0].__class__)
+				tfunc, _ = _find_typed_base_method(func, args_kw[0].__class__)
 				toCheck = tfunc if not tfunc is None else func
 		else:
 			toCheck = func
@@ -794,22 +815,24 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 	nst = [cls] if nesting is None else nesting
 	keys = [key for key in cls.__dict__]
 	for key in keys:
-		obj = cls.__dict__[key]
-		if force_recursive or not is_no_type_check(obj):
-			if (isfunction(obj) or ismethod(obj) or \
-					ismethoddescriptor(obj) or isinstance(obj, property)):
-				if _has_type_hints(getattr(cls, key), cls, nst) or hasattr(obj, 'ov_func'):
-					setattr(cls, key, typechecked_func(obj, force_recursive))
+		memb = cls.__dict__[key]
+		if force_recursive or not is_no_type_check(memb):
+			if (isfunction(memb) or ismethod(memb) or \
+					ismethoddescriptor(memb) or isinstance(memb, property)):
+				if _has_type_hints(getattr(cls, key), cls, nst) or \
+						hasattr(_actualfunc(memb), 'override_checked'):
+					setattr(cls, key, typechecked_func(memb, force_recursive))
 # 				else:
-# 					print ("wouldn't check", key, cls, obj, getattr(cls, key))
-			elif isclass(obj):
+# 					print ("wouldn't check", key, cls, memb, getattr(cls, key))
+			elif isclass(memb):
 				if not nesting is None:
 					nst2 = []
 					nst2.extend(nesting)
 				else:
 					nst2 = [cls]
-				nst2.append(obj)
-				setattr(cls, key, _typechecked_class(obj, force_recursive, force_recursive, nst2))
+				nst2.append(memb)
+				#setattr(cls, key, _typechecked_class(memb, force_recursive, force_recursive, nst2))
+				_typechecked_class(memb, force_recursive, force_recursive, nst2)
 	return cls
 
 # Todo: Extend tests for this
@@ -835,28 +858,140 @@ def typechecked_module(md, force_recursive = False):
 	# Todo: Better use inspect.getmembers here
 	keys = [key for key in md.__dict__]
 	for key in keys:
-		obj = md.__dict__[key]
-		if force_recursive or not is_no_type_check(obj):
-			if (isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj)) \
-					and obj.__module__ == md.__name__ and has_type_hints(obj):
-				setattr(md, key, typechecked_func(obj, force_recursive))
-			elif isclass(obj) and obj.__module__ == md.__name__:
-				setattr(md, key, typechecked_class(obj, force_recursive, force_recursive))
+		memb = md.__dict__[key]
+		if force_recursive or not is_no_type_check(memb):
+			if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
+					and memb.__module__ == md.__name__ and has_type_hints(memb):
+				setattr(md, key, typechecked_func(memb, force_recursive))
+			elif isclass(memb) and memb.__module__ == md.__name__:
+				typechecked_class(memb, force_recursive, force_recursive)
 	_fully_typechecked_modules[md.__name__] = len(md.__dict__)
 	return md
 
-def typechecked(obj):
+def typechecked(memb):
 	if not pytypes.checking_enabled:
-		return obj
-	if is_no_type_check(obj):
-		return obj
-	if isfunction(obj) or ismethod(obj) or ismethoddescriptor(obj) or isinstance(obj, property):
-		return typechecked_func(obj)
-	if isclass(obj):
-		return typechecked_class(obj)
-	if ismodule(obj):
-		return typechecked_module(obj, True)
-	return obj
+		return memb
+	if is_no_type_check(memb):
+		return memb
+	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+		return typechecked_func(memb)
+	if isclass(memb):
+		return typechecked_class(memb)
+	if ismodule(memb):
+		return typechecked_module(memb, True)
+	return memb
+
+def typelogged_class(cls):
+	if not pytypes.typelogging_enabled:
+		return cls
+	assert(isclass(cls))
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in cls.__dict__]
+	for key in keys:
+		memb = cls.__dict__[key]
+		if (isfunction(memb) or ismethod(memb) or \
+				ismethoddescriptor(memb) or isinstance(memb, property)):
+			setattr(cls, key, typelogged_func(memb))
+		elif isclass(memb):
+			typelogged_class(memb)
+	return cls
+
+def typelogged_module(md):
+	'''Intended to typelog modules that were not annotated
+	with @typelogged without modifying their code.
+	md must be a module or a module name contained in sys.modules.
+	'''
+	if not pytypes.typelogging_enabled:
+		return md
+	if isinstance(md, str):
+		if md in sys.modules:
+			md = sys.modules[md]
+			if md is None:
+				return md
+	assert(ismodule(md))
+	if md.__name__ in _fully_typelogged_modules and \
+			_fully_typelogged_modules[md.__name__] == len(md.__dict__):
+		return md
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in md.__dict__]
+	for key in keys:
+		memb = md.__dict__[key]
+		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
+				and memb.__module__ == md.__name__:
+			setattr(md, key, typelogged_func(memb))
+		elif isclass(memb) and memb.__module__ == md.__name__:
+			typelogged_class(memb)
+	_fully_typelogged_modules[md.__name__] = len(md.__dict__)
+	return md
+
+def typelogged(memb):
+	if not pytypes.typelogging_enabled:
+		return memb
+	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+		return typelogged_func(memb)
+	if isclass(memb):
+		return typelogged_class(memb)
+	if ismodule(memb):
+		return typelogged_module(memb, True)
+	return memb
+
+def auto_override_class(cls, force = False, force_recursive = False):
+	if not pytypes.checking_enabled:
+		return cls
+	assert(isclass(cls))
+	if not force and is_no_type_check(cls):
+		return cls
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in cls.__dict__]
+	for key in keys:
+		memb = cls.__dict__[key]
+		if force_recursive or not is_no_type_check(memb):
+			if ismethod(memb) or ismethoddescriptor(memb):
+				if util._has_base_method(memb, cls):
+					setattr(cls, key, override(memb))
+# 				else:
+# 					print ("wouldn't auto_override", key, cls, memb, getattr(cls, key))
+			elif isclass(memb):
+				auto_override_class(memb, force_recursive, force_recursive)
+	return cls
+
+def auto_override_module(md, force_recursive = False):
+	'''Intended to typecheck modules that were not annotated
+	with @auto_override without modifying their code.
+	md must be a module or a module name contained in sys.modules.
+	'''
+	if not pytypes.checking_enabled:
+		return md
+	if isinstance(md, str):
+		if md in sys.modules:
+			md = sys.modules[md]
+			if md is None:
+				return md
+	assert(ismodule(md))
+	if md.__name__ in _auto_override_modules and \
+			_auto_override_modules[md.__name__] == len(md.__dict__):
+		return md
+	# To play it safe we avoid to modify the dict while iterating over it,
+	# so we previously cache keys.
+	# For this we don't use keys() because of Python 3.
+	# Todo: Better use inspect.getmembers here
+	keys = [key for key in md.__dict__]
+	for key in keys:
+		memb = md.__dict__[key]
+		if force_recursive or not is_no_type_check(memb):
+			if isclass(memb) and memb.__module__ == md.__name__:
+				auto_override_class(memb, force_recursive, force_recursive)
+	_auto_override_modules[md.__name__] = len(md.__dict__)
+	return md
 
 def _catch_up_global_checking():
 	for mod_name in sys.modules:
@@ -868,16 +1003,36 @@ def _catch_up_global_checking():
 			if not md is None and ismodule(md):
 				typechecked_module(mod_name)
 
-def no_type_check(obj):
-	try:
-		return typing.no_type_check(obj)
-	except(AttributeError):
-		not_type_checked.add(obj)
-		return obj
+def _catch_up_global_auto_override():
+	for mod_name in sys.modules:
+		if not mod_name in _auto_override_modules:
+			try:
+				md = sys.modules[mod_name]
+			except KeyError:
+				md = None
+			if not md is None and ismodule(md):
+				_auto_override_modules(mod_name)
 
-def is_no_type_check(obj):
+def _catch_up_global_typelog():
+	for mod_name in sys.modules:
+		if not mod_name in _fully_typelogged_modules:
+			try:
+				md = sys.modules[mod_name]
+			except KeyError:
+				md = None
+			if not md is None and ismodule(md):
+				typelogged_module(mod_name)
+
+def no_type_check(memb):
 	try:
-		return hasattr(obj, '__no_type_check__') and obj.__no_type_check__ or obj in not_type_checked
+		return typing.no_type_check(memb)
+	except(AttributeError):
+		not_type_checked.add(memb)
+		return memb
+
+def is_no_type_check(memb):
+	try:
+		return hasattr(memb, '__no_type_check__') and memb.__no_type_check__ or memb in not_type_checked
 	except TypeError:
 		return False
 
@@ -902,7 +1057,7 @@ def check_argument_types(cllable = None, call_args = None):
 		clsm = pytypes.is_classmethod(cllable)
 		slf = inspect.ismethod(cllable)
 		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
-	act_func = util._actualfunc(cllable)
+	act_func = _actualfunc(cllable)
 	specs = getargspecs(act_func)
 	if call_args is None:
 		call_args = pytypes.util.get_current_args(1, cllable, util.getargnames(specs))
@@ -914,12 +1069,22 @@ def check_argument_types(cllable = None, call_args = None):
 				False, False, specs)
 	else:
 		if slf :
-			if pytypes.always_check_parent_types or \
-					util._is_current_function_override_decorated(1):
-				cllable, clss = _find_typed_parent_func(cllable, clss)
+			check_parent = pytypes.always_check_parent_types
+			if not check_parent:
+				try:
+					check_parent = act_func.override_checked
+				except AttributeError:
+					pass
+			if not check_parent:
+				try:
+					check_parent = cllable.override_checked
+				except AttributeError:
+					pass
+			if check_parent:
+				cllable, clss = _find_typed_base_method(cllable, clss)
 				if cllable is None:
 					return
-				act_func = util._actualfunc(cllable)
+				act_func = _actualfunc(cllable)
 				specs = getargspecs(act_func)
 		argSig, _ = _get_types(cllable, clsm, slf, clss)
 		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
