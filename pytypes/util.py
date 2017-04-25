@@ -47,6 +47,8 @@ def _find_files(file_name, search_paths):
 	return res
 
 def getargspecs(func):
+	if func is None:
+		raise TypeError('None is not a Python function')
 	if hasattr(func, 'ch_func'):
 		return getargspecs(func.ch_func)
 	elif hasattr(func, 'ov_func'):
@@ -298,6 +300,7 @@ def get_class_that_defined_method(meth):
 	if hasattr(meth, 'im_class'):
 		return meth.im_class
 	elif hasattr(meth, '__qualname__'):
+		# Python 3
 		cls = getattr(inspect.getmodule(meth),
 				meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
 		if isinstance(cls, type):
@@ -384,12 +387,31 @@ def get_current_args(caller_level = 0, func = None, argNames = None):
 	lcs = stck[1+caller_level][0].f_locals
 	return tuple([lcs[t] for t in argNames])
 
+def getmodule(code):
+	'''More robust variant of inspect.getmodule.
+	E.g. has less issues on Jython.
+	'''
+	try:
+		md = inspect.getmodule(code, code.co_filename)
+	except AttributeError:
+		return inspect.getmodule(code)
+	if md is None:
+		# Jython-specific:
+		# This is currently just a crutch; todo: resolve __pyclasspath__ properly!
+		cfname = code.co_filename.replace('__pyclasspath__',
+				os.path.realpath('')+os.sep+'__pyclasspath__')
+		cfname = cfname.replace('$py.class', '.py')
+		md = inspect.getmodule(code, cfname)
+	if md is None:
+		md = inspect.getmodule(code)
+	return md
+
 def get_callable_fq_for_code(code, locals_dict = None):
 	if code in _code_callable_dict:
 		res = _code_callable_dict[code]
 		if not res[0] is None or locals_dict is None:
 			return res
-	md = inspect.getmodule(code, code.co_filename)
+	md = getmodule(code)
 	if not md is None:
 		nesting = []
 		res, slf = _get_callable_fq_for_code(code, md, md, False, nesting)
