@@ -1271,6 +1271,49 @@ class B_override_with_type_typechecked(A_check_parent_types):
 		return len(str(a))
 
 
+class A_diamond_override(object):
+	def meth1(self, a):
+		# type: (Tuple[int, int]) -> int
+		return len(str(a))
+
+class B_diamond_override(A_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[int, float]) -> int
+		return len(str(a))
+
+class C_diamond_override(A_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[float, int]) -> int
+		return len(str(a))
+
+class D_diamond_override(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[float, float]) -> int
+		check_argument_types()
+		return len(str(a))
+
+class D_diamond_override_err1(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[float, int]) -> int
+		return len(str(a))
+
+class D_diamond_override_err2(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[int, float]) -> int
+		return len(str(a))
+
+class D_diamond_override_err3(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		# type: (Tuple[int, int]) -> int
+		return len(str(a))
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -2133,7 +2176,7 @@ class TestTypecheck(unittest.TestCase):
 		self.assertEqual(B_override_with_type_check_arg().meth1(17.7), 4)
 		self.assertEqual(B_override_with_type_typechecked().meth1(17.7), 4)
 
-		pytypes.always_check_parent_types = always_check_parent_types_tmp 
+		pytypes.always_check_parent_types = always_check_parent_types_tmp
 
 
 class TestTypecheck_class(unittest.TestCase):
@@ -2292,6 +2335,15 @@ class TestOverride(unittest.TestCase):
 		self.assertRaises(OverrideError, lambda: cl.method_defaults1_err(101, 102))
 		self.assertRaises(OverrideError, lambda:
 				cl.method_defaults2_err(201, 202, 55.1, 55.2, 55.3))
+
+	def test_override_diamond(self):
+		self.assertEqual(D_diamond_override().meth1((12.4, 17.7)), 12)
+		self.assertRaises(OverrideError, lambda:
+				D_diamond_override_err1().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				D_diamond_override_err2().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				D_diamond_override_err3().meth1((12, 17)))
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time
@@ -2900,7 +2952,17 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(stub_py2.B_override_with_type_check_arg_py2().meth1_py2(17.7), 4)
 		self.assertEqual(stub_py2.B_override_with_type_typechecked_py2().meth1_py2(17.7), 4)
 
-		pytypes.always_check_parent_types = always_check_parent_types_tmp 
+		pytypes.always_check_parent_types = always_check_parent_types_tmp
+
+	def test_override_diamond_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		self.assertEqual(stub_py2.D_diamond_override_py2().meth1_py2((12.4, 17.7)), 12)
+		self.assertRaises(OverrideError, lambda:
+				stub_py2.D_diamond_override_err1_py2().meth1_py2((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				stub_py2.D_diamond_override_err2_py2().meth1_py2((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				stub_py2.D_diamond_override_err3_py2().meth1_py2((12, 17)))
 
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -3398,7 +3460,19 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(stub_py3.B_override_with_type_check_arg().meth1(17.7), 4)
 		self.assertEqual(stub_py3.B_override_with_type_typechecked().meth1(17.7), 4)
 
-		pytypes.always_check_parent_types = always_check_parent_types_tmp 
+		pytypes.always_check_parent_types = always_check_parent_types_tmp
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+			'Only applicable in Python >= 3.5.')
+	def test_override_diamond_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		self.assertEqual(stub_py3.D_diamond_override().meth1((12.4, 17.7)), 12)
+		self.assertRaises(OverrideError, lambda:
+				stub_py3.D_diamond_override_err1().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				stub_py3.D_diamond_override_err2().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				stub_py3.D_diamond_override_err3().meth1((12, 17)))
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -4006,7 +4080,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 		self.assertEqual(py3.B_override_with_type_check_arg().meth1(17.7), 4)
 		self.assertEqual(py3.B_override_with_type_typechecked().meth1(17.7), 4)
 
-		pytypes.always_check_parent_types = always_check_parent_types_tmp 
+		pytypes.always_check_parent_types = always_check_parent_types_tmp
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -4112,6 +4186,15 @@ class TestOverride_Python3_5(unittest.TestCase):
 				cl.method_kwonly7_err_py2(79, 90.7, 1.1, q=2, v=3, h=7, k=11.7))
 		self.assertRaises(OverrideError, lambda:
 				cl.method_kwonly8_err_py2(100, 100.5, 200, 201, 203.3, nx=7, fl=9))
+
+	def test_override_diamond(self):
+		self.assertEqual(py3.D_diamond_override().meth1((12.4, 17.7)), 12)
+		self.assertRaises(OverrideError, lambda:
+				py3.D_diamond_override_err1().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				py3.D_diamond_override_err2().meth1((12, 17)))
+		self.assertRaises(OverrideError, lambda:
+				py3.D_diamond_override_err3().meth1((12, 17)))
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time

@@ -377,3 +377,39 @@ class B_override_with_type_typechecked_py2(A_check_parent_types_py2):
 	def meth1_py2(self, a):
 		# type: (float) -> int
 		pass
+
+
+class A_diamond_override_py2(object):
+	def meth1_py2(self, a):
+		# type: (Tuple[int, int]) -> int
+		pass
+
+class B_diamond_override_py2(A_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[int, float]) -> int
+		pass
+
+class C_diamond_override_py2(A_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[float, int]) -> int
+		pass
+
+class D_diamond_override_py2(B_diamond_override_py2, C_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[float, float]) -> int
+		pass
+
+class D_diamond_override_err1_py2(B_diamond_override_py2, C_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[float, int]) -> int
+		pass
+
+class D_diamond_override_err2_py2(B_diamond_override_py2, C_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[int, float]) -> int
+		pass
+
+class D_diamond_override_err3_py2(B_diamond_override_py2, C_diamond_override_py2):
+	def meth1_py2(self, a):
+		# type: (Tuple[int, int]) -> int
+		pass

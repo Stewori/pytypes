@@ -537,3 +537,39 @@ class B_override_with_type_typechecked(A_check_parent_types):
 	def meth1(self, a):
 		check_argument_types()
 		return len(str(a))
+
+
+class A_diamond_override(object):
+	def meth1(self, a):
+		return len(str(a))
+
+class B_diamond_override(A_diamond_override):
+	@override
+	def meth1(self, a):
+		return len(str(a))
+
+class C_diamond_override(A_diamond_override):
+	@override
+	def meth1(self, a):
+		return len(str(a))
+
+class D_diamond_override(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class D_diamond_override_err1(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		return len(str(a))
+
+class D_diamond_override_err2(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		return len(str(a))
+
+class D_diamond_override_err3(B_diamond_override, C_diamond_override):
+	@override
+	def meth1(self, a):
+		return len(str(a))

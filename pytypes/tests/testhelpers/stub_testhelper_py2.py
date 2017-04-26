@@ -546,3 +546,46 @@ class B_override_with_type_typechecked_py2(A_check_parent_types_py2):
 		# actually (float) -> int
 		check_argument_types()
 		return len(str(a))
+
+
+class A_diamond_override_py2(object):
+	def meth1_py2(self, a):
+		# actually (Tuple[int, int]) -> int
+		return len(str(a))
+
+class B_diamond_override_py2(A_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[int, float]) -> int
+		return len(str(a))
+
+class C_diamond_override_py2(A_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[float, int]) -> int
+		return len(str(a))
+
+class D_diamond_override_py2(B_diamond_override_py2, C_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[float, float]) -> int
+		check_argument_types()
+		return len(str(a))
+
+class D_diamond_override_err1_py2(B_diamond_override_py2, C_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[float, int]) -> int
+		return len(str(a))
+
+class D_diamond_override_err2_py2(B_diamond_override_py2, C_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[int, float]) -> int
+		return len(str(a))
+
+class D_diamond_override_err3_py2(B_diamond_override_py2, C_diamond_override_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (Tuple[int, int]) -> int
+		return len(str(a))
