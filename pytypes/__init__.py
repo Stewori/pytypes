@@ -155,9 +155,8 @@ from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
 		_pytypes_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
-		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \
-		check_argument_types, _catch_up_global_checking, _catch_up_global_auto_override, \
-		_catch_up_global_typelog
+		is_no_type_check, override, check_argument_types, _catch_up_global_checking, \
+		_catch_up_global_auto_override, _catch_up_global_typelog
 
 set_clean_traceback()
 

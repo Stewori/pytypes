@@ -630,11 +630,6 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 	if not result:
 		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
 				slf, func_class, argSig, 'called with incompatible types', prop_getter))
-# 		if pytypes.clean_traceback:
-# 			nfo = make_clean_exc_info(ite)
-# 			#raise nfo[0], nfo[1], nfo[2]
-# 		else:
-# 			raise ite
 	return checked_val
 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \

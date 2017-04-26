@@ -1172,3 +1172,45 @@ class varagrs_call_class(varagrs_call_class_base):
 	@override
 	def testmeth4(self, a, b, c, *varargs):
 		return a+b
+
+
+class A_check_parent_types():
+	def meth1(self, a: int) -> int:
+		return len(str(a))
+
+class B_override_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_check_arg(A_check_parent_types):
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_typechecked(A_check_parent_types):
+	@typechecked
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a: float) -> int:
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a: float) -> int:
+		check_argument_types()
+		return len(str(a))

@@ -361,3 +361,19 @@ def func_defaults_annotations_py2(a, b, c):
 def testfunc_annotations_from_stubfile_by_decorator_py2(a, b):
 	# type: (str, int) -> int
 	pass
+
+
+class A_check_parent_types_py2(object):
+	def meth1_py2(self, a):
+		# type: (int) -> int
+		pass
+
+class B_override_with_type_check_arg_py2(A_check_parent_types_py2):
+	def meth1_py2(self, a):
+		# type: (float) -> int
+		pass
+
+class B_override_with_type_typechecked_py2(A_check_parent_types_py2):
+	def meth1_py2(self, a):
+		# type: (float) -> int
+		pass

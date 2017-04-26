@@ -4,7 +4,7 @@ Created on 08.11.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked, check_argument_types, annotations
+from pytypes import typechecked, check_argument_types, annotations, override
 from typing import Generic, TypeVar
 
 @typechecked
@@ -501,3 +501,48 @@ def func_defaults_annotations_py2(a, b, c=4):
 def testfunc_annotations_from_stubfile_by_decorator_py2(a, b):
 	# actually (str, int) -> int
 	return len(a)/b
+
+
+class A_check_parent_types_py2(object):
+	def meth1_py2(self, a):
+		# actually (int) -> int
+		return len(str(a))
+
+class B_override_check_arg_py2(A_check_parent_types_py2):
+	@override
+	def meth1_py2(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_check_arg_py2(A_check_parent_types_py2):
+	def meth1_py2(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_typechecked_py2(A_check_parent_types_py2):
+	@typechecked
+	@override
+	def meth1_py2(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_typechecked_py2(A_check_parent_types_py2):
+	@typechecked
+	def meth1_py2(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_check_arg_py2(A_check_parent_types_py2):
+	@override
+	def meth1_py2(self, a):
+		# actually (float) -> int
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_typechecked_py2(A_check_parent_types_py2):
+	@typechecked
+	@override
+	def meth1_py2(self, a):
+		# actually (float) -> int
+		check_argument_types()
+		return len(str(a))

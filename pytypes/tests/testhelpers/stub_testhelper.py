@@ -4,7 +4,7 @@ Created on 21.10.2016
 @author: Stefan Richthofer
 '''
 
-from pytypes import typechecked, check_argument_types, annotations
+from pytypes import typechecked, check_argument_types, annotations, override
 from typing import Generic, TypeVar
 
 @typechecked
@@ -495,3 +495,45 @@ def func_defaults_annotations(a, b, c=4):
 @annotations
 def testfunc_annotations_from_stubfile_by_decorator(a, b):
 	return len(a)/b
+
+
+class A_check_parent_types():
+	def meth1(self, a):
+		return len(str(a))
+
+class B_override_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_check_arg(A_check_parent_types):
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_typechecked(A_check_parent_types):
+	@typechecked
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))

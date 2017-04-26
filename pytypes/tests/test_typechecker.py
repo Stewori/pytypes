@@ -1226,6 +1226,51 @@ def func_bad_typestring10(a, *b, **c):
 	pass
 
 
+class A_check_parent_types(object):
+	def meth1(self, a):
+		# type: (int) -> int
+		return len(str(a))
+
+class B_override_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_check_arg(A_check_parent_types):
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_no_override_typechecked(A_check_parent_types):
+	@typechecked
+	def meth1(self, a):
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_check_arg(A_check_parent_types):
+	@override
+	def meth1(self, a):
+		# type: (float) -> int
+		check_argument_types()
+		return len(str(a))
+
+class B_override_with_type_typechecked(A_check_parent_types):
+	@typechecked
+	@override
+	def meth1(self, a):
+		# type: (float) -> int
+		check_argument_types()
+		return len(str(a))
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -2041,26 +2086,54 @@ class TestTypecheck(unittest.TestCase):
 		pytypes.infer_default_value_types = tmp
 
 	def test_typestring_varargs_syntax(self):
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring1))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring2))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring3))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring4))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring5))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring6))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring7))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring8))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring9))
-			self.assertRaises(TypeSyntaxError, lambda:
-					pytypes.get_types(func_bad_typestring10))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring1))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring2))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring3))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring4))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring5))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring6))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring7))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring8))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring9))
+		self.assertRaises(TypeSyntaxError, lambda:
+				pytypes.get_types(func_bad_typestring10))
+
+	def test_typecheck_parent_type(self):
+		always_check_parent_types_tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+
+		self.assertRaises(InputTypeError, lambda:
+				B_override_check_arg().meth1(17.7))
+		self.assertEqual(B_no_override_check_arg().meth1(17.7), 4)
+		self.assertRaises(InputTypeError, lambda:
+				B_override_typechecked().meth1(17.7))
+		self.assertEqual(B_no_override_typechecked().meth1(17.7), 4)
+		self.assertEqual(B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = True
+
+		self.assertRaises(InputTypeError, lambda:
+				B_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				B_no_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				B_override_typechecked().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				B_no_override_typechecked().meth1(17.7))
+		self.assertEqual(B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = always_check_parent_types_tmp 
 
 
 class TestTypecheck_class(unittest.TestCase):
@@ -2800,6 +2873,35 @@ class TestStubfile(unittest.TestCase):
 		self.assertEqual(stub_py2.testfunc_annotations_from_stubfile_by_decorator_py2.
 				__annotations__, {'a': str, 'b': int, 'return': int})
 
+	def test_typecheck_parent_type_plain_2_7_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+		always_check_parent_types_tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_override_check_arg_py2().meth1_py2(17.7))
+		self.assertEqual(stub_py2.B_no_override_check_arg_py2().meth1_py2(17.7), 4)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_override_typechecked_py2().meth1_py2(17.7))
+		self.assertEqual(stub_py2.B_no_override_typechecked_py2().meth1_py2(17.7), 4)
+		self.assertEqual(stub_py2.B_override_with_type_check_arg_py2().meth1_py2(17.7), 4)
+		self.assertEqual(stub_py2.B_override_with_type_typechecked_py2().meth1_py2(17.7), 4)
+
+		pytypes.always_check_parent_types = True
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_override_check_arg_py2().meth1_py2(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_no_override_check_arg_py2().meth1_py2(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_override_typechecked_py2().meth1_py2(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py2.B_no_override_typechecked_py2().meth1_py2(17.7))
+		self.assertEqual(stub_py2.B_override_with_type_check_arg_py2().meth1_py2(17.7), 4)
+		self.assertEqual(stub_py2.B_override_with_type_typechecked_py2().meth1_py2(17.7), 4)
+
+		pytypes.always_check_parent_types = always_check_parent_types_tmp 
+
 
 	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
 			'Only applicable in Python >= 3.5.')
@@ -3266,6 +3368,37 @@ class TestStubfile(unittest.TestCase):
 				{'a': str, 'return': str})
 		self.assertEqual(stub_py3.testfunc_annotations_from_stubfile_by_decorator.
 				__annotations__, {'a': str, 'b': int, 'return': int})
+
+	@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+			'Only applicable in Python >= 3.5.')
+	def test_typecheck_parent_type_plain_3_5_stub(self):
+		from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+		always_check_parent_types_tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_override_check_arg().meth1(17.7))
+		self.assertEqual(stub_py3.B_no_override_check_arg().meth1(17.7), 4)
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_override_typechecked().meth1(17.7))
+		self.assertEqual(stub_py3.B_no_override_typechecked().meth1(17.7), 4)
+		self.assertEqual(stub_py3.B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(stub_py3.B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = True
+
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_no_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_override_typechecked().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				stub_py3.B_no_override_typechecked().meth1(17.7))
+		self.assertEqual(stub_py3.B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(stub_py3.B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = always_check_parent_types_tmp 
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -3846,6 +3979,34 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 				{'a': str, 'return': str})
 
 		pytypes.infer_default_value_types = tmp
+
+	def test_typecheck_parent_type(self):
+		always_check_parent_types_tmp = pytypes.always_check_parent_types
+		pytypes.always_check_parent_types = False
+
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_override_check_arg().meth1(17.7))
+		self.assertEqual(py3.B_no_override_check_arg().meth1(17.7), 4)
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_override_typechecked().meth1(17.7))
+		self.assertEqual(py3.B_no_override_typechecked().meth1(17.7), 4)
+		self.assertEqual(py3.B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(py3.B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = True
+
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_no_override_check_arg().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_override_typechecked().meth1(17.7))
+		self.assertRaises(InputTypeError, lambda:
+				py3.B_no_override_typechecked().meth1(17.7))
+		self.assertEqual(py3.B_override_with_type_check_arg().meth1(17.7), 4)
+		self.assertEqual(py3.B_override_with_type_typechecked().meth1(17.7), 4)
+
+		pytypes.always_check_parent_types = always_check_parent_types_tmp 
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
