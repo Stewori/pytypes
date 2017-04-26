@@ -540,3 +540,30 @@ def _has_base_method(meth, cls):
 			if inspect.ismethod(fmeth) or inspect.ismethoddescriptor(fmeth):
 				return True
 	return False
+
+def _calc_traceback_limit(tb):
+	"""Calculates limit-parameter to strip away pytypes' internals when used
+	with API from traceback module.
+	"""
+	limit = 1
+	tb2 = tb
+	while not tb2.tb_next is None:
+		if tb2.tb_next.tb_frame.f_code.co_filename.split(os.sep)[-2] == 'pytypes':
+			break
+		else:
+			limit += 1
+			tb2 = tb2.tb_next
+	return limit
+
+def _pytypes_excepthook(exctype, value, tb):
+	""""An excepthook suitable for use as sys.excepthook, that strips away
+	part of the traceback belonging to pytypes' internals.
+	Can be switched on and off via pytypes.clean_traceback
+	or pytypes.set_clean_traceback.
+	The latter automatically installs this hook in sys.excepthook.
+	"""
+	if pytypes.clean_traceback and issubclass(exctype, TypeError):
+		import traceback
+		traceback.print_exception(exctype, value, tb, _calc_traceback_limit(tb))
+	else:
+		sys.__excepthook__(exctype, value, tb)

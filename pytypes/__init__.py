@@ -4,7 +4,7 @@ Created on 12.12.2016
 @author: Stefan Richthofer
 '''
 
-import typing
+import typing, sys
 
 checking_enabled = False
 typelogging_enabled = True
@@ -41,6 +41,8 @@ strict_annotation_collision_check = False
 
 default_typecheck_depth = 10
 
+clean_traceback = True
+
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
 def set_checking_enabled(flag = True):
@@ -75,6 +77,16 @@ def set_global_typelog(flag = True, retrospective = True):
 	if global_typelog and retrospective:
 		_catch_up_global_typelog()
 	return global_typelog
+
+def set_clean_traceback(flag = True):
+	'''Activates traceback cleaning. This means that traceback of uncaught
+	TypeErrors does not include pytypes' internal calls for typechecking etc,
+	but instead focuses on the location of an ill-typed call itself.
+	'''
+	global clean_traceback
+	clean_traceback = flag
+	if clean_traceback:
+		sys.excepthook = _pytypes_excepthook
 
 # This way we glue typechecking to activeness of the assert statement by default,
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
@@ -139,12 +151,15 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		make_Tuple, make_Union, annotations, get_member_types, Empty, \
 		_catch_up_global_annotations
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
-		get_class_that_defined_method, is_method, is_class, is_classmethod, mro
+		get_class_that_defined_method, is_method, is_class, is_classmethod, mro, \
+		_pytypes_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, OverrideError, InputTypeError, ReturnTypeError, \
 		check_argument_types, _catch_up_global_checking, _catch_up_global_auto_override, \
 		_catch_up_global_typelog
+
+set_clean_traceback()
 
 # Some exemplary overrides for this modules's global settings:
 
