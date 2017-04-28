@@ -508,36 +508,28 @@ def _code_matches_func(func, code):
 				except AttributeError:
 					return False
 
-def old_mro(clss, dest = []):
+def _mro(clss, dest = []):
 	if not clss in dest:
 		dest.append(clss)
 		for clss2 in clss.__bases__:
-			old_mro(clss2, dest)
-	return dest
-
-def new_mro(clss, dest = []):
-	# not very efficient, but should be rarely used anyway
-	if not clss in dest:
-		dest.append(clss)
-	for clss2 in clss.__bases__:
-		if not clss2 in dest:
-			dest.append(clss2)
-	for clss2 in clss.__bases__:
-		new_mro(clss2, dest)
+			_mro(clss2, dest)
 	return dest
 
 def mro(clss):
+	# We can replace this by inspect.getmro, but we should
+	# wait until http://bugs.jython.org/issue2581 is fixed.
 	try:
 		return clss.__mro__
 	except AttributeError:
-		return old_mro(clss)
+		return _mro(clss)
 
 def _has_base_method(meth, cls):
 	meth0 = _actualfunc(meth)
-	for cls in mro(cls):
-		if hasattr(cls, meth0.__name__):
-			fmeth = getattr(cls, meth0.__name__)
-			if inspect.ismethod(fmeth) or inspect.ismethoddescriptor(fmeth):
+	for cls1 in mro(cls)[1:]:
+		if hasattr(cls1, meth0.__name__):
+			fmeth = getattr(cls1, meth0.__name__)
+			if inspect.isfunction(fmeth) or inspect.ismethod(fmeth) \
+					or inspect.ismethoddescriptor(fmeth):
 				return True
 	return False
 

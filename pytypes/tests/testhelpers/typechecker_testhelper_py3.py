@@ -4,7 +4,8 @@ Created on 12.09.2016
 @author: Stefan Richthofer
 '''
 
-import pytypes; from pytypes import typechecked, override, check_argument_types
+import pytypes
+from pytypes import typechecked, override, check_argument_types, auto_override
 from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
 		Iterable, Iterator, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
@@ -1250,3 +1251,24 @@ class D_diamond_override_err3(B_diamond_override, C_diamond_override):
 	@override
 	def meth1(self, a: Tuple[int, int]) -> int:
 		return len(str(a))
+
+
+class A_auto_override():
+	def meth_1(self, a: str, b: Tuple[int, float]) -> int:
+		pass
+
+@auto_override
+class B_auto_override(A_auto_override):
+	def meth_1(self, a: str, b: Tuple[float, float]) -> int:
+		return len(str(len(a)+b[0]-b[1]))
+
+	def meth_2(self, c: str) -> int:
+		return 3*len(c)
+
+@auto_override
+class B_auto_override_err(A_auto_override):
+	def meth_1(self, a: str, b: Tuple[int, int]) -> int:
+		return len(str(len(a)+b[0]-b[1]))
+
+	def meth_2(self, c: str) -> int:
+		return 3*len(c)

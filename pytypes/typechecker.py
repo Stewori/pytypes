@@ -317,7 +317,7 @@ def _function_instead_of_method_error(method):
 	return OverrideError('@override was applied to a function, not a method: %s.%s.\n'
 					% (method.__module__, method.__name__))
 
-def override(func):
+def override(func, auto = False):
 	if not pytypes.checking_enabled:
 		return func
 	# notes:
@@ -398,7 +398,8 @@ def override(func):
 						_delayed_checks.append(_DelayedCheck(func, func, meth_cls_name, base_method,
 								cls, sys.exc_info()))
 		if not base_method_exists:
-			raise _no_base_method_error(func)
+			if not auto:
+				raise _no_base_method_error(func)
 
 	if pytypes.check_override_at_runtime:
 		specs = util.getargspecs(func)
@@ -430,7 +431,10 @@ def override(func):
 							if not is_builtin_type(mc):
 								ovmro.append(mc)
 					if not base_method_exists:
-						raise _no_base_method_error(func)
+						if not auto:
+							raise _no_base_method_error(func)
+						else:
+							return func(*args, **kw)
 					# Not yet support overloading
 					# Check arg-count compatibility
 					for ovcls in ovmro:
@@ -955,11 +959,9 @@ def auto_override_class(cls, force = False, force_recursive = False):
 	for key in keys:
 		memb = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(memb):
-			if ismethod(memb) or ismethoddescriptor(memb):
+			if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb):
 				if util._has_base_method(memb, cls):
 					setattr(cls, key, override(memb))
-# 				else:
-# 					print ("wouldn't auto_override", key, cls, memb, getattr(cls, key))
 			elif isclass(memb):
 				auto_override_class(memb, force_recursive, force_recursive)
 	return cls
@@ -992,6 +994,15 @@ def auto_override_module(md, force_recursive = False):
 				auto_override_class(memb, force_recursive, force_recursive)
 	_auto_override_modules[md.__name__] = len(md.__dict__)
 	return md
+
+def auto_override(memb):
+	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+		return override(memb, True)
+	if isclass(memb):
+		return auto_override_class(memb)
+	if ismodule(memb):
+		return auto_override_module(memb, True)
+	return memb
 
 def _catch_up_global_checking():
 	for mod_name in sys.modules:

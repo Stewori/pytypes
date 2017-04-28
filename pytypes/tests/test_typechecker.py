@@ -11,9 +11,9 @@ import pytypes
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 pytypes.always_check_parent_types = False
-from pytypes import typechecked, override, no_type_check, get_types, get_type_hints, \
-		TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, TypeSyntaxError, \
-		check_argument_types, annotations, get_member_types
+from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
+		get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
+		TypeSyntaxError, check_argument_types, annotations, get_member_types
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
 from numbers import Real
@@ -1314,6 +1314,32 @@ class D_diamond_override_err3(B_diamond_override, C_diamond_override):
 		return len(str(a))
 
 
+class A_auto_override(object):
+	def meth_1(self, a, b):
+		# type: (str, Tuple[int, float]) -> int
+		pass
+
+@auto_override
+class B_auto_override(A_auto_override):
+	def meth_1(self, a, b):
+		# type: (str, Tuple[float, float]) -> int
+		return len(str(len(a)+b[0]-b[1]))
+
+	def meth_2(self, c):
+		# type: (str) -> int
+		return 3*len(c)
+
+@auto_override
+class B_auto_override_err(A_auto_override):
+	def meth_1(self, a, b):
+		# type: (str, Tuple[int, int]) -> int
+		return len(str(len(a)+b[0]-b[1]))
+
+	def meth_2(self, c):
+		# type: (str) -> int
+		return 3*len(c)
+
+
 class TestTypecheck(unittest.TestCase):
 	def test_function(self):
 		self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -2344,6 +2370,12 @@ class TestOverride(unittest.TestCase):
 				D_diamond_override_err2().meth1((12, 17)))
 		self.assertRaises(OverrideError, lambda:
 				D_diamond_override_err3().meth1((12, 17)))
+
+	def test_auto_override(self):
+		self.assertEqual(B_auto_override().meth_1('abc', (4, 2)), 1)
+		obj = B_auto_override_err()
+		self.assertRaises(OverrideError, lambda: obj.meth_1('abc', (4, 2)))
+		self.assertEqual(obj.meth_2('defg'), 12)
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time
@@ -4195,6 +4227,12 @@ class TestOverride_Python3_5(unittest.TestCase):
 				py3.D_diamond_override_err2().meth1((12, 17)))
 		self.assertRaises(OverrideError, lambda:
 				py3.D_diamond_override_err3().meth1((12, 17)))
+
+	def test_auto_override(self):
+		self.assertEqual(py3.B_auto_override().meth_1('abc', (4, 2)), 1)
+		obj = py3.B_auto_override_err()
+		self.assertRaises(OverrideError, lambda: obj.meth_1('abc', (4, 2)))
+		self.assertEqual(obj.meth_2('defg'), 12)
 
 	def test_override_at_definition_time(self):
 		tmp = pytypes.check_override_at_class_definition_time
