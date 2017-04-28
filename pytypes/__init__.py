@@ -150,9 +150,8 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
 		make_Tuple, make_Union, annotations, get_member_types, Empty, \
 		_catch_up_global_annotations
-from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, \
-		get_class_that_defined_method, is_method, is_class, is_classmethod, mro, \
-		_pytypes_excepthook
+from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
+		get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, check_argument_types, _catch_up_global_checking, \
