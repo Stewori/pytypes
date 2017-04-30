@@ -7,12 +7,13 @@ Created on 20.08.2016
 import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
+from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, \
 		_find_typed_base_method
+from .typelogger import log_type
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
-from pytypes.util import getargspecs, _actualfunc
 
 if sys.version_info.major >= 3:
 	import builtins
@@ -651,17 +652,38 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 
 # This is just a stub for now
 def typelogged_func(func):
-	return func
+	#log_type
+	if not pytypes.typelogging_enabled:
+		return func
+	if hasattr(func, 'do_logging'):
+		func.do_logging = True
+		return func
+	elif hasattr(func, 'do_typecheck'):
+		# actually shouldn't happen
+		return _typeinspect_func(func, func.do_typecheck, True)
+	else:
+		return _typeinspect_func(func, False, True)
 
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
-	if not pytypes.checking_enabled:
+	if not pytypes.checking_enabled and not pytypes.do_logging_in_typechecked:
 		return func
 	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func)
 			or isinstance(func, property))
 	if not force and is_no_type_check(func):
 		return func
+	if hasattr(func, 'do_typecheck'):
+		func.do_typecheck = True
+		return func
+	elif hasattr(func, 'do_logging'):
+		# actually shouldn't happen
+		return _typeinspect_func(func, True, func.do_logging, argType, resType, prop_getter)
+	else:
+		return _typeinspect_func(func, True, False, argType, resType, prop_getter)
+
+def _typeinspect_func(func, do_typecheck, do_logging, \
+			argType = None, resType = None, prop_getter = False):
 	clsm = isinstance(func, classmethod)
 	stat = isinstance(func, staticmethod)
 	prop = isinstance(func, property)
@@ -670,12 +692,6 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	specs = getargspecs(func0)
 	argNames = util.getargnames(specs)
 	def checker_tp(*args, **kw):
-		if pytypes.always_check_parent_types:
-			checkParents = True
-		elif hasattr(func, '_check_parent_types'):
-			checkParents = func._check_parent_types
-		else:
-			checkParents = False
 		if hasattr(checker_tp, '__annotations__') and len(checker_tp.__annotations__) > 0:
 			checker_tp.ch_func.__annotations__ = checker_tp.__annotations__
 		# check consistency regarding special case with 'self'-keyword
@@ -711,71 +727,85 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 			elif prop or prop_getter:
 				raise TypeError("property without slef-arg: "+str(func))
 			check_args = args_kw
-		if checkParents:
-			if not slf:
-				if not pytypes.always_check_parent_types:
-					raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
-							% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
-				else:
-					toCheck = func
-			else:
-				tfunc, _ = _find_typed_base_method(func, args_kw[0].__class__)
-				toCheck = tfunc if not tfunc is None else func
-		else:
-			toCheck = func
-
+		
 		parent_class = None
 		if slf:
 			parent_class = args_kw[0].__class__
 		elif clsm:
 			parent_class = args_kw[0]
 
-		if argType is None or resType is None:
-			argSig, resSig = _funcsigtypes(toCheck, slf or clsm,
-					parent_class, None, prop_getter or auto_prop_getter)
-			if argType is None:
-				argSig = _match_stub_type(argSig)
-			else:
-				argSig = argType
-			if resType is None:
-				resSig = _match_stub_type(resSig)
-			else:
-				resSig = resType
+		if do_logging or (do_typecheck and pytypes.do_logging_in_typechecked):
+			log_type(check_args, func, slf, clsm, parent_class, specs)
+		if not do_typecheck:
+			return func(*args, **kw)
 		else:
-			argSig, resSig = argType, resType
-		make_checked = pytypes.check_callables or \
-				pytypes.check_iterables or pytypes.check_generators
-		checked_val = _checkfunctype(argSig, check_args,
-				toCheck, slf or clsm, parent_class, make_checked,
-				prop_getter or auto_prop_getter, specs)
-		if make_checked:
-			checked_args, checked_kw = util.fromargskw(checked_val, specs, slf or clsm)
-		else:
-			checked_args = args
-			checked_kw = kw
-
-		# perform backend-call:
-		if clsm or stat:
-			if len(args_kw) != len(checked_val):
-				res = func.__func__(args[0], *checked_args, **checked_kw)
+			if pytypes.always_check_parent_types:
+				checkParents = True
+			elif hasattr(func, '_check_parent_types'):
+				checkParents = func._check_parent_types
 			else:
-				res = func.__func__(*checked_args, **checked_kw)
-		elif prop:
-			if prop_getter or func.fset is None:
-				res = func.fget(args[0], *checked_args, **checked_kw)
+				checkParents = False
+			if checkParents:
+				if not slf:
+					if not pytypes.always_check_parent_types:
+						raise OverrideError('@override with non-instancemethod not supported: %s.%s.%s.\n'
+								% (func0.__module__, args_kw[0].__class__.__name__, func0.__name__))
+					else:
+						toCheck = func
+				else:
+					tfunc, _ = _find_typed_base_method(func, args_kw[0].__class__)
+					toCheck = tfunc if not tfunc is None else func
 			else:
-				res = func.fset(args[0], *checked_args, **checked_kw)
-		else:
-			if len(args_kw) != len(checked_val):
-				res = func(args[0], *checked_args, **checked_kw)
+				toCheck = func
+	
+			if argType is None or resType is None:
+				argSig, resSig = _funcsigtypes(toCheck, slf or clsm,
+						parent_class, None, prop_getter or auto_prop_getter)
+				if argType is None:
+					argSig = _match_stub_type(argSig)
+				else:
+					argSig = argType
+				if resType is None:
+					resSig = _match_stub_type(resSig)
+				else:
+					resSig = resType
 			else:
-				res = func(*checked_args, **checked_kw)
-
-		checked_res = _checkfuncresult(resSig, res, toCheck, \
-				slf or clsm, parent_class, True, prop_getter)
-		return checked_res
+				argSig, resSig = argType, resType
+			make_checked = pytypes.check_callables or \
+					pytypes.check_iterables or pytypes.check_generators
+			checked_val = _checkfunctype(argSig, check_args,
+					toCheck, slf or clsm, parent_class, make_checked,
+					prop_getter or auto_prop_getter, specs)
+			if make_checked:
+				checked_args, checked_kw = util.fromargskw(checked_val, specs, slf or clsm)
+			else:
+				checked_args = args
+				checked_kw = kw
+	
+			# perform backend-call:
+			if clsm or stat:
+				if len(args_kw) != len(checked_val):
+					res = func.__func__(args[0], *checked_args, **checked_kw)
+				else:
+					res = func.__func__(*checked_args, **checked_kw)
+			elif prop:
+				if prop_getter or func.fset is None:
+					res = func.fget(args[0], *checked_args, **checked_kw)
+				else:
+					res = func.fset(args[0], *checked_args, **checked_kw)
+			else:
+				if len(args_kw) != len(checked_val):
+					res = func(args[0], *checked_args, **checked_kw)
+				else:
+					res = func(*checked_args, **checked_kw)
+	
+			checked_res = _checkfuncresult(resSig, res, toCheck, \
+					slf or clsm, parent_class, True, prop_getter)
+			return checked_res
 
 	checker_tp.ch_func = func
+	checker_tp.do_typecheck = do_typecheck
+	checker_tp.do_logging = do_logging
 	if hasattr(func, '__func__'):
 		checker_tp.__func__ = func.__func__
 	checker_tp.__name__ = func0.__name__ # What sorts of evil might this bring over us?

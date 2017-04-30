@@ -2,9 +2,12 @@
 Created on 12.12.2016
 
 @author: Stefan Richthofer
+
+Todo: Some functions in this module can be simplified or replaced
+      by more consequent use of inspect module.
 '''
 
-import pytypes, subprocess, hashlib, sys, os, types, inspect
+import pytypes, subprocess, hashlib, sys, os, inspect
 
 _code_callable_dict = {}
 
@@ -48,7 +51,7 @@ def _find_files(file_name, search_paths):
 
 def getargspecs(func):
 	'''Bridges inspect.getargspec and inspect.getfullargspec.
-	Automatically selects the proper one depending of current Python version..
+	Automatically selects the proper one depending of current Python version.
 	Automatically bypasses wrappers from typechecked- and override-decorators.
 	'''
 	if func is None:
@@ -79,7 +82,7 @@ def get_required_kwonly_args(argspecs):
 		return []
 
 def getargnames(argspecs):
-	'''Resembles list of arg-names as would be seen a function signature, including
+	'''Resembles list of arg-names as would be seen in a function signature, including
 	var-args, var-keywords and keyword-only args.
 	'''
 	args = argspecs.args

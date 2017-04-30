@@ -6,8 +6,16 @@ Created on 12.12.2016
 
 import typing, sys
 
-checking_enabled = False
+checking_enabled = False # Will be enabled by default, unless -o is set
+# Note that you cannot change this flag later on. You must specify
+# this right after first import of pytypes.
+
 typelogging_enabled = True
+# Note that you cannot change this flag later on. You must specify
+# this right after first import of pytypes.
+
+do_logging_in_typechecked = False # Let the typechecked-decorator also perform logging
+
 global_checking = False
 global_auto_override = False
 global_annotations = False
