@@ -26,6 +26,18 @@ def _md5(fname):
 			m.update(chunk)
 	return m.hexdigest()
 
+def _python_version_string():
+	try:
+		impl = sys.subversion[0]
+	except AttributeError:
+		impl = sys.implementation.name
+		if impl == 'cpython':
+			impl = 'CPython'
+	lst = [impl,
+			'.'.join([str(x) for x in sys.version_info[:3]]),
+			' '.join([str(x) for x in sys.version_info[3:]])]
+	return '%s %s %s' % tuple(lst)
+
 def _full_module_file_name_nosuffix(module_name):
 	module = sys.modules[module_name]
 	bn = os.path.basename(module.__file__).rpartition('.')[0]
@@ -81,10 +93,11 @@ def get_required_kwonly_args(argspecs):
 	except AttributeError:
 		return []
 
-def getargnames(argspecs):
+def getargnames(argspecs, with_unbox=False):
 	'''Resembles list of arg-names as would be seen in a function signature, including
 	var-args, var-keywords and keyword-only args.
 	'''
+	# todo: We can maybe make use of inspect.formatargspec
 	args = argspecs.args
 	vargs = argspecs.varargs
 	try:
@@ -99,11 +112,11 @@ def getargnames(argspecs):
 	if not args is None:
 		res.extend(args)
 	if not vargs is None:
-		res.append(vargs)
+		res.append('*'+vargs if with_unbox else vargs)
 	if not kwonly is None:
 		res.extend(kwonly)
 	if not kw is None:
-		res.append(kw)
+		res.append('**'+kw if with_unbox else kw)
 	return res
 
 def getargskw(args, kw, argspecs):
@@ -589,7 +602,7 @@ def _calc_traceback_limit(tb):
 
 def _pytypes_excepthook(exctype, value, tb):
 	""""An excepthook suitable for use as sys.excepthook, that strips away
-	part of the traceback belonging to pytypes' internals.
+	the part of the traceback belonging to pytypes' internals.
 	Can be switched on and off via pytypes.clean_traceback
 	or pytypes.set_clean_traceback.
 	The latter automatically installs this hook in sys.excepthook.

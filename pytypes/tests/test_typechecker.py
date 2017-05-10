@@ -13,7 +13,7 @@ pytypes.check_override_at_runtime = True
 pytypes.always_check_parent_types = False
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
 		get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
-		TypeSyntaxError, check_argument_types, annotations, get_member_types
+		TypeSyntaxError, check_argument_types, annotations, get_member_types, typelogged
 import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
 		Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
 from numbers import Real

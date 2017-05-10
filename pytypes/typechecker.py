@@ -11,7 +11,6 @@ from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, \
 		_find_typed_base_method
-from .typelogger import log_type
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
@@ -23,7 +22,6 @@ else:
 not_type_checked = set()
 _fully_typechecked_modules = {}
 _auto_override_modules = {}
-_fully_typelogged_modules = {}
 
 _delayed_checks = []
 
@@ -31,41 +29,39 @@ _delayed_checks = []
 # process forward-declarations after module loading finished
 # and eventually apply global typechecking:
 python___import__ = builtins.__import__
-def pytypes___import__(name, *x):
-	res = python___import__(name, *x)
+def pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
+	res = python___import__(name, globls, locls, fromlist, level)
 	if sys.version_info.major >= 3:
-		if (len(x) >= 3):
-			if x[2] is None:
-				_re_match_module(name, True)
-			else:
-				for mod_name in x[2]:
-					mod_name_full = name+'.'+mod_name
-					if mod_name_full in sys.modules:
-						_re_match_module(mod_name_full, True)
+		if fromlist is None:
+			_re_match_module(name, True)
+		else:
+			for mod_name in fromlist:
+				mod_name_full = name+'.'+mod_name
+				if mod_name_full in sys.modules:
+					_re_match_module(mod_name_full, True)
 	_run_delayed_checks(True, name)
 	if pytypes.global_checking or pytypes.global_auto_override or \
 			pytypes.global_annotations or pytypes.global_typelog:
-		if (len(x) >= 3):
-			if x[2] is None:
-				if name in sys.modules:
+		if fromlist is None:
+			if name in sys.modules:
+				if pytypes.global_checking:
+					typechecked_module(name)
+				if pytypes.global_typelog:
+					typelogged_module(name)
+				if pytypes.global_auto_override:
+					auto_override_module(name)
+				if pytypes.global_annotations:
+					type_util.annotations_module(name)
+		else:
+			for mod_name in fromlist:
+				mod_name_full = name+'.'+mod_name
+				if mod_name_full in sys.modules:
 					if pytypes.global_checking:
-						typechecked_module(name)
-					if pytypes.global_typelog:
-						typelogged_module(name)
+						typechecked_module(mod_name_full, True)
 					if pytypes.global_auto_override:
-						auto_override_module(name)
+						auto_override_module(mod_name_full, True)
 					if pytypes.global_annotations:
-						type_util.annotations_module(name)
-			else:
-				for mod_name in x[2]:
-					mod_name_full = name+'.'+mod_name
-					if mod_name_full in sys.modules:
-						if pytypes.global_checking:
-							typechecked_module(mod_name_full, True)
-						if pytypes.global_auto_override:
-							auto_override_module(mod_name_full, True)
-						if pytypes.global_annotations:
-							type_util.annotations_module(mod_name_full)
+						type_util.annotations_module(mod_name_full)
 	return res
 builtins.__import__ = pytypes___import__
 
@@ -479,9 +475,9 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
 	if type(func) is property:
 		assert slf is True
 		if func.fset is None or prop_getter:
-			fq_func_name = util._fully_qualified_func_name(func.fget, True, func_class)+"/getter"
+			fq_func_name = util._fully_qualified_func_name(func.fget, True, func_class)+'/getter'
 		else:
-			fq_func_name = util._fully_qualified_func_name(func.fset, True, func_class)+"/setter"
+			fq_func_name = util._fully_qualified_func_name(func.fset, True, func_class)+'/setter'
 	else:
 		fq_func_name = util._fully_qualified_func_name(func, slf, func_class)
 	# Todo: Clarify if an @override-induced check caused this
@@ -565,7 +561,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 					if sys.version_info.major == 2:
 						wrgen = type_util.generator_checker_py2(obj, cls)
 					else:
-						wrgen = type_util. generator_checker_py3(obj, cls)
+						wrgen = type_util.generator_checker_py3(obj, cls)
 						wrgen.__qualname__ = obj.__qualname__
 					return True, wrgen
 				else:
@@ -650,20 +646,6 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 				slf, func_class, resSig, 'returned incompatible type', prop_getter))
 	return checked_val
 
-# This is just a stub for now
-def typelogged_func(func):
-	#log_type
-	if not pytypes.typelogging_enabled:
-		return func
-	if hasattr(func, 'do_logging'):
-		func.do_logging = True
-		return func
-	elif hasattr(func, 'do_typecheck'):
-		# actually shouldn't happen
-		return _typeinspect_func(func, func.do_typecheck, True)
-	else:
-		return _typeinspect_func(func, False, True)
-
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
@@ -683,11 +665,13 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 		return _typeinspect_func(func, True, False, argType, resType, prop_getter)
 
 def _typeinspect_func(func, do_typecheck, do_logging, \
-			argType = None, resType = None, prop_getter = False):
+			argType = None, resType = None, prop_getter = False, log_func=None):
 	clsm = isinstance(func, classmethod)
 	stat = isinstance(func, staticmethod)
 	prop = isinstance(func, property)
 	auto_prop_getter = prop and func.fset is None
+	#if prop:
+	#	print 689, auto_prop_getter, func, func.fget, func.fset
 	func0 = _actualfunc(func, prop_getter)
 	specs = getargspecs(func0)
 	argNames = util.getargnames(specs)
@@ -734,10 +718,22 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 		elif clsm:
 			parent_class = args_kw[0]
 
-		if do_logging or (do_typecheck and pytypes.do_logging_in_typechecked):
-			log_type(check_args, func, slf, clsm, parent_class, specs)
 		if not do_typecheck:
-			return func(*args, **kw)
+			if do_logging: # or (do_typecheck and pytypes.do_logging_in_typechecked):
+				if clsm or stat:
+					res = func.__func__(*args, **kw)
+				elif prop:
+					if prop_getter or func.fset is None:
+						res = func.fget(*args, **kw)
+					else:
+						res = func.fset(*args, **kw)
+				else:
+					res = func(*args, **kw)
+				assert not log_func is None
+				log_func(check_args, res, func, slf, prop_getter, parent_class, specs)
+				return res
+			else:
+				return func(*args, **kw)
 		else:
 			if pytypes.always_check_parent_types:
 				checkParents = True
@@ -801,6 +797,9 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 	
 			checked_res = _checkfuncresult(resSig, res, toCheck, \
 					slf or clsm, parent_class, True, prop_getter)
+			if pytypes.do_logging_in_typechecked:
+				assert not log_func is None
+				log_func(check_args, res, func, slf, prop_getter, parent_class, specs)
 			return checked_res
 
 	checker_tp.ch_func = func
@@ -827,7 +826,8 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 		else:
 			if not hasattr(func.fget, 'ch_func'):
 				#todo: What about @no_type_check applied to getter/setter?
-				checker_tp_get = typechecked_func(func, prop_getter = True)
+				checker_tp_get = _typeinspect_func(func, do_typecheck, do_logging, \
+						argType, resType, True, log_func)
 				return property(checker_tp_get, checker_tp, func.fdel, func.__doc__)
 			return property(func.fget, checker_tp, func.fdel, func.__doc__)
 	else:
@@ -865,7 +865,6 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 				else:
 					nst2 = [cls]
 				nst2.append(memb)
-				#setattr(cls, key, _typechecked_class(memb, force_recursive, force_recursive, nst2))
 				_typechecked_class(memb, force_recursive, force_recursive, nst2)
 	return cls
 
@@ -913,66 +912,6 @@ def typechecked(memb):
 		return typechecked_class(memb)
 	if ismodule(memb):
 		return typechecked_module(memb, True)
-	return memb
-
-def typelogged_class(cls):
-	if not pytypes.typelogging_enabled:
-		return cls
-	assert(isclass(cls))
-	# To play it safe we avoid to modify the dict while iterating over it,
-	# so we previously cache keys.
-	# For this we don't use keys() because of Python 3.
-	# Todo: Better use inspect.getmembers here
-	keys = [key for key in cls.__dict__]
-	for key in keys:
-		memb = cls.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or \
-				ismethoddescriptor(memb) or isinstance(memb, property)):
-			setattr(cls, key, typelogged_func(memb))
-		elif isclass(memb):
-			typelogged_class(memb)
-	return cls
-
-def typelogged_module(md):
-	'''Intended to typelog modules that were not annotated
-	with @typelogged without modifying their code.
-	md must be a module or a module name contained in sys.modules.
-	'''
-	if not pytypes.typelogging_enabled:
-		return md
-	if isinstance(md, str):
-		if md in sys.modules:
-			md = sys.modules[md]
-			if md is None:
-				return md
-	assert(ismodule(md))
-	if md.__name__ in _fully_typelogged_modules and \
-			_fully_typelogged_modules[md.__name__] == len(md.__dict__):
-		return md
-	# To play it safe we avoid to modify the dict while iterating over it,
-	# so we previously cache keys.
-	# For this we don't use keys() because of Python 3.
-	# Todo: Better use inspect.getmembers here
-	keys = [key for key in md.__dict__]
-	for key in keys:
-		memb = md.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
-				and memb.__module__ == md.__name__:
-			setattr(md, key, typelogged_func(memb))
-		elif isclass(memb) and memb.__module__ == md.__name__:
-			typelogged_class(memb)
-	_fully_typelogged_modules[md.__name__] = len(md.__dict__)
-	return md
-
-def typelogged(memb):
-	if not pytypes.typelogging_enabled:
-		return memb
-	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
-		return typelogged_func(memb)
-	if isclass(memb):
-		return typelogged_class(memb)
-	if ismodule(memb):
-		return typelogged_module(memb, True)
 	return memb
 
 def auto_override_class(cls, force = False, force_recursive = False):
@@ -1053,16 +992,6 @@ def _catch_up_global_auto_override():
 				md = None
 			if not md is None and ismodule(md):
 				_auto_override_modules(mod_name)
-
-def _catch_up_global_typelog():
-	for mod_name in sys.modules:
-		if not mod_name in _fully_typelogged_modules:
-			try:
-				md = sys.modules[mod_name]
-			except KeyError:
-				md = None
-			if not md is None and ismodule(md):
-				typelogged_module(mod_name)
 
 def no_type_check(memb):
 	try:

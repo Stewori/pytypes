@@ -552,7 +552,7 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
 			for prm in prms]
 
 def _issubclass_Generic(subclass, superclass):
-	# this method is based on code from typing module 3.5.2.2
+	# this function is partly based on code from typing module 3.5.2.2
 	if subclass is None:
 		return False
 	if subclass in _extra_dict:
@@ -659,7 +659,7 @@ def _issubclass_Generic(subclass, superclass):
 	return _issubclass_2(subclass, superclass.__extra__)
 
 def _issubclass_Tuple(subclass, superclass):
-	# this method is based on code from typing module 3.5.2.2
+	# this function is partly based on code from typing module 3.5.2.2
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
 	if not isinstance(subclass, type):
@@ -683,7 +683,7 @@ def _issubclass_Tuple(subclass, superclass):
 				for x, p in zip(sub_args, super_args)))
 
 def _issubclass_Union(subclass, superclass):
-	# this method is based on code from typing module 3.5.2.2
+	# this function is partly based on code from typing module 3.5.2.2
 	super_args = get_Union_params(superclass)
 	if super_args is None:
 		return is_Union(subclass)
@@ -928,3 +928,21 @@ def _catch_up_global_annotations():
 				md = None
 			if not md is None and ismodule(md):
 				annotations_module(mod_name)
+
+def simplify_for_Union(type_list):
+	i = 0
+	while i < len(type_list):
+		j = 0
+		while j < i:
+			if _issubclass(type_list[j], type_list[i]):
+				del type_list[j]
+				i -= 1
+			else:
+				j += 1
+		j = i+1
+		while j < len(type_list):
+			if _issubclass(type_list[j], type_list[i]):
+				del type_list[j]
+			else:
+				j += 1
+		i += 1

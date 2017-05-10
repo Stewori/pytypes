@@ -6,6 +6,8 @@ Created on 12.12.2016
 
 import typing, sys
 
+version = '1.0a1'
+
 checking_enabled = False # Will be enabled by default, unless -o is set
 # Note that you cannot change this flag later on. You must specify
 # this right after first import of pytypes.
@@ -135,6 +137,14 @@ stub_path = []
 # Directory to collect generated stubs. If None, tempfile.gettempdir() is used.
 stub_gen_dir = None
 
+# Used if get_indentation doesn't yield a result.
+default_indent = '\t'
+default_typelogger_path = 'typelogger_output'
+
+# typelogger uses this to indent typestrings in output files.
+# Uses get_indentation if None.
+# typelogger_indent = None # currently uses default_indent always
+
 # Monkeypatch Generic to circumvent type erasure:
 if not hasattr(typing, '_generic_new'):
 	_Generic__new__ = typing.Generic.__new__
@@ -163,10 +173,10 @@ from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mr
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, check_argument_types, _catch_up_global_checking, \
-		_catch_up_global_auto_override, _catch_up_global_typelog, auto_override, \
-		typelogged
+		_catch_up_global_auto_override, auto_override
+from .typelogger import dump_cache, log_type, typelogged, _catch_up_global_typelog
 
-set_clean_traceback()
+#set_clean_traceback()
 
 # Some exemplary overrides for this modules's global settings:
 
