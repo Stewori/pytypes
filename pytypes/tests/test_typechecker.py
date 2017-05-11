@@ -4295,7 +4295,5 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
 		self.assertRaises(InputTypeError, lambda:
 				py3.test_inner_class_testf1_err())
 
-
 if __name__ == '__main__':
 	unittest.main()
-	

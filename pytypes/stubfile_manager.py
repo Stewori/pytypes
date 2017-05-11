@@ -7,7 +7,7 @@ Created on 13.12.2016
 import sys, inspect, os, imp, subprocess
 import warnings, tempfile, atexit
 from inspect import isclass, ismodule, ismethod
-from typing import Union, TupleMeta, GenericMeta, CallableMeta
+from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
 import pytypes; from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
@@ -211,13 +211,13 @@ def _match_stub_type(stub_type):
 	# Todo: Somehow cache results
 	if isinstance(stub_type, TupleMeta):
 		prms = pytypes.get_Tuple_params(stub_type)
-		res = pytypes.make_Tuple(tuple(_match_stub_type(t) for t in prms))
+		res = Tuple[(tuple(_match_stub_type(t) for t in prms))]
 	elif pytypes.is_Union(stub_type):
 		try:
 			# Python 3.6
-			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__args__))
+			res = Union[tuple(_match_stub_type(t) for t in stub_type.__args__)]
 		except AttributeError:
-			res = pytypes.make_Union(tuple(_match_stub_type(t) for t in stub_type.__union_params__))
+			res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
 	elif isinstance(stub_type, GenericMeta):
 		if stub_type.__args__ is None:
 			res = stub_type

@@ -6,7 +6,7 @@ Created on 13.12.2016
 
 import inspect
 import pytypes
-from typing import Any
+from typing import Any, Tuple
 from pytypes import TypeSyntaxError
 
 def _striptrailingcomment(s):
@@ -196,7 +196,7 @@ def _funcsigtypesfromstring(typestring, argTypes = None, argspec = None, globals
 		for i in range(uc):
 			argTypes[-1-i] = pytypes.deep_type(defaults[-1-i])
 	# Note: Tuple constructor automatically normalizes None to NoneType
-	tpl = pytypes.make_Tuple(tuple(argTypes))
+	tpl = Tuple[tuple(argTypes)]
 # 	if useEllipsis:
 # 		tpl.__tuple_use_ellipsis__ = True
 

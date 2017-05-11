@@ -50,8 +50,8 @@ annotations_from_typestring = False
 strict_annotation_collision_check = False
 
 default_typecheck_depth = 10
-# -1 lets pytypes always evaluate the whole list
-deep_type_list_samplesize = -1
+# -1 lets pytypes always evaluate the whole list, set or dict
+deep_type_samplesize = -1
 
 clean_traceback = True
 
@@ -168,8 +168,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		make_Tuple, make_Union, annotations, get_member_types, Empty, \
-		_catch_up_global_annotations
+		annotations, get_member_types, Empty, _catch_up_global_annotations
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
 		get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any

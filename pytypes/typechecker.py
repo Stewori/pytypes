@@ -181,8 +181,8 @@ def _preprocess_override(meth_types, base_types, meth_argspec, base_argspec):
 	if not base_kw is None:
 		base_arg_types2.append(base_arg_types[base_argnames.index(base_kw)])
 		arg_types2.append(kw_type)
-	return (type_util.make_Tuple(tuple(arg_types2)), meth_types[1]), \
-			(type_util.make_Tuple(tuple(base_arg_types2)), base_types[1])
+	return (typing.Tuple[tuple(arg_types2)], meth_types[1]), \
+			(typing.Tuple[tuple(base_arg_types2)], base_types[1])
 
 def _check_override_types(method, meth_types, class_name, base_method, base_class):
 	# regarding kw:
@@ -515,7 +515,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 			# Note that these might check different type-aspects. With IntersectionTypes one day
 			# we can merge them into one checker. Maybe checker should already support this?
 			clb_args, clb_res = pytypes.get_Callable_args_res(cls)
-			return True, typechecked_func(obj, force, pytypes.make_Tuple(clb_args), clb_res)
+			return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
 		return True, obj
 	if isinstance(cls, typing.GenericMeta):
 		if cls.__origin__ is typing.Iterable:

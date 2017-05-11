@@ -41,51 +41,26 @@ def get_generator_type(genr):
 	else:
 		return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
 
-def make_Union(arg_tpl):
-# Should work now by monkeypatching in pytypes.
-# However we leave this sample here for a while...
-# Once we remove it, we will also inline make_Union again.
-# 	if pytypes.issue351:
-# 		if not isinstance(arg_tpl, tuple):
-# 			arg_tpl = (arg_tpl,)
-# 		for i in range(len(arg_tpl)-1):
-# 			for j in range(i+1, len(arg_tpl)):
-# 				if arg_tpl[i] == arg_tpl[j] and not \
-# 						_issubclass(arg_tpl[i], arg_tpl[j]):
-# 					res = Union[str, int]
-# 					if any (t is None for t in arg_tpl):
-# 						ntp = type(None)
-# 						arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
-# 					res.__args__ = arg_tpl
-# 					return res
-	return Union[arg_tpl]
-
-def make_Tuple(arg_tpl):
-	res = Tuple[arg_tpl]
-# Should work now by monkeypatching in pytypes.
-# However we leave this sample here for a while...
-# Once we remove it, we will also inline make_Tuple again.
-# 	if pytypes.issue351:
-# 		if not isinstance(arg_tpl, tuple):
-# 			arg_tpl = (arg_tpl,)
-# 		if any (t is None for t in arg_tpl):
-# 			ntp = type(None)
-# 			arg_tpl = tuple([ntp if t is None else t for t in arg_tpl])
-# 		res.__args__ = arg_tpl if len(arg_tpl) > 0 else ((),)
-	return res
-
 def get_iterable_itemtype(obj):
+	'''Attempts to get an iterable's itemtype without iterating over it,
+	not even partly. Note that iterating over an iterable might modify
+	its inner state, e.g. if it is an iterator.
+	This function leverages various alternative ways to obtain that
+	info, e.g. by looking for type annotations of '__iter__' or '__getitem__'.
+	It is intended for (unknown) iterables where the type cannot be obtained
+	via sampling without the risk of modifying inner state.
+	'''
 	# support further specific iterables on demand
 	try:
 		if isinstance(obj, range):
 			tpl = tuple(deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step))
-			return make_Union(tpl)
+			return Union[tpl]
 	except TypeError:
 		# We're running Python 2
 		pass
 	if type(obj) is tuple:
 		tpl = tuple(deep_type(t) for t in obj)
-		return make_Union(tpl)
+		return Union[tpl]
 	elif type(obj) is types.GeneratorType:
 		return get_generator_yield_type(obj)
 	else:
@@ -166,14 +141,16 @@ def is_Union(tp):
 		except AttributeError:
 			return False
 
-def deep_type(obj, depth = None, max_lst_sample = None):
-	return _deep_type(obj, [], depth, max_lst_sample)
+def deep_type(obj, depth = None, max_sample = None):
+	return _deep_type(obj, [], depth, max_sample)
 
-def _deep_type(obj, checked, depth = None, max_lst_sample = None):
+def _deep_type(obj, checked, depth = None, max_sample = None):
 	if depth is None:
 		depth = pytypes.default_typecheck_depth
-	if max_lst_sample is None:
-		max_lst_sample = pytypes.deep_type_list_samplesize
+	if max_sample is None:
+		max_sample = pytypes.deep_type_samplesize
+	if -1 != max_sample < 2:
+		max_sample = 2
 	try:
 		res = obj.__orig_class__
 	except AttributeError:
@@ -183,33 +160,84 @@ def _deep_type(obj, checked, depth = None, max_lst_sample = None):
 	else:
 		checked.append(obj)
 	if res == tuple:
-		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
-		res = make_Tuple(tpl)
+		res = Tuple[tuple(_deep_type(t, checked, depth-1) for t in obj)]
 	elif res == list:
 		if len(obj) == 0:
 			return Empty[List]
-		if max_lst_sample == -1 or max_lst_sample >= len(obj)-1 or len(obj) <= 2:
+		if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
 			tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
 		else:
+			# In case of lists I somehow feel it's better to ensure that
+			# first and last element are part of the sample
 			sample = [0, len(obj)-1]
 			try:
-				rsmp = random.sample(xrange(1, len(obj)-1), max_lst_sample-2)
+				rsmp = random.sample(xrange(1, len(obj)-1), max_sample-2)
 			except NameError:
-				rsmp = random.sample(range(1, len(obj)-1), max_lst_sample-2)
+				rsmp = random.sample(range(1, len(obj)-1), max_sample-2)
 			sample.extend(rsmp)
 			tpl = tuple(_deep_type(obj[t], checked, depth-1) for t in sample)
-		res = List[make_Union(tpl)]
+		res = List[Union[tpl]]
 	elif res == dict:
 		if len(obj) == 0:
 			return Empty[Dict]
-		tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.keys())
-		tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.values())
-		res = Dict[make_Union(tpl1), make_Union(tpl2)]
+		if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
+			try:
+				# We prefer a view (avoid copy)
+				tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.viewkeys())
+				tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.viewvalues())
+			except AttributeError:
+				# Python 3 gives views like this:
+				tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.keys())
+				tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.values())
+		else:
+			try:
+				kitr = iter(obj.viewkeys())
+				vitr = iter(obj.viewvalues())
+			except AttributeError:
+				kitr = iter(obj.keys())
+				vitr = iter(obj.values())
+			ksmpl = []
+			vsmpl = []
+			block = (len(obj) // max_sample)-1
+			# I know this method has some bias towards beginning of iteration
+			# sequence, but it's still more random than just taking the
+			# initial sample and better than O(n) random.sample.
+			while len(ksmpl) < max_sample:
+				if block > 0:
+					j = random.randint(0, block)
+					k = random.randint(0, block)
+					while j > 0:
+						next(vitr) # discard
+						j -= 1
+					while k > 0:
+						next(kitr) # discard
+						k -= 1
+				ksmpl.append(next(kitr))
+				vsmpl.append(next(vitr))
+			tpl1 = tuple(_deep_type(t, checked, depth-1) for t in ksmpl)
+			tpl2 = tuple(_deep_type(t, checked, depth-1) for t in vsmpl)
+		res = Dict[Union[tpl1], Union[tpl2]]
 	elif res == set:
 		if len(obj) == 0:
 			return Empty[Set]
-		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
-		res = Set[make_Union(tpl)]
+		if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
+			tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		else:
+			itr = iter(obj)
+			smpl = []
+			block = (len(obj) // max_sample)-1
+			# I know this method has some bias towards beginning of iteration
+			# sequence, but it's still more random than just taking the
+			# initial sample and better than O(n) random.sample.
+			while len(smpl) < max_sample:
+				if block > 0:
+					j = random.randint(0, block)
+					while j > 0:
+						next(itr) # discard
+						j -= 1
+				smpl.append(next(itr))
+			tpl = tuple(_deep_type(t, checked, depth-1) for t in smpl)
+		res = Set[Union[tpl]]
 	elif res == types.GeneratorType:
 		res = get_generator_type(obj)
 	elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
@@ -465,8 +493,8 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 		for i in range(len(argNames)):
 			if not argNames[i] in tpHints:
 				unspecIndices.append(i)
-		resType = (make_Tuple(tuple((tpHints[t] if t in tpHints else unspecified_type) \
-				for t in argNames)), retTp if not retTp is None else type(None))
+		resType = (Tuple[tuple((tpHints[t] if t in tpHints else unspecified_type) \
+				for t in argNames)], retTp if not retTp is None else type(None))
 		if infer_defaults:
 			resType = _handle_defaults(resType, argSpecs, unspecIndices)
 		if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None):
@@ -579,7 +607,7 @@ def _issubclass_Generic(subclass, superclass):
 			# note that we needn't consider superclass beeing a tuple,
 			# because that should have been checked in _issubclass_Tuple
 			return issubclass(typing.Sequence, superclass.__origin__)
-		subclass = Sequence[make_Union(tpl_prms)]
+		subclass = Sequence[Union[tpl_prms]]
 	if isinstance(subclass, GenericMeta):
 		# For a class C(Generic[T]) where T is co-variant,
 		# C[X] is a subclass of C[Y] iff X is a subclass of Y.
@@ -709,7 +737,7 @@ def _issubclass_Union(subclass, superclass):
 		if subclass in super_args:
 			return True
 		if subclass.__constraints__:
-			return _issubclass(make_Union(subclass.__constraints__), superclass)
+			return _issubclass(Union[subclass.__constraints__], superclass)
 		return False
 	else:
 		return any(_issubclass(subclass, t) for t in super_args)
@@ -790,7 +818,7 @@ def _isinstance_Callable(obj, cls, check_callables = True):
 		argSig = _match_stub_type(argSig)
 		resSig = _match_stub_type(resSig)
 		clb_args, clb_res = get_Callable_args_res(cls)
-		if not _issubclass(make_Tuple(clb_args), argSig):
+		if not _issubclass(Tuple[clb_args], argSig):
 			return False
 		if not _issubclass(resSig, clb_res):
 			return False
