@@ -4298,3 +4298,4 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
 
 if __name__ == '__main__':
 	unittest.main()
+	

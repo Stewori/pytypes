@@ -148,7 +148,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 				'from typing import Any, Tuple, List, Union, Generic, Optional, \\',
 				2*indent+'TypeVar, Set, FrozenSet, Dict, Generator']
 				#'import numbers']
-				# todo: Properly create include section
+				# todo: Properly create import section
 
 		for i in range(len(lines)):
 			lines[i] = lines[i]+'\n'
@@ -544,9 +544,9 @@ def typelogged_func(func):
 		return func
 	elif hasattr(func, 'do_typecheck'):
 		# actually shouldn't happen
-		return _typeinspect_func(func, func.do_typecheck, True, log_func=log_type)
+		return _typeinspect_func(func, func.do_typecheck, True)
 	else:
-		return _typeinspect_func(func, False, True, log_func=log_type)
+		return _typeinspect_func(func, False, True)
 
 def typelogged_class(cls):
 	if not typelogging_enabled:

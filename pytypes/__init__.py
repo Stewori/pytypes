@@ -50,6 +50,8 @@ annotations_from_typestring = False
 strict_annotation_collision_check = False
 
 default_typecheck_depth = 10
+# -1 lets pytypes always evaluate the whole list
+deep_type_list_samplesize = -1
 
 clean_traceback = True
 
@@ -176,7 +178,7 @@ from .typechecker import typechecked, typechecked_module, no_type_check, \
 		_catch_up_global_auto_override, auto_override
 from .typelogger import dump_cache, log_type, typelogged, _catch_up_global_typelog
 
-#set_clean_traceback()
+set_clean_traceback()
 
 # Some exemplary overrides for this modules's global settings:
 

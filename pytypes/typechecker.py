@@ -665,13 +665,11 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 		return _typeinspect_func(func, True, False, argType, resType, prop_getter)
 
 def _typeinspect_func(func, do_typecheck, do_logging, \
-			argType = None, resType = None, prop_getter = False, log_func=None):
+			argType = None, resType = None, prop_getter = False):
 	clsm = isinstance(func, classmethod)
 	stat = isinstance(func, staticmethod)
 	prop = isinstance(func, property)
 	auto_prop_getter = prop and func.fset is None
-	#if prop:
-	#	print 689, auto_prop_getter, func, func.fget, func.fset
 	func0 = _actualfunc(func, prop_getter)
 	specs = getargspecs(func0)
 	argNames = util.getargnames(specs)
@@ -729,8 +727,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 						res = func.fset(*args, **kw)
 				else:
 					res = func(*args, **kw)
-				assert not log_func is None
-				log_func(check_args, res, func, slf, prop_getter, parent_class, specs)
+				pytypes.log_type(check_args, res, func, slf, prop_getter, parent_class, specs)
 				return res
 			else:
 				return func(*args, **kw)
@@ -798,8 +795,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 			checked_res = _checkfuncresult(resSig, res, toCheck, \
 					slf or clsm, parent_class, True, prop_getter)
 			if pytypes.do_logging_in_typechecked:
-				assert not log_func is None
-				log_func(check_args, res, func, slf, prop_getter, parent_class, specs)
+				pytypes.log_type(check_args, res, func, slf, prop_getter, parent_class, specs)
 			return checked_res
 
 	checker_tp.ch_func = func
@@ -827,7 +823,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 			if not hasattr(func.fget, 'ch_func'):
 				#todo: What about @no_type_check applied to getter/setter?
 				checker_tp_get = _typeinspect_func(func, do_typecheck, do_logging, \
-						argType, resType, True, log_func)
+						argType, resType, True)
 				return property(checker_tp_get, checker_tp, func.fdel, func.__doc__)
 			return property(func.fget, checker_tp, func.fdel, func.__doc__)
 	else:

@@ -10,7 +10,7 @@ import typing; from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta,
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
-import  sys, types, pytypes
+import  sys, types, pytypes, random
 
 _annotated_modules = {}
 _extra_dict = {}
@@ -166,10 +166,14 @@ def is_Union(tp):
 		except AttributeError:
 			return False
 
-def deep_type(obj, depth = pytypes.default_typecheck_depth):
-	return _deep_type(obj, [], depth)
+def deep_type(obj, depth = None, max_lst_sample = None):
+	return _deep_type(obj, [], depth, max_lst_sample)
 
-def _deep_type(obj, checked, depth):
+def _deep_type(obj, checked, depth = None, max_lst_sample = None):
+	if depth is None:
+		depth = pytypes.default_typecheck_depth
+	if max_lst_sample is None:
+		max_lst_sample = pytypes.deep_type_list_samplesize
 	try:
 		res = obj.__orig_class__
 	except AttributeError:
@@ -184,7 +188,16 @@ def _deep_type(obj, checked, depth):
 	elif res == list:
 		if len(obj) == 0:
 			return Empty[List]
-		tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		if max_lst_sample == -1 or max_lst_sample >= len(obj)-1 or len(obj) <= 2:
+			tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+		else:
+			sample = [0, len(obj)-1]
+			try:
+				rsmp = random.sample(xrange(1, len(obj)-1), max_lst_sample-2)
+			except NameError:
+				rsmp = random.sample(range(1, len(obj)-1), max_lst_sample-2)
+			sample.extend(rsmp)
+			tpl = tuple(_deep_type(obj[t], checked, depth-1) for t in sample)
 		res = List[make_Union(tpl)]
 	elif res == dict:
 		if len(obj) == 0:
