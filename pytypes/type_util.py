@@ -47,7 +47,7 @@ def get_iterable_itemtype(obj):
 	its inner state, e.g. if it is an iterator.
 	This function leverages various alternative ways to obtain that
 	info, e.g. by looking for type annotations of '__iter__' or '__getitem__'.
-	It is intended for (unknown) iterables where the type cannot be obtained
+	It is intended for (unknown) iterables, where the type cannot be obtained
 	via sampling without the risk of modifying inner state.
 	'''
 	# support further specific iterables on demand

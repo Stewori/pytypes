@@ -1,4 +1,227 @@
 '''
+pytypes main package.
+
+This file provides some behavioral flags and options you can modify to
+control various aspects of pytypes.
+
+
+Attributes
+----------
+
+version : str
+	Version of this pytypes distribution as a string.
+
+checking_enabled : bool
+	Flag to enable or disable runtime typechecking.
+	Default: True, unless -o is set.
+	Note that you cannot change this flag later on. You must specify
+	this right after first import of pytypes, because typecheck decorators
+	are applied on function definition time and install wrapper functions.
+
+typelogging_enabled : bool
+	Flag to enable or disable typelogging.
+	Default: True
+	Note that you cannot change this flag later on. You must specify
+	this right after first import of pytypes, because typelogging decorators
+	are applied on function definition time and install wrapper functions.
+
+do_logging_in_typechecked : bool
+    Let the typechecked-decorator also perform typelogging.
+	Default: False
+	In contrast to checking_enabled and typelogging_enabled, this can be
+	switched on and off at any time.
+
+global_checking : bool
+	Flag indicating global typechecking mode.
+	Default: False
+	Every function or method with type annotation is typechecked now.
+	Will affect all functions and methods imported after this flag
+	was set. Use set_global_checking for a retrospective option.
+	Does not work if checking_enabled is false.
+	Does not work reliably if checking_enabled has ever been set to
+	false during current run.
+
+global_auto_override : bool
+	Flag indicating global auto_override mode.
+	Default: False
+	Every method with type annotation that also has a parent method
+	with type annotation is now checked for type consistency with its
+	parent.
+	Will affect all functions and methods imported after this flag
+	was set. Use set_global_auto_override for a retrospective option.
+
+global_annotations : bool
+	Flag indicating global annotation mode.
+	Default: False
+	Methods with typestring will have type hints parsed from that
+	string and get them attached as __annotations__ attribute.
+	Methods with either a typestring or ordinary type annotations in
+	a stubfile will get that information attached as __annotations__
+	attribute. Behavior in case of collision with previously (manually)
+	attached __annotations__ can be controlled using the flags
+	annotations_override_typestring  and annotations_from_typestring.
+	Will affect all methods imported after this flag
+	was set. Use set_global_annotations for a retrospective option.
+
+global_typelog : bool
+	Flag indicating global typelog mode.
+	Default: False
+	Every function and method call is recorded. The observed type
+	information can be written into stubfiles by calling dump_cache.
+	Will affect all methods imported after this flag
+	was set. Use set_global_typelog for a retrospective option.
+
+check_override_at_runtime : bool
+	Flag indicating override consistency is checked at runtime.
+	Default: False
+
+check_override_at_class_definition_time : bool
+	Flag indicating override consistency is checked at class definition time.
+	Default: True
+
+always_check_parent_types : bool
+	Lets typechecked decorator also apply check like done in auto_override.
+	Default: True
+	If true, typechecked decorator always checks type consistency with
+	type-annotated parent methods if any exist.
+
+check_callables : bool
+	Turns callables into typechecked wrappers.
+	Default: True
+	If true, callables that pass a typecheck decorator are passed on wrapped
+	into another typechecker that checks calls according to type info from a
+	Callable type object. Will only be applied if such type information exists.
+
+check_iterables : bool
+	Turns iterables into typechecked wrappers.
+	Default: True
+	If true, iterables that pass a typecheck decorator are passed on wrapped
+	into another typechecker that checks elements returned by iterators according
+	to type info from an Iterable type object.
+	Will only be applied if such type information exists.
+
+check_generators : bool
+	Turns generators into typechecked wrappers.
+	Default: True
+	If true, generators that pass a typecheck decorator are passed on wrapped
+	into another typechecker that checks elements returned by yield, etc. according
+	to type info from an Generator type object.
+	Will only be applied if such type information exists.
+
+check_unbound_types : bool
+	If true, treat missing parameters as unknown.
+	Default: True
+	Tells pytypes to actually attempt typechecking of unbound types, e.g
+	things like is_subtype(List[Any], list).
+	If false such checks are prohibited.
+	If true, missing parameters are treated as unknown, which in turn is
+	treated according to strict_unknown_check flag.
+
+strict_unknown_check : bool
+	Controls the meaning of unknown parameters.
+	Default: False
+	If false, treat unknown parameters somewhat like Any.
+	If true (i.e. strict mode), treat unknown parameters
+	somewhat like 'nothing', because no assumptions can be made.
+
+apply_numeric_tower : bool
+	Lets pytypes treat int as subtype of float as subtype of complex
+	Default: True
+	If true, numeric tower like described in
+	https://www.python.org/dev/peps/pep-0484/#the-numeric-tower
+	is applied to runtime typechecking and typelogging.
+
+covariant_Mapping : bool
+	For runtime checking, treat Mapping-types as covariant.
+	Default: True
+	For runtime checking it is usually okay to treat Mapping-types as covariant,
+	given that a Mapping here wouldn't accept every value of proper type anyway.
+	(Unlike a mathematical mapping that accepts all values from a certain set.)
+	Note that we cannot treat the key type as contravariant as one might expect,
+	because in Python Mappings are Iterables over the key type.
+
+infer_default_value_types : bool
+	Lets pytypes take type information from default values into account.
+	Default: True
+	If true, lets pytypes apply deep_type on default values of functions and
+	methods. Will only be applied to parameters without type annotation.
+	The default values are obtained via inspect.getargspec (Python 2.7) or
+	inspect.getfullargspec (Python 3.x).
+
+annotations_override_typestring : bool
+	A manually inserted __annotations__ will override a typestring.
+	Default: False
+
+annotations_from_typestring : bool
+	Lets typechecked decorator work like annotations decorator.
+	Default: False
+	If true, typechecked decorator will automatically attach parsed
+	typestrings as __annotations__ to the according function or method.
+	Won't be applied if annotations_override_typestring is true.
+
+strict_annotation_collision_check : bool
+	Prohibits to have __annotations__ and typestring at the same time.
+	Default: False
+	According to
+	https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code
+	__annotations__ and typestring must not be present for the same
+	function or method at the same time. By default pytypes does not
+	enforce this rule, but instead asserts equivalence of such concurring
+	type hints.
+	If this flag is true, pytypes will prohibit multiple type hints.
+
+default_typecheck_depth : int
+	Specifies maximal recursion depth of deep_type.
+	Default: 10
+	Default maximal recursion depth for inferring a structured type of
+	a given object.
+
+deep_type_samplesize : int
+	The number of elements pytypes considers when it determines the element
+	type of a list, set or dict.
+	Default: -1
+	When it builds a List, Set or Dict type from a given list, set or dict,
+	pytypes considers all elements within by default to determine the element
+	type. For larger data amounts one might want to base this procedure on a
+	smaller, somewhat randomly drawn set of elements.
+	-1 lets pytypes always evaluate the whole list, set or dict, while other
+	positive values let it only check a somewhat random sample of that size.
+
+clean_traceback : bool
+	If true, hides pytypes' internal part of exception traceback output.
+	Default: True
+	Turn this off if you want to trace a bug in pytypes.
+
+python3_5_executable : str
+	Python command used to parse Python 3.5 style stubfiles.
+	Default: 'python3'
+	Must be >= 3.5.0.
+	pytypes comes with the stubfile converter stub_2_convert that creates
+	Python 2.7 compliant stubfiles. The converter itself requires Python 3.5
+	to run. On Python 2.7 pytype can use this command to convert Python 3.5
+	stubfiles to Python 2.7, so they can be used in current execution then.
+
+stub_path : List[str]
+	Search-path for stubfiles.
+	Default: []
+	Additionally to this list of paths, pytypes will look for stubfiles on
+	the pythonpath.
+
+stub_gen_dir : Optional[str]
+	Directory to collect generated stubs.
+	Default: None
+	When pytypes uses stub_2_convert, the output files will land in this folder.
+	If None, tempfile.gettempdir() is used.
+
+default_indent : str
+	Indentation used by typelogger when generating stubfiles.
+	Default: '\t'
+
+default_typelogger_path : str
+	Directory where typelogger places generated stubs.
+	Default: 'typelogger_output'
+
+
 Created on 12.12.2016
 
 @author: Stefan Richthofer
