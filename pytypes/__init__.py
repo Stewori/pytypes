@@ -26,7 +26,7 @@ typelogging_enabled : bool
 	are applied on function definition time and install wrapper functions.
 
 do_logging_in_typechecked : bool
-    Let the typechecked-decorator also perform typelogging.
+	Let the typechecked-decorator also perform typelogging.
 	Default: False
 	In contrast to checking_enabled and typelogging_enabled, this can be
 	switched on and off at any time.
@@ -59,7 +59,7 @@ global_annotations : bool
 	a stubfile will get that information attached as __annotations__
 	attribute. Behavior in case of collision with previously (manually)
 	attached __annotations__ can be controlled using the flags
-	annotations_override_typestring  and annotations_from_typestring.
+	annotations_override_typestring and annotations_from_typestring.
 	Will affect all methods imported after this flag
 	was set. Use set_global_annotations for a retrospective option.
 
@@ -190,7 +190,8 @@ deep_type_samplesize : int
 clean_traceback : bool
 	If true, hides pytypes' internal part of exception traceback output.
 	Default: True
-	Turn this off if you want to trace a bug in pytypes.
+	Use this variable only for reading. Use set_clean_traceback function to
+	modify it. Disable clean_traceback, if you want to trace a bug in pytypes.
 
 python3_5_executable : str
 	Python command used to parse Python 3.5 style stubfiles.
@@ -281,11 +282,23 @@ clean_traceback = True
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
 def set_checking_enabled(flag = True):
+	'''Convenience function to set the checking_enabled. Intended
+	for use in an assert statement, so the call depends on -o flag.
+	'''
 	global checking_enabled
 	checking_enabled = flag
 	return checking_enabled
 
 def set_global_checking(flag = True, retrospective = True):
+	'''Sets global typechecking mode.
+	See flag global_checking.
+	In contrast to setting the flag directly, this function provides
+	a retrospective option. If retrospective is true, this will also
+	affect already imported modules, not only future imports.
+	Does not work if checking_enabled is false.
+	Does not work reliably if checking_enabled has ever been set to
+	false during current run.
+	'''
 	global global_checking
 	global_checking = flag
 	if global_checking and retrospective:
@@ -293,6 +306,12 @@ def set_global_checking(flag = True, retrospective = True):
 	return global_checking
 
 def set_global_auto_override(flag = True, retrospective = True):
+	'''Sets global auto_override mode.
+	See flag global_auto_override.
+	In contrast to setting the flag directly, this function provides
+	a retrospective option. If retrospective is true, this will also
+	affect already imported modules, not only future imports.
+	'''
 	global global_auto_override
 	global_auto_override = flag
 	if global_auto_override and retrospective:
@@ -300,6 +319,12 @@ def set_global_auto_override(flag = True, retrospective = True):
 	return global_auto_override
 
 def set_global_annotations(flag = True, retrospective = True):
+	'''Sets global annotation mode.
+	See flag global_annotations.
+	In contrast to setting the flag directly, this function provides
+	a retrospective option. If retrospective is true, this will also
+	affect already imported modules, not only future imports.
+	'''
 	global global_annotations
 	global_annotations = flag
 	if global_checking and retrospective:
@@ -307,6 +332,12 @@ def set_global_annotations(flag = True, retrospective = True):
 	return global_annotations
 
 def set_global_typelog(flag = True, retrospective = True):
+	'''Sets global typelog mode.
+	See flag global_typelog.
+	In contrast to setting the flag directly, this function provides
+	a retrospective option. If retrospective is true, this will also
+	affect already imported modules, not only future imports.
+	'''
 	global global_typelog
 	global_typelog = flag
 	if global_typelog and retrospective:
@@ -379,11 +410,33 @@ if not hasattr(typing, '_generic_new'):
 		return res
 	typing.Generic.__new__ = __Generic__new__
 
-class TypeCheckError(TypeError): pass
-class InputTypeError(TypeCheckError): pass
-class ReturnTypeError(TypeCheckError): pass
-class OverrideError(TypeError): pass
-class TypeSyntaxError(TypeError): pass
+class TypeCheckError(TypeError):
+	'''Error type to indicate all errors regarding runtime typechecking.
+	'''
+	pass
+
+class InputTypeError(TypeCheckError):
+	'''Error type to indicate errors regarding failing typechecks of
+	function or method parameters.
+	'''
+	pass
+
+class ReturnTypeError(TypeCheckError):
+	'''Error type to indicate errors regarding failing typechecks of
+	function or method return values.
+	'''
+	pass
+
+class OverrideError(TypeError):
+	'''Error type to indicate errors regarding failing checks of
+	method's override consistency.
+	'''
+	pass
+
+class TypeSyntaxError(TypeError):
+	'''Error type to indicate errors regarding ill-formated typestrings.
+	'''
+	pass
 
 # We import some public API for central access:
 from .type_util import deep_type, is_builtin_type, has_type_hints, \

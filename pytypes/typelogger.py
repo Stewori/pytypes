@@ -567,8 +567,7 @@ def typelogged_class(cls):
 	return cls
 
 def typelogged_module(md):
-	'''Intended to typelog modules that were not annotated
-	with @typelogged without modifying their code.
+	'''Works like typelogged, but is only applicable to modules by explicit call).
 	md must be a module or a module name contained in sys.modules.
 	'''
 	if not typelogging_enabled:
@@ -598,6 +597,10 @@ def typelogged_module(md):
 	return md
 
 def typelogged(memb):
+	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
+	If applied on a module, memb must be a module or a module name contained in sys.modules.
+	See pytypes.set_global_typelog to apply this on all modules.
+	'''
 	if not typelogging_enabled:
 		return memb
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
