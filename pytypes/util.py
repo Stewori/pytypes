@@ -203,6 +203,9 @@ def _getargskw(args, kw, argspecs):
 	return tuple(res), err
 
 def fromargskw(argskw, argspecs, slf_or_clsm = False):
+	'''Turns a linearizred list of args into (args, keywords) form
+	according to given argspecs (like inspect module provides).
+	'''
 	res_args = argskw
 	try:
 		kwds = argspecs.keywords

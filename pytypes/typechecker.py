@@ -50,7 +50,7 @@ def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
 				if pytypes.global_checking:
 					typechecked_module(name)
 				if pytypes.global_typelog:
-					typelogged_module(name)
+					pytypes.typelogged_module(name)
 				if pytypes.global_auto_override:
 					auto_override_module(name)
 				if pytypes.global_annotations:
@@ -314,11 +314,11 @@ def _check_override_argspecs(method, argSpecs, class_name, base_method, base_cla
 
 def _no_base_method_error(method):
 	return OverrideError('%s in %s does not override any other method.\n'
-					% (method.__name__, method.__module__))
+			% (method.__name__, method.__module__))
 
 def _function_instead_of_method_error(method):
 	return OverrideError('@override was applied to a function, not a method: %s.%s.\n'
-					% (method.__module__, method.__name__))
+			% (method.__module__, method.__name__))
 
 def override(func, auto = False):
 	'''Decorator applicable to methods only.
@@ -471,7 +471,7 @@ def override(func, auto = False):
 		checker_ov.ov_func = func
 		if hasattr(func, '__func__'):
 			checker_ov.__func__ = func.__func__
-		checker_ov.__name__ = func.__name__ # What sorts of evil might this bring over us?
+		checker_ov.__name__ = func.__name__
 		checker_ov.__module__ = func.__module__
 		checker_ov.__globals__.update(func.__globals__)
 		if hasattr(func, '__annotations__'):
@@ -822,7 +822,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 	checker_tp.do_logging = do_logging
 	if hasattr(func, '__func__'):
 		checker_tp.__func__ = func.__func__
-	checker_tp.__name__ = func0.__name__ # What sorts of evil might this bring over us?
+	checker_tp.__name__ = func0.__name__
 	checker_tp.__module__ = func0.__module__
 	checker_tp.__globals__.update(func0.__globals__)
 	if hasattr(func, '__annotations__'):

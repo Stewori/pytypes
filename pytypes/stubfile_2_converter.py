@@ -153,7 +153,7 @@ def err_no_in_file():
 
 def print_usage():
 	print("stubfile_2_converter usage:")
-	print("(python|python3) stubfile_2_converter.py [options/flags] [in_file]")
+	print("python3 -m pytypes.stubfile_2_converter.py [options/flags] [in_file]")
 	print("Supported options/flags:")
 	print("-o [out_file] : custom output-file")
 	print("-s            : silent mode")

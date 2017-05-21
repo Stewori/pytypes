@@ -69,7 +69,7 @@ global_typelog : bool
 	Every function and method call is recorded. The observed type
 	information can be written into stubfiles by calling dump_cache.
 	Will affect all methods imported after this flag
-	was set. Use set_global_typelog for a retrospective option.
+	was set. Use set_global_typelogging for a retrospective option.
 
 check_override_at_runtime : bool
 	Flag indicating override consistency is checked at runtime.
@@ -331,7 +331,7 @@ def set_global_annotations(flag = True, retrospective = True):
 		_catch_up_global_annotations()
 	return global_annotations
 
-def set_global_typelog(flag = True, retrospective = True):
+def set_global_typelogging(flag = True, retrospective = True):
 	'''Sets global typelog mode.
 	See flag global_typelog.
 	In contrast to setting the flag directly, this function provides
@@ -451,7 +451,8 @@ from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, check_argument_types, _catch_up_global_checking, \
 		_catch_up_global_auto_override, auto_override
-from .typelogger import dump_cache, log_type, typelogged, _catch_up_global_typelog
+from .typelogger import dump_cache, log_type, typelogged, _catch_up_global_typelog, \
+		typelogged_module
 
 set_clean_traceback()
 

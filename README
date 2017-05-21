@@ -1,55 +1,79 @@
-pytypes
-=======
-
-Welcome to the pytypes project.
-
-pytypes is a typing toolbox w.r.t. PEP 484. As an additional future goal it will also feature generator utilities to produce language bindings to allow other programming languages to call into Python code (kind of reverse FFI). In this sense the project name refers to 'ctypes', which provides Python-bindings to C.
-Especially Jython will be the first target and pytypes' typing-utilities will allow to generate type-safe Java-bindings to Python frameworks as far as PEP 484-style type annotations are provided.
+=========
+ pytypes 
+=========
 
 
-Typing-utility
---------------
+Welcome to the pytypes project
+==============================
 
-Besides various other useful typing-related functions pytypes so far features an actually functional Python 2.7 compliant version of typing.get_type_hints (the original version always returns None for Python 2.7).
+pytypes is a typing toolbox w.r.t. PEP 484 (python.org/dev/peps/pep-0484/) (PEP 526 (python.org/dev/peps/pep-0526/) on the road map, later also 544 (python.org/dev/peps/pep-0544/) if it gets accepted).
 
-Further it provides a typecheck-decorator for runtime typechecking and an override-decorator for runtime-assertion of consistent method-overriding w.r.t. type-annotations. In combination these decorators can also perform type-checking on overridden methods even if only the parent method was type-annotated.
+It's main features are currently
+
+* @typechecked decorator for runtime typechecking with support for stubfiles (python.org/dev/peps/pep-0484/#stub-files) and type comments (python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code)
+* @override decorator that asserts existence of a type-compatible parent method
+* @annotations decorator to turn type info from stubfiles or from type comments into __annotations__
+* @typelogged decorator that observes function and method calls at runtime and generates stubfiles from acquired type info
+* service functions to apply these decorators module wide or even globally, i.e. runtime wide
+* all the above decorators work smoothly with OOP, i.e. with methods, static methods, class methods and properties, even if classes are nested
+* converter for stubfiles to Python 2.7 compliant form
+* lots of utility functions regarding types, e.g. a Python 2.7 compliant and actually functional implementation of get_type_hints
+* full Python 2.7 support for all these features
+
+An additional future goal will be integration with the Java typing system when running on Jython. Along with this, some generator utilities to produce type-safe Java bindings for Python frameworks are planned.
+In wider sense, PEP 484-style type annotations can be used to build type safe interfaces to allow also other programming languages to call into Python code (kind of reverse FFI). In this sense the project name refers to 'ctypes', which provides Python-bindings of C.
+
 
 
 Python 2.7, 3.5, 3.6
 --------------------
 
-All described features of pytypes were carefully implemented such that they are equally workable on Python 3.5, 3.6 and 2.7. For Python 2.7 pytypes fully supports type-annotations as described in https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code. As far as we know this support is currently a unique feature compared to other runtime-type-checking frameworks.
-It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development. If a function or method is type-annotated in Python 2.7 and 3.5 style at the same time pytypes automatically asserts equality of the annotations.
+All described features of pytypes were carefully implemented such that they are equally workable on CPython 3.5, 3.6, 2.7 and on Jython 2.7.1 (other interpreters might work as well, but were not yet tested).
+For Python 2.7, pytypes fully supports type-annotations via type comments (python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code).
+It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development.
 
 
-Why write another runtime typecheck-decorator?
+
+Why write another runtime typecheck decorator?
 ----------------------------------------------
 
 There have been earlier approaches for runtime-typechecking. However, most of them predate PEP 484 or lack some crucial
-features like support of Python 2.7 and support of stub files. Also none of them features a typechecking override
-decorator. There were separate approaches for override-decorators, but these usually don't consider PEP 484 at all.
-Given all these facts, we decided that it's time for a new runtime typechecking framework, designed to support PEP 484
-from the roots, including its extensive features like (Python 2.7-style-)type comments and stub files.
+features like support of Python 2.7 or support of stubfiles. Also, none of them features a typechecking override
+decorator. There were separate approaches for override decorators, but these usually don't consider PEP 484 at all.
+So we decided that it's time for a new runtime typechecking framework, designed to support PEP 484 from the roots,
+including its extensive features like (Python 2.7-style-)type comments and stub files.
+
+
+Quick manual
+============
+
+See README.md.
 
 
 Next steps
-----------
+==========
 
-As of this writing pytypes doesn't yet support
-
-- method overloading: https://www.python.org/dev/peps/pep-0484/#function-method-overloading
-- async-related constructs from typing
+- support PEP 526 (python.org/dev/peps/pep-0526)
+- support overloading (python.org/dev/peps/pep-0484/#function-method-overloading)
+- support named tuple
+- improve type logging
+  * improve creation of import section
+- improve converter for Python 3.5/3.6 stubfiles to Python 2.7
+  * support Type-vars
+  * improve creation of import section
+- support async-related constructs from typing
+- support notation for Positional-only arguments (python.org/dev/peps/pep-0484/#positional-only-arguments)
 
 
 License
--------
+=======
 
 pytypes is released under the PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2.
 A copy is provided in the file LICENSE.
 
 
 Contact
--------
+=======
 
-For now write to stefan.richthofer@jyni.org.
+stefan.richthofer@jyni.org
 

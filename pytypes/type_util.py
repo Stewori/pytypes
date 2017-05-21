@@ -289,8 +289,7 @@ def is_builtin_type(tp):
 	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
 def has_type_hints(func0):
-	'''
-	Detects if the given function or method has type annotations.
+	'''Detects if the given function or method has type annotations.
 	Also considers typecomments and stubfiles.
 	'''
 	return _has_type_hints(func0)
@@ -419,7 +418,11 @@ def _get_types(func, clsm, slf, clss = None, prop_getter = False,
 	return _match_stub_type(args), _match_stub_type(res)
 
 def get_type_hints(func):
-	'''Resembles typing.get_type_hints, but is also workable on Python 2.7.
+	'''Resembles typing.get_type_hints, but is also workable on Python 2.7 and
+	searches stubfiles for type information.
+	Also on Python 3, this takes type comments
+	(python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code)
+	into account if present.
 	'''
 	if not has_type_hints(func):
 		# What about defaults?
@@ -1038,9 +1041,9 @@ def annotations(memb):
 	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_annotations to apply this on all modules.
-	Methods with typestring will have type hints parsed from that
+	Methods with type comment will have type hints parsed from that
 	string and get them attached as __annotations__ attribute.
-	Methods with either a typestring or ordinary type annotations in
+	Methods with either a type comment or ordinary type annotations in
 	a stubfile will get that information attached as __annotations__
 	attribute (also a relevant use case in Python 3).
 	Behavior in case of collision with previously (manually)

@@ -599,7 +599,10 @@ def typelogged_module(md):
 def typelogged(memb):
 	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
-	See pytypes.set_global_typelog to apply this on all modules.
+	See pytypes.set_global_typelogging to apply this on all modules.
+	Observes function and method calls at runtime and allows pytypes to generate stubfiles
+	from the acquired type information.
+	Use dump_cache to write create a stubfile in this manner.
 	'''
 	if not typelogging_enabled:
 		return memb
