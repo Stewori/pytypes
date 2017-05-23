@@ -242,12 +242,10 @@ class logtest_class(object):
 	def logmeth_static(c):
 		return len(c)
 
-	#@typelogged
 	@property
 	def log_prop(self):
 		return (self._log_prop, len(self._log_prop))
 
-	#@typelogged
 	@log_prop.setter
 	def log_prop(self, val):
 		self._log_prop = val
@@ -382,10 +380,10 @@ affected. Apart from that this will affect every module in the way described abo
 Use this feature with care as it is still experimental and can notably slow down your
 python runtime. In any case, it is intended for debugging and testing phase only.
 
-- To apply `@typechecked` globally, use `pytypes.set_global_checking`
-- To apply `@auto_override` globally, use `pytypes.set_global_auto_override`
-- To apply `@annotations` globally, use `pytypes.set_global_annotations`
-- To apply `@typelogged` globally, use `pytypes.set_global_typelogging`
+- To apply `@typechecked` globally, use `pytypes.set_global_typechecked_decorator`
+- To apply `@auto_override` globally, use `pytypes.set_global_auto_override_decorator`
+- To apply `@annotations` globally, use `pytypes.set_global_annotations_decorator`
+- To apply `@typelogged` globally, use `pytypes.set_global_typelogged_decorator`
 
 
 OOP support
@@ -401,7 +399,7 @@ to pytypes decorators.
 This also applies to old-style classes.
 
 
-### No override on `__init__`
+### No @override on `__init__`
 
 For now `@override` cannot be applied to `__init__`, because `__init__` typically extends the
 list of initialization parameters and usually uses `super` to explicitly serve a parent's
@@ -444,6 +442,16 @@ This function mimics [typeguard](https://github.com/agronholm/typeguard) syntax 
 within a function or method to check argument values to comply with type annotations.
 It behaves similar to `@typechecked` except that it is not a decorator and does not check the return type.
 A decorator less way for argument checking yields less interference with some debuggers.
+
+
+### is_of_type(obj, cls)
+
+Works like `isinstance`, but supports PEP 484 style types from typing module.
+
+
+### is_subtype(subclass, superclass)
+
+Works like `issubclass`, but supports PEP 484 style types from typing module.
 
 
 ### deep_type(obj, depth = None, max_sample = None)
@@ -535,6 +543,7 @@ Next steps
   * improve creation of import section
 - support async-related constructs from typing
 - support notation for [Positional-only arguments](https://www.python.org/dev/peps/pep-0484/#positional-only-arguments)
+- runtime independent parser for stubfiles
 
 
 License

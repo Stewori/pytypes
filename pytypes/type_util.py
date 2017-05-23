@@ -53,6 +53,7 @@ def get_iterable_itemtype(obj):
 	'''Attempts to get an iterable's itemtype without iterating over it,
 	not even partly. Note that iterating over an iterable might modify
 	its inner state, e.g. if it is an iterator.
+	Note that obj is expected to be an iterable, not a typing.Iterable.
 	This function leverages various alternative ways to obtain that
 	info, e.g. by looking for type annotations of '__iter__' or '__getitem__'.
 	It is intended for (unknown) iterables, where the type cannot be obtained
@@ -94,6 +95,25 @@ def get_iterable_itemtype(obj):
 		return None # means that type is unknown
 	else:
 		raise TypeError('Not an iterable: '+str(type(obj)))
+
+def get_Generic_itemtype(sq, simplify = True):
+	'''sq must be a typing.Tuple or subclass of typing.Iterable or typing.Container.
+	'''
+	if isinstance(sq, TupleMeta):
+		if simplify:
+			itm_tps = [x for x in get_Tuple_params(sq)]
+			simplify_for_Union(itm_tps)
+			return Union[tuple(itm_tps)]
+		else:
+			return Union[get_Tuple_params(sq)]
+	else:
+		try:
+			return _select_Generic_superclass_parameters(sq, typing.Container)[0]
+		except TypeError:
+			try:
+				return _select_Generic_superclass_parameters(sq, typing.Iterable)[0]
+			except TypeError:
+				raise TypeError("Has no itemtype: "+str(sq))
 
 def get_Tuple_params(tpl):
 	'''Python version independent function to obtain the parameters
@@ -778,10 +798,15 @@ def _issubclass_Tuple(subclass, superclass):
 		return False
 	if not isinstance(subclass, TupleMeta):
 		if isinstance(subclass, GenericMeta):
-			return _issubclass_Generic(subclass, superclass)
+			try:
+				return _issubclass_Generic(subclass, superclass)
+			except:
+				pass
 		elif is_Union(subclass):
 			return all(_issubclass_Tuple(t, superclass)
 					for t in get_Union_params(subclass))
+		else:
+			return False
 	super_args = get_Tuple_params(superclass)
 	if super_args is None:
 		return True
@@ -1040,7 +1065,7 @@ def annotations_module(md):
 def annotations(memb):
 	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
-	See pytypes.set_global_annotations to apply this on all modules.
+	See pytypes.set_global_annotations_decorator to apply this on all modules.
 	Methods with type comment will have type hints parsed from that
 	string and get them attached as __annotations__ attribute.
 	Methods with either a type comment or ordinary type annotations in
@@ -1058,7 +1083,7 @@ def annotations(memb):
 		return annotations_module(memb)
 	return memb
 
-def _catch_up_global_annotations():
+def _catch_up_global_annotations_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _annotated_modules:
 			try:
@@ -1095,3 +1120,54 @@ def simplify_for_Union(type_list):
 			else:
 				j += 1
 		i += 1
+
+def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
+	'''From a PEP 484 style type-tuple with types for *varargs and/or **kw
+	this returns a type-tuple containing Tuple[tp, ...] and Dict[str, kw-tp]
+	instead.
+	'''
+	# todo: Maybe move also slf-logic here
+	vargs = argspecs.varargs
+	try:
+		kw = argspecs.keywords
+	except AttributeError:
+		kw = argspecs.varkw
+	try:
+		kwonly = argspecs.kwonlyargs
+	except AttributeError:
+		kwonly = None
+	if not vargs is None or not kw is None:
+		arg_type_lst = list(get_Tuple_params(argSig))
+		if not vargs is None:
+			vargs_pos = (len(argspecs.args)-1) \
+					if slf_or_clsm else len(argspecs.args)
+			# IndexErrors in this section indicate that a child-method was
+			# checked against a parent's type-info with the child featuring
+			# a more wider type on signature level (e.g. adding vargs)
+			try:
+				vargs_type = typing.Sequence[arg_type_lst[vargs_pos]]
+			except IndexError:
+				vargs_type = typing.Sequence[typing.Any]
+			try:
+				arg_type_lst[vargs_pos] = vargs_type
+			except IndexError:
+				arg_type_lst.append(vargs_type)
+		if not kw is None:
+			kw_pos = len(argspecs.args)
+			if slf_or_clsm:
+				kw_pos -= 1
+			if not vargs is None:
+				kw_pos += 1
+			if not kwonly is None:
+				kw_pos += len(kwonly)
+			try:
+				kw_type = typing.Dict[str, arg_type_lst[kw_pos]]
+			except IndexError:
+				kw_type = typing.Dict[str, typing.Any]
+			try:
+				arg_type_lst[kw_pos] = kw_type
+			except IndexError:
+				arg_type_lst.append(kw_type)
+		return typing.Tuple[tuple(arg_type_lst)]
+	else:
+		return argSig

@@ -31,26 +31,26 @@ do_logging_in_typechecked : bool
 	In contrast to checking_enabled and typelogging_enabled, this can be
 	switched on and off at any time.
 
-global_checking : bool
+global_typechecked_decorator : bool
 	Flag indicating global typechecking mode.
 	Default: False
 	Every function or method with type annotation is typechecked now.
 	Will affect all functions and methods imported after this flag
-	was set. Use set_global_checking for a retrospective option.
+	was set. Use set_global_typechecked_decorator for a retrospective option.
 	Does not work if checking_enabled is false.
 	Does not work reliably if checking_enabled has ever been set to
 	false during current run.
 
-global_auto_override : bool
+global_auto_override_decorator : bool
 	Flag indicating global auto_override mode.
 	Default: False
 	Every method with type annotation that also has a parent method
 	with type annotation is now checked for type consistency with its
 	parent.
 	Will affect all functions and methods imported after this flag
-	was set. Use set_global_auto_override for a retrospective option.
+	was set. Use set_global_auto_override_decorator for a retrospective option.
 
-global_annotations : bool
+global_annotations_decorator : bool
 	Flag indicating global annotation mode.
 	Default: False
 	Methods with typestring will have type hints parsed from that
@@ -61,15 +61,15 @@ global_annotations : bool
 	attached __annotations__ can be controlled using the flags
 	annotations_override_typestring and annotations_from_typestring.
 	Will affect all methods imported after this flag
-	was set. Use set_global_annotations for a retrospective option.
+	was set. Use set_global_annotations_decorator for a retrospective option.
 
-global_typelog : bool
+global_typelogged_decorator : bool
 	Flag indicating global typelog mode.
 	Default: False
 	Every function and method call is recorded. The observed type
 	information can be written into stubfiles by calling dump_cache.
 	Will affect all methods imported after this flag
-	was set. Use set_global_typelogging for a retrospective option.
+	was set. Use set_global_typelogged_decorator for a retrospective option.
 
 check_override_at_runtime : bool
 	Flag indicating override consistency is checked at runtime.
@@ -241,11 +241,12 @@ typelogging_enabled = True
 # this right after first import of pytypes.
 
 do_logging_in_typechecked = False # Let the typechecked-decorator also perform logging
+typelogger_include_typehint = True # Let typelogger also include info from existing typehint
 
-global_checking = False
-global_auto_override = False
-global_annotations = False
-global_typelog = False
+global_typechecked_decorator = False
+global_auto_override_decorator = False
+global_annotations_decorator = False
+global_typelogged_decorator = False
 
 # Some behavior flags:
 
@@ -289,9 +290,9 @@ def set_checking_enabled(flag = True):
 	checking_enabled = flag
 	return checking_enabled
 
-def set_global_checking(flag = True, retrospective = True):
-	'''Sets global typechecking mode.
-	See flag global_checking.
+def set_global_typechecked_decorator(flag = True, retrospective = True):
+	'''Sets global typechecking mode via decorators.
+	See flag global_typechecked_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
@@ -299,50 +300,50 @@ def set_global_checking(flag = True, retrospective = True):
 	Does not work reliably if checking_enabled has ever been set to
 	false during current run.
 	'''
-	global global_checking
-	global_checking = flag
-	if global_checking and retrospective:
-		_catch_up_global_checking()
-	return global_checking
+	global global_typechecked_decorator
+	global_typechecked_decorator = flag
+	if global_typechecked_decorator and retrospective:
+		_catch_up_global_typechecked_decorator()
+	return global_typechecked_decorator
 
-def set_global_auto_override(flag = True, retrospective = True):
-	'''Sets global auto_override mode.
-	See flag global_auto_override.
+def set_global_auto_override_decorator(flag = True, retrospective = True):
+	'''Sets global auto_override mode via decorators.
+	See flag global_auto_override_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
 	'''
-	global global_auto_override
-	global_auto_override = flag
-	if global_auto_override and retrospective:
-		_catch_up_global_auto_override()
-	return global_auto_override
+	global global_auto_override_decorator
+	global_auto_override_decorator = flag
+	if global_auto_override_decorator and retrospective:
+		_catch_up_global_auto_override_decorator()
+	return global_auto_override_decorator
 
-def set_global_annotations(flag = True, retrospective = True):
-	'''Sets global annotation mode.
-	See flag global_annotations.
+def set_global_annotations_decorator(flag = True, retrospective = True):
+	'''Sets global annotation mode via decorators.
+	See flag global_annotations_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
 	'''
-	global global_annotations
-	global_annotations = flag
-	if global_checking and retrospective:
-		_catch_up_global_annotations()
-	return global_annotations
+	global global_annotations_decorator
+	global_annotations_decorator = flag
+	if global_annotations_decorator and retrospective:
+		_catch_up_global_annotations_decorator()
+	return global_annotations_decorator
 
-def set_global_typelogging(flag = True, retrospective = True):
-	'''Sets global typelog mode.
-	See flag global_typelog.
+def set_global_typelogged_decorator(flag = True, retrospective = True):
+	'''Sets global typelog mode via decorators.
+	See flag global_typelogged_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
 	'''
-	global global_typelog
-	global_typelog = flag
-	if global_typelog and retrospective:
-		_catch_up_global_typelog()
-	return global_typelog
+	global global_typelogged_decorator
+	global_typelogged_decorator = flag
+	if global_typelogged_decorator and retrospective:
+		_catch_up_global_typelogged_decorator()
+	return global_typelogged_decorator
 
 def set_clean_traceback(flag = True):
 	'''Activates traceback cleaning. This means that traceback of uncaught
@@ -444,15 +445,15 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		annotations, get_member_types, Empty, _catch_up_global_annotations
+		annotations, get_member_types, Empty, _catch_up_global_annotations_decorator
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
 		get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
-		is_no_type_check, override, check_argument_types, _catch_up_global_checking, \
-		_catch_up_global_auto_override, auto_override
-from .typelogger import dump_cache, log_type, typelogged, _catch_up_global_typelog, \
-		typelogged_module
+		is_no_type_check, override, check_argument_types, auto_override, \
+		_catch_up_global_auto_override_decorator, _catch_up_global_typechecked_decorator
+from .typelogger import dump_cache, log_type, typelogged, typelogged_module, \
+		_catch_up_global_typelogged_decorator, _register_logged_func
 
 set_clean_traceback()
 

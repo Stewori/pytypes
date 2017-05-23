@@ -203,7 +203,7 @@ def _getargskw(args, kw, argspecs):
 	return tuple(res), err
 
 def fromargskw(argskw, argspecs, slf_or_clsm = False):
-	'''Turns a linearizred list of args into (args, keywords) form
+	'''Turns a linearized list of args into (args, keywords) form
 	according to given argspecs (like inspect module provides).
 	'''
 	res_args = argskw
@@ -345,10 +345,17 @@ def get_class_that_defined_method(meth):
 		return meth.im_class
 	elif hasattr(meth, '__qualname__'):
 		# Python 3
-		cls = getattr(inspect.getmodule(meth),
-				meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
-		if isinstance(cls, type):
-			return cls
+		try:
+			cls = getattr(inspect.getmodule(meth),
+					meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
+			if isinstance(cls, type):
+				return cls
+		except AttributeError:
+			# If this was called from a decorator and meth is not a method, this
+			# can result in AttributeError, because at decorator-time meth has not
+			# yet been added to module. If it's really a method, its class would be
+			# already in, so no problem in that case.
+			pass
 	raise ValueError(str(meth)+' is not a method.')
 
 def is_method(func):

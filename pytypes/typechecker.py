@@ -13,7 +13,7 @@ from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, \
-		_find_typed_base_method
+		_find_typed_base_method, _preprocess_typecheck
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 import pytypes
 
@@ -43,27 +43,27 @@ def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
 				if mod_name_full in sys.modules:
 					_re_match_module(mod_name_full, True)
 	_run_delayed_checks(True, name)
-	if pytypes.global_checking or pytypes.global_auto_override or \
-			pytypes.global_annotations or pytypes.global_typelog:
+	if pytypes.global_typechecked_decorator or pytypes.global_auto_override_decorator or \
+			pytypes.global_annotations_decorator or pytypes.global_typelogged_decorator:
 		if fromlist is None:
 			if name in sys.modules:
-				if pytypes.global_checking:
+				if pytypes.global_typechecked_decorator:
 					typechecked_module(name)
-				if pytypes.global_typelog:
+				if pytypes.global_typelogged_decorator:
 					pytypes.typelogged_module(name)
-				if pytypes.global_auto_override:
+				if pytypes.global_auto_override_decorator:
 					auto_override_module(name)
-				if pytypes.global_annotations:
+				if pytypes.global_annotations_decorator:
 					type_util.annotations_module(name)
 		else:
 			for mod_name in fromlist:
 				mod_name_full = name+'.'+mod_name
 				if mod_name_full in sys.modules:
-					if pytypes.global_checking:
+					if pytypes.global_typechecked_decorator:
 						typechecked_module(mod_name_full, True)
-					if pytypes.global_auto_override:
+					if pytypes.global_auto_override_decorator:
 						auto_override_module(mod_name_full, True)
-					if pytypes.global_annotations:
+					if pytypes.global_annotations_decorator:
 						type_util.annotations_module(mod_name_full)
 	return res
 builtins.__import__ = _pytypes___import__
@@ -587,53 +587,6 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 				return False, obj
 	return _isinstance(obj, cls), obj
 
-def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
-	# todo: Maybe move also slf-logic here
-	vargs = argspecs.varargs
-	try:
-		kw = argspecs.keywords
-	except AttributeError:
-		kw = argspecs.varkw
-	try:
-		kwonly = argspecs.kwonlyargs
-	except AttributeError:
-		kwonly = None
-	if not vargs is None or not kw is None:
-		arg_type_lst = list(type_util.get_Tuple_params(argSig))
-		if not vargs is None:
-			vargs_pos = (len(argspecs.args)-1) \
-					if slf_or_clsm else len(argspecs.args)
-			# IndexErrors in this section indicate that a child-method was
-			# checked against a parent's type-info with the child featuring
-			# a more wider type on signature level (e.g. adding vargs)
-			try:
-				vargs_type = typing.Sequence[arg_type_lst[vargs_pos]]
-			except IndexError:
-				vargs_type = typing.Sequence[typing.Any]
-			try:
-				arg_type_lst[vargs_pos] = vargs_type
-			except IndexError:
-				arg_type_lst.append(vargs_type)
-		if not kw is None:
-			kw_pos = len(argspecs.args)
-			if slf_or_clsm:
-				kw_pos -= 1
-			if not vargs is None:
-				kw_pos += 1
-			if not kwonly is None:
-				kw_pos += len(kwonly)
-			try:
-				kw_type = typing.Dict[str, arg_type_lst[kw_pos]]
-			except IndexError:
-				kw_type = typing.Dict[str, typing.Any]
-			try:
-				arg_type_lst[kw_pos] = kw_type
-			except IndexError:
-				arg_type_lst.append(kw_type)
-		return typing.Tuple[tuple(arg_type_lst)]
-	else:
-		return argSig
-
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
 			prop_getter = False, argspecs = None, var_type = None):
 	if argspecs is None:
@@ -692,6 +645,12 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 	func0 = _actualfunc(func, prop_getter)
 	specs = getargspecs(func0)
 	argNames = util.getargnames(specs)
+	if do_logging and pytypes.typelogger_include_typehint and _has_type_hints(func):
+		try:
+			clss = util.get_class_that_defined_method(func)
+			pytypes._register_logged_func(func, True, prop_getter, clss, specs)
+		except ValueError:
+			pytypes._register_logged_func(func, False, prop_getter, None, specs)
 	def checker_tp(*args, **kw):
 		if hasattr(checker_tp, '__annotations__') and len(checker_tp.__annotations__) > 0:
 			checker_tp.ch_func.__annotations__ = checker_tp.__annotations__
@@ -726,7 +685,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 			if clsm:
 				raise TypeError("classmethod without cls-arg: "+str(func))
 			elif prop or prop_getter:
-				raise TypeError("property without slef-arg: "+str(func))
+				raise TypeError("property without self-arg: "+str(func))
 			check_args = args_kw
 		
 		parent_class = None
@@ -920,7 +879,7 @@ def typechecked_module(md, force_recursive = False):
 def typechecked(memb):
 	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
-	See pytypes.set_global_checking to apply this on all modules.
+	See pytypes.set_global_typechecked_decorator to apply this on all modules.
 	Asserts compatibility of runtime argument and return values of all targeted functions
 	and methods w.r.t. PEP 484-style type annotations of these functions and methods.
 	'''
@@ -990,7 +949,7 @@ def auto_override_module(md, force_recursive = False):
 def auto_override(memb):
 	'''Decorator applicable to methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
-	See pytypes.set_global_auto_override to apply this on all modules.
+	See pytypes.set_global_auto_override_decorator to apply this on all modules.
 	Works like override decorator on type annotated methods that actually have a type
 	annotated parent method. Has no effect on methods that do not override anything.
 	In contrast to plain override decorator, auto_override can be applied easily on
@@ -1009,7 +968,7 @@ def auto_override(memb):
 		return auto_override_module(memb, True)
 	return memb
 
-def _catch_up_global_checking():
+def _catch_up_global_typechecked_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _fully_typechecked_modules:
 			try:
@@ -1019,7 +978,7 @@ def _catch_up_global_checking():
 			if not md is None and ismodule(md):
 				typechecked_module(mod_name)
 
-def _catch_up_global_auto_override():
+def _catch_up_global_auto_override_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _auto_override_modules:
 			try:

@@ -10,11 +10,13 @@ Also allows creation of Python 2.7 compatible stubfiles.
 '''
 
 from .type_util import deep_type, type_str, get_Tuple_params, \
-		Empty, simplify_for_Union
+		Empty, simplify_for_Union, _get_types, _has_type_hints, \
+		_preprocess_typecheck, get_Union_params, is_Union, \
+		get_Generic_itemtype
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
 from . import version, default_indent, default_typelogger_path, \
-		util, typelogging_enabled
+		util, typelogging_enabled, typelogger_include_typehint
 from typing import Union, Any, Tuple, TupleMeta
 from inspect import isclass, ismodule, isfunction, ismethod, \
 		ismethoddescriptor, getsourcelines, findsource
@@ -42,6 +44,10 @@ def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspe
 		ret_type = deep_type(ret)
 	if argspecs is None:
 		argspecs = getargspecs(func)
+	node = _register_logged_func(func, slf, prop_getter, clss, argspecs)
+	node.add_observation(args_kw_type, ret_type)
+
+def _register_logged_func(func, slf, prop_getter, clss, argspecs):
 	if isinstance(func, property):
 		func_key = func.fget if prop_getter else func.fset
 	else:
@@ -51,7 +57,7 @@ def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspe
 	else:
 		node = _typed_member(func, slf, prop_getter, clss, argspecs)
 		_member_cache[func_key] = node
-	node.add_observation(args_kw_type, ret_type)
+	return node
 
 def combine_argtype(observations):
 	'''Combines a list of Tuple types into one.
@@ -196,8 +202,19 @@ def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
 	vararg_tp = None
 	if not argspecs.varargs is None:
 		i += 1
-		vararg_tps = get_Tuple_params(tps[i])
-		vararg_tp = Any if vararg_tps is None else Union[vararg_tps]
+		if is_Union(tps[i]):
+			itm_tps = []
+			uprms = get_Union_params(tps[i])
+			for uprm in uprms:
+				itm_tp = get_Generic_itemtype(uprm, simplify)
+				if not itm_tp is None:
+					itm_tps.append(itm_tp)
+			simplify_for_Union(itm_tps)
+			vararg_tp = Union[tuple(itm_tps)]
+		else:
+			vararg_tp = get_Generic_itemtype(tps[i], simplify)
+			if vararg_tp is None:
+				vararg_tp = Any
 		if not names is None:
 			names.append('*'+argspecs.varargs)
 
@@ -224,7 +241,17 @@ def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
 	kw_tp = None
 	if not kw is None:
 		i += 1
-		kw_tp = Any if issubclass(tps[i], Empty) else tps[i].__args__[-1]
+		if is_Union(tps[i]):
+			itm_tps = []
+			uprms = get_Union_params(tps[i])
+			for uprm in uprms:
+				itm_tp = uprm.__args__[-1]
+				if not itm_tp is None:
+					itm_tps.append(itm_tp)
+			simplify_for_Union(itm_tps)
+			kw_tp = Union[tuple(itm_tps)]
+		else:
+			kw_tp = Any if issubclass(tps[i], Empty) else tps[i].__args__[-1]
 		if not names is None:
 			names.append('**'+kw)
 	return arg_tps, vararg_tp, kw_tp, kwonly_tps
@@ -314,10 +341,20 @@ class _typed_member(_base_node):
 		self.stat = stat
 		self.prop = prop
 		self.prop_getter = prop_getter
+		self._added_type_hints = False
 
 	def add_observation(self, args_kw_type, ret_type):
 		self.arg_type_observations.append(args_kw_type)
 		self.ret_type_observations.append(ret_type)
+
+	def _add_observation_from_type_info(self):
+		if typelogger_include_typehint and \
+				_has_type_hints(self.member, self.clss, nesting = None):
+			self._added_type_hints = True
+			args, ret = _get_types(self.member, self.clsm, self.slf, self.clss,
+					self.prop_getter)
+			args = _preprocess_typecheck(args, self.argspecs, self.slf or self.clsm)
+			self.add_observation(args, ret)
 
 	def _type_str(self):
 		arg_str =  _prepare_arg_types_str(combine_argtype(self.arg_type_observations),
@@ -403,6 +440,8 @@ class _typed_member(_base_node):
 		return ''.join(elements)
 
 	def dump(self, dest, indents = 0, python2 = False, props = None):
+		if not self._added_type_hints:
+			self._add_observation_from_type_info()
 		if python2:
 			dest.append(self._stub_src_tpypestring(indents, props))
 		else:
@@ -599,10 +638,10 @@ def typelogged_module(md):
 def typelogged(memb):
 	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
-	See pytypes.set_global_typelogging to apply this on all modules.
+	See pytypes.set_global_typelogged_decorator to apply this on all modules.
 	Observes function and method calls at runtime and allows pytypes to generate stubfiles
 	from the acquired type information.
-	Use dump_cache to write create a stubfile in this manner.
+	Use dump_cache to write a stubfile in this manner.
 	'''
 	if not typelogging_enabled:
 		return memb
@@ -614,7 +653,7 @@ def typelogged(memb):
 		return typelogged_module(memb, True)
 	return memb
 
-def _catch_up_global_typelog():
+def _catch_up_global_typelogged_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _fully_typelogged_modules:
 			try:

@@ -63,6 +63,7 @@ Next steps
   * improve creation of import section
 - support async-related constructs from typing
 - support notation for Positional-only arguments (python.org/dev/peps/pep-0484/#positional-only-arguments)
+- runtime independent parser for stubfiles
 
 
 License
