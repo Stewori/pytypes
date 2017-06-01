@@ -13,6 +13,7 @@ It's main features are currently
 * `@annotations` decorator to turn type info from stubfiles or from type comments into `__annotations__`
 * `@typelogged` decorator that observes function and method calls at runtime and generates stubfiles from acquired type info
 * service functions to apply these decorators module wide or even globally, i.e. runtime wide
+* typechecking can alternatively be done in decorator-free manner (friendlier for debuggers)
 * all the above decorators work smoothly with OOP, i.e. with methods, static methods, class methods and properties, even if classes are nested
 * converter for stubfiles to Python 2.7 compliant form
 * lots of utility functions regarding types, e.g. a Python 2.7 compliant and actually functional implementation of get_type_hints
@@ -49,7 +50,7 @@ Quick manual
 @typechecked decorator
 ----------------------
 
-Decorator applicable to functions, methods, classes.
+Decorator applicable to functions, methods, properties and classes.
 Asserts compatibility of runtime argument and return values of all targeted functions
 and methods w.r.t. [PEP 484](https://www.python.org/dev/peps/pep-0484/)-style type annotations of these functions and methods.
 
@@ -158,7 +159,7 @@ class some_subclass():
 @auto_override decorator
 ------------------------
 
-Decorator applicable to methods, classes.
+Decorator applicable to methods and classes.
 Works like override decorator on type annotated methods that actually have a type
 annotated parent method. Has no effect on methods that do not override anything.
 In contrast to plain override decorator, auto_override can be applied easily on
@@ -183,7 +184,7 @@ If no parent method exists, auto-override silently passes.
 @annotations decorator
 ----------------------
 
-Decorator applicable to functions, methods, classes.
+Decorator applicable to functions, methods, properties and classes.
 Methods with type comment will have type hints parsed from that
 string and get them attached as `__annotations__` attribute.
 Methods with either a type comment or ordinary type annotations in
@@ -197,7 +198,7 @@ attached `__annotations__` can be controlled using the flags
 @typelogged decorator
 ---------------------
 
-Decorator applicable to functions, methods, classes.
+Decorator applicable to functions, methods, properties and classes.
 It observes function and method calls at runtime and can generate stubfiles from acquired type info.
 
 
@@ -366,16 +367,63 @@ Global mode and module wide mode
 --------------------------------
 
 The pytypes decorators `@typechecked`, `@auto_override`, `@annotations` and `@typelogged`
-can also be applied module wide by explicitly calling them on a module object or a module name
+can be applied module wide by explicitly calling them on a module object or a module name
 contained in `sys.modules`. In such a case, the decorator is applied to all functions and
 classes in that module and recursively to all methods, properties and inner classes too.
 
-### Global mode (experimental)
+
+### Global mode via profilers
+
+The pytypes decorators `@typechecked` and `@typelogged` have corresponding profiler
+implementations `TypeChecker` and `TypeLogger`. You can conveniently install them
+globally via `enable_global_typechecked_profiler()` and
+`enable_global_typelogged_profiler()`.
+Alternatively you can apply them in a `with`-context:
+
+```python
+from pytypes import TypeChecker
+
+def agnt_test(v):
+	# type: (str) -> int
+	return 67
+
+with TypeChecker():
+	agnt_test(12)
+```
+
+One glitch is to consider in case you want to catch `TypeCheckError`
+(i.e. `ReturnTypeError` or `InputTypeError` as well) and continue execution
+afterwards. The TypeChecker would be suspended unless you call `restore_profiler`, e.g.:
+
+```python
+from pytypes import TypeChecker, restore_profiler
+
+def agnt_test(v):
+	# type: (str) -> int
+	return 67
+
+with TypeChecker():
+	try:
+		agnt_test(12)
+	except TypeCheckError:
+		restore_profiler()
+		# handle error....
+```
+Note that the call to `restore_profiler` must be performed by the thread that raised
+the error.
+
+Alternatively you can enable `pytypes.warning_mode = True` to raise warnings rather
+than errors. (This only helps if you don't use `filterwarnings("error")` or likewise.)
+
+
+### Global mode via decorators
 
 The pytypes decorators `@typechecked`, `@auto_override`, `@annotations` and `@typelogged`
 can be applied globally to all loaded modules and subsequently loaded modules.
-Only modules that were loaded while typechecking or typelogging was disabled will not be
+Modules that were loaded while typechecking or typelogging was disabled will not be
 affected. Apart from that this will affect every module in the way described above.
+Note that we recommend to use the profilers explained in the previous section if global
+typechecking or typelogging is required.
 
 Use this feature with care as it is still experimental and can notably slow down your
 python runtime. In any case, it is intended for debugging and testing phase only.
@@ -389,8 +437,11 @@ python runtime. In any case, it is intended for debugging and testing phase only
 OOP support
 -----------
 
-All the above decorators work smoothly with OOP. You can safely apply them on methods,
-abstract methods, static methods, class methods and properties.
+All the above decorators work smoothly with OOP. You can safely apply
+`@typechecked`, `@annotations` and `@typelogged` on methods, abstract methods,
+static methods, class methods and properties.
+`@override` is – already by semantics – only applicable to methods,
+`@auto_override` is additionally applicable to classes and modules.
 pytypes also takes care of inner classes and resolves name space properly.
 Make sure to apply decorators from pytypes *on top of* `@staticmethod`, `@classmethod`,
 `@property` or `@abstractmethod` rather than the other way round. This is because OOP
@@ -436,13 +487,18 @@ a dictionary. Types are returned in the same order as the corresponding
 arguments have in the signature of func.
 
 
-### check_argument_types(cllable = None, call_args = None)
+### check_argument_types(cllable = None, call_args = None, clss = None, caller_level = 0)
 
 This function mimics [typeguard](https://github.com/agronholm/typeguard) syntax and semantics. It can be applied
 within a function or method to check argument values to comply with type annotations.
 It behaves similar to `@typechecked` except that it is not a decorator and does not check the return type.
 A decorator less way for argument checking yields less interference with some debuggers.
 
+### check_return_type(value, cllable = None, clss = None, caller_level = 0)
+
+This function works like `check_argument_types`, but applies to the return value.
+Because it is impossible for pytypes to automatically figure out the value to be returned in a function,
+it must be explicitly provided as the `value`-parameter.
 
 ### is_of_type(obj, cls)
 

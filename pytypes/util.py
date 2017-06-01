@@ -10,6 +10,8 @@ Todo: Some functions in this module can be simplified or replaced
 import pytypes, subprocess, hashlib, sys, os, inspect
 
 _code_callable_dict = {}
+_sys_excepthook = sys.__excepthook__
+#_excepthook_installed = False
 
 def _check_python3_5_version():
 	try:
@@ -410,11 +412,24 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 			return (prefix+'%s.%s.%s') % (func0.__module__,
 					cls_name if not cls_name is None else get_class_qualname(func_class),
 					func0.__name__)
-	elif type(func) == staticmethod:
-		return ('static method %s.%s') % (func0.__module__,
-				get_staticmethod_qualname(func))
 	else:
-		return ('%s.%s') % (func0.__module__, func0.__name__)
+		stat = type(func) == staticmethod
+		if not stat and not func_class is None:
+			stat = type(func_class.__dict__[func.__name__]) == staticmethod
+		if stat:
+			if not func_class is None:
+				stat_qn = '%s.%s' % (
+						cls_name if not cls_name is None else get_class_qualname(func_class),
+						func0.__name__)
+			else:
+				stat_qn = get_staticmethod_qualname(func)
+			return ('static method %s.%s') % (func0.__module__, stat_qn)
+		elif not func_class is None:
+			return ('%s.%s.%s') % (func0.__module__,
+					cls_name if not cls_name is None else get_class_qualname(func_class),
+					func0.__name__)
+		else:
+			return ('%s.%s') % (func0.__module__, func0.__name__)
 
 def get_current_function(caller_level = 0):
 	'''Determines the function from which this function was called.
@@ -426,7 +441,7 @@ def _get_current_function_fq(caller_level = 0):
 	stck = inspect.stack()
 	code = stck[1+caller_level][0].f_code
 	res = get_callable_fq_for_code(code)
-	if res[0] is None and len(stck) > 2:
+	if res[0] is None and len(stck) > 2+caller_level:
 		res = get_callable_fq_for_code(code, stck[2+caller_level][0].f_locals)
 	return res, code
 
@@ -610,6 +625,21 @@ def _calc_traceback_limit(tb):
 			tb2 = tb2.tb_next
 	return limit
 
+def _calc_traceback_list_offset(tb_list):
+	for off in range(len(tb_list)):
+		if tb_list[off][0].split(os.sep)[-2] == 'pytypes':
+			return off-2
+	return -1
+
+def _install_excepthook():
+	global _sys_excepthook #, _excepthook_installed
+# 	if _excepthook_installed:
+# 		return
+# 	_excepthook_installed = True
+	if sys.excepthook != _pytypes_excepthook:
+		_sys_excepthook = sys.excepthook
+		sys.excepthook = _pytypes_excepthook
+
 def _pytypes_excepthook(exctype, value, tb):
 	""""An excepthook suitable for use as sys.excepthook, that strips away
 	the part of the traceback belonging to pytypes' internals.
@@ -621,4 +651,7 @@ def _pytypes_excepthook(exctype, value, tb):
 		import traceback
 		traceback.print_exception(exctype, value, tb, _calc_traceback_limit(tb))
 	else:
-		sys.__excepthook__(exctype, value, tb)
+		if _sys_excepthook is None:
+			sys.__excepthook__(exctype, value, tb)
+		else:
+			_sys_excepthook(exctype, value, tb)

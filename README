@@ -15,6 +15,7 @@ It's main features are currently
 * @annotations decorator to turn type info from stubfiles or from type comments into __annotations__
 * @typelogged decorator that observes function and method calls at runtime and generates stubfiles from acquired type info
 * service functions to apply these decorators module wide or even globally, i.e. runtime wide
+* typechecking can alternatively be done in decorator-free manner (friendlier for debuggers)
 * all the above decorators work smoothly with OOP, i.e. with methods, static methods, class methods and properties, even if classes are nested
 * converter for stubfiles to Python 2.7 compliant form
 * lots of utility functions regarding types, e.g. a Python 2.7 compliant and actually functional implementation of get_type_hints

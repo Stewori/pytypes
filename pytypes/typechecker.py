@@ -12,9 +12,10 @@ from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
-		deep_type, _funcsigtypes, _issubclass, _isinstance, _get_types, \
-		_find_typed_base_method, _preprocess_typecheck
+		deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
+		_preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
+from warnings import warn
 import pytypes
 
 if sys.version_info.major >= 3:
@@ -496,7 +497,8 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
 		else:
 			fq_func_name = util._fully_qualified_func_name(func.fset, True, func_class)+'/setter'
 	else:
-		fq_func_name = util._fully_qualified_func_name(func, slf, func_class)
+		fq_func_name = util._fully_qualified_func_name(
+				func, slf or util.is_classmethod(func), func_class)
 	# Todo: Clarify if an @override-induced check caused this
 	# Todo: Python3 misconcepts method as classmethod here, because it doesn't
 	# detect it as bound method, because ov_checker or tp_checker obfuscate it
@@ -588,7 +590,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 	return _isinstance(obj, cls), obj
 
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
-			prop_getter = False, argspecs = None, var_type = None):
+			prop_getter = False, argspecs = None, var_type = None, force_exception = False):
 	if argspecs is None:
 		argspecs = getargspecs(_actualfunc(func, prop_getter))
 	argSig = _preprocess_typecheck(argSig, argspecs, slf) \
@@ -599,12 +601,17 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 		result = _isinstance(check_val, argSig)
 		checked_val = None
 	if not result:
-		raise InputTypeError(_make_type_error_message(deep_type(check_val), func,
-				slf, func_class, argSig, 'called with incompatible types', prop_getter))
+		tpch = deep_type(check_val)
+		msg = _make_type_error_message(tpch, func, slf, func_class, argSig,
+				'called with incompatible types', prop_getter)
+		_raise_typecheck_error(msg, False, check_val, tpch, argSig, func)
+				#func_class, slf, prop_getter)
+		if force_exception:
+			raise InputTypeError(msg)
 	return checked_val
 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \
-			make_checked_val = False, prop_getter = False):
+			make_checked_val = False, prop_getter = False, force_exception = False):
 	if make_checked_val:
 		result, checked_val = _checkinstance(check_val, _match_stub_type(resSig), False, func)
 	else:
@@ -612,14 +619,19 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 		checked_val = None
 	if not result:
 		# todo: constrain deep_type-depth
-		raise ReturnTypeError(_make_type_error_message(deep_type(check_val), func,
-				slf, func_class, resSig, 'returned incompatible type', prop_getter))
+		tpch = deep_type(check_val)
+		msg = _make_type_error_message(tpch, func, slf, func_class, resSig,
+				'returned incompatible type', prop_getter)
+		_raise_typecheck_error(msg, True, check_val, tpch, resSig, func)
+				#func_class, slf, prop_getter)
+		if force_exception:
+			raise ReturnTypeError(msg)
 	return checked_val
 
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
-	'''Works like typechecked, but is only applicable to functions and methods.
+	'''Works like typechecked, but is only applicable to functions, methods and properties.
 	'''
 	if not pytypes.checking_enabled and not pytypes.do_logging_in_typechecked:
 		return func
@@ -661,10 +673,9 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 		# args_kw, argskw_err = util._getargskw(args, kw, specs)
 
 		if len(argNames) > 0:
-			# Todo: Raise warnings instead of printing them
 			if clsm:
 				if argNames[0] != 'cls':
-					print('Warning: classmethod using non-idiomatic cls argname '+func0.__name__)
+					warn('classmethod using non-idiomatic cls argname '+func0.__name__)
 				check_args = args_kw[1:] # omit self
 			elif argNames[0] == 'self':
 				if prop or prop_getter or (hasattr(args_kw[0].__class__, func0.__name__) and
@@ -672,11 +683,11 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 					check_args = args_kw[1:] # omit self
 					slf = True
 				else:
-					print('Warning: non-method declaring self '+func0.__name__)
+					warn('non-method declaring self '+func0.__name__)
 					check_args = args_kw
 			else:
 				if prop or prop_getter:
-					print('Warning: property using non-idiomatic self argname '+func0.__name__)
+					warn('property using non-idiomatic self argname '+func0.__name__)
 					check_args = args_kw[1:] # omit self
 					slf = True
 				check_args = args_kw
@@ -877,7 +888,8 @@ def typechecked_module(md, force_recursive = False):
 	return md
 
 def typechecked(memb):
-	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
+	'''Decorator applicable to functions, methods, properties,
+	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_typechecked_decorator to apply this on all modules.
 	Asserts compatibility of runtime argument and return values of all targeted functions
@@ -1011,60 +1023,22 @@ def is_no_type_check(memb):
 	except TypeError:
 		return False
 
-def check_argument_types(cllable = None, call_args = None):
+def check_argument_types(cllable = None, call_args = None, clss = None, caller_level = 0):
 	'''Can be called from within a function or method to apply typechecking to
 	the arguments that were passed in by the caller. Checking is applied w.r.t.
 	type hints of the function or method hosting the call to check_argument_types.
 	'''
-	prop = None
-	prop_getter = False
-	if cllable is None:
-		fq, code = pytypes.util._get_current_function_fq(1)
-		if isinstance(fq[0], property):
-			prop = fq[0]
-			if fq[0].fget.__code__ is code:
-				cllable = fq[0].fget
-				prop_getter = True
-			elif not fq[0].fset is None and fq[0].fset.__code__ is code:
-				cllable = fq[0].fset
-		else:
-			cllable = fq[0]
-		slf = fq[2]
-		clsm = pytypes.is_classmethod(fq[0])
-		clss = fq[1][-1] if slf or clsm else None
-	else:
-		clsm = pytypes.is_classmethod(cllable)
-		slf = inspect.ismethod(cllable)
-		clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
-	act_func = _actualfunc(cllable)
-	specs = getargspecs(act_func)
-	if call_args is None:
-		call_args = pytypes.util.get_current_args(1, cllable, util.getargnames(specs))
-	if slf or clsm:
-		call_args = call_args[1:]
-	if not prop is None:
-		argSig, _ = _get_types(prop, clsm, slf, clss, prop_getter)
-		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
-				False, False, specs)
-	else:
-		if slf :
-			check_parent = pytypes.always_check_parent_types
-			if not check_parent:
-				try:
-					check_parent = act_func.override_checked
-				except AttributeError:
-					pass
-			if not check_parent:
-				try:
-					check_parent = cllable.override_checked
-				except AttributeError:
-					pass
-			if check_parent:
-				cllable, clss = _find_typed_base_method(cllable, clss)
-				if cllable is None:
-					return
-				act_func = _actualfunc(cllable)
-				specs = getargspecs(act_func)
-		argSig, _ = _get_types(cllable, clsm, slf, clss)
-		_checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
-				False, False, specs)
+	return _check_caller_type(False, cllable, call_args, clss, caller_level+1)
+
+def check_return_type(value, cllable = None, clss = None, caller_level = 0):
+	'''Can be called from within a function or method to apply typechecking to
+	the value that is going to be returned. Checking is applied w.r.t.
+	type hints of the function or method hosting the call to check_return_type.
+	'''
+	return _check_caller_type(True, cllable, value, clss, caller_level+1)
+
+class TypeChecker(TypeAgent):
+
+	def __init__(self, all_threads = True):
+		TypeAgent.__init__(self, all_threads)
+		self._checking_enabled = True

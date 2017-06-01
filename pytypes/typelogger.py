@@ -12,15 +12,15 @@ Also allows creation of Python 2.7 compatible stubfiles.
 from .type_util import deep_type, type_str, get_Tuple_params, \
 		Empty, simplify_for_Union, _get_types, _has_type_hints, \
 		_preprocess_typecheck, get_Union_params, is_Union, \
-		get_Generic_itemtype
+		get_Generic_itemtype, TypeAgent
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
 from . import version, default_indent, default_typelogger_path, \
-		util, typelogging_enabled, typelogger_include_typehint
+		util
 from typing import Union, Any, Tuple, TupleMeta
 from inspect import isclass, ismodule, isfunction, ismethod, \
 		ismethoddescriptor, getsourcelines, findsource
-import sys, os, abc, datetime
+import sys, os, abc, datetime, pytypes
 
 _member_cache = {}
 _fully_typelogged_modules = {}
@@ -348,7 +348,7 @@ class _typed_member(_base_node):
 		self.ret_type_observations.append(ret_type)
 
 	def _add_observation_from_type_info(self):
-		if typelogger_include_typehint and \
+		if pytypes.typelogger_include_typehint and \
 				_has_type_hints(self.member, self.clss, nesting = None):
 			self._added_type_hints = True
 			args, ret = _get_types(self.member, self.clsm, self.slf, self.clss,
@@ -576,7 +576,10 @@ class _class_node(_base_node):
 		return findsource(self.clss)[1]
 
 def typelogged_func(func):
-	if not typelogging_enabled:
+	'''Works like typelogged, but is only applicable to functions,
+	methods and properties.
+	'''
+	if not pytypes.typelogging_enabled:
 		return func
 	if hasattr(func, 'do_logging'):
 		func.do_logging = True
@@ -588,7 +591,9 @@ def typelogged_func(func):
 		return _typeinspect_func(func, False, True)
 
 def typelogged_class(cls):
-	if not typelogging_enabled:
+	'''Works like typelogged, but is only applicable to classes.
+	'''
+	if not pytypes.typelogging_enabled:
 		return cls
 	assert(isclass(cls))
 	# To play it safe we avoid to modify the dict while iterating over it,
@@ -609,7 +614,7 @@ def typelogged_module(md):
 	'''Works like typelogged, but is only applicable to modules by explicit call).
 	md must be a module or a module name contained in sys.modules.
 	'''
-	if not typelogging_enabled:
+	if not pytypes.typelogging_enabled:
 		return md
 	if isinstance(md, str):
 		if md in sys.modules:
@@ -636,14 +641,15 @@ def typelogged_module(md):
 	return md
 
 def typelogged(memb):
-	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
+	'''Decorator applicable to functions, methods, properties,
+	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_typelogged_decorator to apply this on all modules.
 	Observes function and method calls at runtime and allows pytypes to generate stubfiles
 	from the acquired type information.
 	Use dump_cache to write a stubfile in this manner.
 	'''
-	if not typelogging_enabled:
+	if not pytypes.typelogging_enabled:
 		return memb
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
 		return typelogged_func(memb)
@@ -662,3 +668,9 @@ def _catch_up_global_typelogged_decorator():
 				md = None
 			if not md is None and ismodule(md):
 				typelogged_module(mod_name)
+
+class TypeLogger(TypeAgent):
+
+	def __init__(self, all_threads = True):
+		TypeAgent.__init__(self, all_threads)
+		self._logging_enabled = True

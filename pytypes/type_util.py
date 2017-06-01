@@ -10,10 +10,13 @@ import typing; from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta,
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
-import sys, types, pytypes, random
+from warnings import warn, warn_explicit
+import sys, types, pytypes, random, threading
 
 _annotated_modules = {}
 _extra_dict = {}
+_saved_profilers = {}
+
 for tp in typing.__all__:
 	tpa = getattr(typing, tp)
 	try:
@@ -399,8 +402,8 @@ def type_str(tp):
 
 def get_types(func):
 	'''Works like get_type_hints, but returns types as a sequence rather than
-	a dictionary. Types are returned in the same order as the corresponding
-	arguments have in the signature of func.
+	a dictionary. Types are returned the order of the corresponding arguments
+	in the signature of func.
 	'''
 	return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
@@ -964,19 +967,31 @@ def generator_checker_py3(gen, gen_type):
 			a = gen.send(sn)
 			if initialized or not a is None:
 				if not gen_type.__args__[0] is Any and not _isinstance(a, gen_type.__args__[0]):
-					raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
-							gen_type.__args__[0], 'has incompatible yield type'))
+					tpa = deep_type(a)
+					msg = _make_generator_error_message(deep_type(a), gen, gen_type.__args__[0],
+							'has incompatible yield type')
+					_raise_typecheck_error(msg, True, a, tpa, gen_type.__args__[0])
+# 					raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
+# 							gen_type.__args__[0], 'has incompatible yield type'))
 			initialized = True
 			sn = yield a
 			if not gen_type.__args__[1] is Any and not _isinstance(sn, gen_type.__args__[1]):
-				raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
-						gen_type.__args__[1], 'has incompatible send type'))
+				tpsn = deep_type(sn)
+				msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
+						'has incompatible send type')
+				_raise_typecheck_error(msg, False, sn, tpsn, gen_type.__args__[1])
+# 				raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
+# 						gen_type.__args__[1], 'has incompatible send type'))
 	except StopIteration as st:
 		# Python 3:
 		# todo: Check if st.value is always defined (i.e. as None if not present)
 		if not gen_type.__args__[2] is Any and not _isinstance(st.value, gen_type.__args__[2]):
-				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(st.value), gen,
-						gen_type.__args__[2], 'has incompatible return type'))
+				tpst = deep_type(st.value)
+				msg = _make_generator_error_message(tpst, gen, gen_type.__args__[2],
+						'has incompatible return type')
+				_raise_typecheck_error(msg, True, st.value, tpst, gen_type.__args__[2])
+# 				raise pytypes.ReturnTypeError(_make_generator_error_message(sttp, gen,
+# 						gen_type.__args__[2], 'has incompatible return type'))
 		raise st
 
 def generator_checker_py2(gen, gen_type):
@@ -988,13 +1003,21 @@ def generator_checker_py2(gen, gen_type):
 		a = gen.send(sn)
 		if initialized or not a is None:
 			if not gen_type.__args__[0] is Any and not _isinstance(a, gen_type.__args__[0]):
-				raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
-						gen_type.__args__[0], 'has incompatible yield type'))
+				tpa = deep_type(a)
+				msg = _make_generator_error_message(tpa, gen, gen_type.__args__[0],
+						'has incompatible yield type')
+				_raise_typecheck_error(msg, True, a, tpa, gen_type.__args__[0])
+# 				raise pytypes.ReturnTypeError(_make_generator_error_message(tpa, gen,
+# 						gen_type.__args__[0], 'has incompatible yield type'))
 		initialized  = True
 		sn = yield a
 		if not gen_type.__args__[1] is Any and not _isinstance(sn, gen_type.__args__[1]):
-			raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
-					gen_type.__args__[1], 'has incompatible send type'))
+			tpsn = deep_type(sn)
+			msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
+					'has incompatible send type')
+			_raise_typecheck_error(msg, False, sn, tpsn, gen_type.__args__[1])
+# 			raise pytypes.InputTypeError(_make_generator_error_message(tpsn, gen,
+# 					gen_type.__args__[1], 'has incompatible send type'))
 
 def _find_typed_base_method(meth, cls):
 	meth0 = util._actualfunc(meth)
@@ -1006,8 +1029,8 @@ def _find_typed_base_method(meth, cls):
 	return None, None
 
 def annotations_func(func):
-	'''Works like annotations, but is only applicable to functions
-	and methods.
+	'''Works like annotations, but is only applicable to functions,
+	methods and properties.
 	'''
 	if not has_type_hints(func):
 		# What about defaults?
@@ -1063,7 +1086,8 @@ def annotations_module(md):
 	return md
 
 def annotations(memb):
-	'''Decorator applicable to functions, methods, classes or modules (by explicit call).
+	'''Decorator applicable to functions, methods, properties,
+	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_annotations_decorator to apply this on all modules.
 	Methods with type comment will have type hints parsed from that
@@ -1171,3 +1195,277 @@ def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
 		return typing.Tuple[tuple(arg_type_lst)]
 	else:
 		return argSig
+
+def _raise_typecheck_error(msg, is_return=False, value=None, received_type=None,
+			expected_type=None, func=None):
+	if pytypes.warning_mode:
+		import traceback
+		tb = traceback.extract_stack()
+		off = util._calc_traceback_list_offset(tb)
+		cat = pytypes.ReturnTypeWarning if is_return else pytypes.InputTypeWarning
+		warn_explicit(msg, cat, tb[off][0], tb[off][1])
+# 		if not func is None:
+# 			warn_explicit(msg, cat, func.__code__.co_filename,
+# 					func.__code__.co_firstlineno, func.__module__)
+# 		else:
+# 			warn(msg, pytypes.ReturnTypeWarning)
+	else:
+		if is_return:
+			raise pytypes.ReturnTypeError(msg)
+		else:
+			raise pytypes.InputTypeError(msg)
+
+def _get_current_call_info(clss = None, caller_level = 0):
+	prop = None
+	prop_getter = False
+	fq, code = util._get_current_function_fq(caller_level+1)
+	if isinstance(fq[0], property):
+		prop = fq[0]
+		if fq[0].fget.__code__ is code:
+			cllable = fq[0].fget
+			prop_getter = True
+		elif not fq[0].fset is None and fq[0].fset.__code__ is code:
+			cllable = fq[0].fset
+	else:
+		cllable = fq[0]
+	if cllable is None:
+		raise RuntimeError("Couldn't determine caller.")
+	slf = fq[2]
+	clsm = pytypes.is_classmethod(fq[0])
+	if clss is None and len(fq[1]) > 0:
+		clss = fq[1][-1]
+	return cllable, clss, slf, clsm, prop, prop_getter
+
+def _check_caller_type(return_type, cllable = None, call_args = None, clss = None, caller_level = 0):
+	prop = None
+	prop_getter = False
+	if cllable is None:
+		cllable, clss, slf, clsm, prop, prop_getter = _get_current_call_info(clss, caller_level+1)
+	else:
+		clsm = pytypes.is_classmethod(cllable)
+		slf = ismethod(cllable)
+		if clss is None:
+			clss = util.get_class_that_defined_method(cllable) if slf or clsm else None
+	act_func = util._actualfunc(cllable)
+	has_hints = has_type_hints(cllable)
+	if not has_hints and not slf:
+		return
+	if not return_type:
+		specs = util.getargspecs(act_func)
+		if call_args is None:
+			call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
+		if slf or clsm:
+			call_args = call_args[1:]
+	if not prop is None:
+		argSig, retSig = _get_types(prop, clsm, slf, clss, prop_getter)
+		try:
+			if return_type:
+				pytypes._checkfuncresult(retSig, call_args, act_func, slf or clsm, clss,
+						prop_getter, force_exception=True)
+			else:
+				pytypes._checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+						False, False, specs, force_exception=True)
+		except pytypes.TypeCheckError:
+			if not pytypes.warning_mode:
+				raise
+			else:
+				return False
+	else:
+		if slf:
+			check_parent = pytypes.always_check_parent_types
+			if not check_parent:
+				try:
+					check_parent = act_func.override_checked
+				except AttributeError:
+					pass
+			if not check_parent:
+				try:
+					check_parent = cllable.override_checked
+				except AttributeError:
+					pass
+			if check_parent:
+				cllable, clss = _find_typed_base_method(cllable, clss)
+				if cllable is None:
+					return
+				act_func = util._actualfunc(cllable)
+				if not return_type:
+					specs = util.getargspecs(act_func)
+			elif not has_hints:
+				return
+		argSig, retSig = _get_types(cllable, clsm, slf, clss)
+		try:
+			if return_type:
+				pytypes._checkfuncresult(retSig, call_args, act_func, slf or clsm, clss,
+						prop_getter, force_exception=True)
+			else:
+				pytypes._checkfunctype(argSig, call_args, act_func, slf or clsm, clss,
+						False, False, specs, force_exception=True)
+		except pytypes.TypeCheckError:
+			if not pytypes.warning_mode:
+				raise
+			else:
+				return False
+		return True
+
+def restore_profiler():
+	'''If a typechecking profiler is active, e.g. created by
+	pytypes.set_global_typechecked_profiler(), such a profiler
+	must be restored whenever a TypeCheckError is caught.
+	The call must stem from the thread that raised the error.
+	Otherwise the typechecking profiler is implicitly disabled.
+	Alternatively one can turn pytypes into warning mode. In that
+	mode no calls to this function are required (unless one uses
+	filterwarnings("error") or likewise).
+	'''
+	idn = threading.current_thread().ident
+	if not sys.getprofile() is None:
+		warn("restore_profiler: Current profile is not None!")
+	if not idn in _saved_profilers:
+		warn("restore_profiler: No saved profiler for calling thread!")
+	else:
+		sys.setprofile(_saved_profilers[idn])
+		del _saved_profilers[idn]
+
+class TypeAgent(object):
+
+	def __init__(self, all_threads = True):
+		self.all_threads = all_threads
+		self._previous_profiler = None
+		self._previous_thread_profiler = None
+		self._active = False
+		self._pending = False
+		self._cleared = False
+		self._checking_enabled = False
+		self._logging_enabled = False
+		self._caller_level_shift = 0
+
+	def _is_checking(self):
+		if not pytypes.checking_enabled:
+			return False
+		if pytypes.global_typechecked_profiler:
+			# a global checker is already doing the job
+			# So return true only if self is this global checker.
+			return self is pytypes._global_type_agent
+		else:
+			return self._checking_enabled
+
+	def _is_logging(self):
+		if not pytypes.typelogging_enabled:
+			return False
+		if pytypes.global_typelogged_profiler:
+			# a global checker is already doing the job
+			# So return true only if self is this global checker.
+			return self is pytypes._global_type_agent
+		else:
+			return self._logging_enabled
+
+	@property
+	def active(self):
+		return self._active
+
+	def _set_caller_level_shift(self, shift):
+		self._caller_level_shift = shift
+		if not self._previous_profiler is None and \
+				isinstance(self._previous_profiler, TypeAgent):
+			self._previous_profiler._set_caller_level_shift(shift+1)
+
+	def start(self):
+		if self._active:
+			raise RuntimeError('type checker already running')
+		elif self._pending:
+			raise RuntimeError('type checker already starting up')
+		self._pending = True
+		# Install this instance as the current profiler
+		self._previous_profiler = sys.getprofile()
+		self._set_caller_level_shift(0)
+		sys.setprofile(self)
+
+		# If requested, set this instance as the default profiler for all future threads
+		# (does not affect existing threads)
+		if self.all_threads:
+			self._previous_thread_profiler = threading._profile_hook
+			threading.setprofile(self)
+		self._active, self._pending = True, False
+
+	def stop(self):
+		if self._active and not self._pending:
+			self._pending = True
+			if sys.getprofile() is self:
+				sys.setprofile(self._previous_profiler)
+				if not self._previous_profiler is None and \
+						isinstance(self._previous_profiler, TypeAgent):
+					self._previous_profiler._set_caller_level_shift(0)
+			else:
+				if not (sys.getprofile() is None and self._cleared):
+					warn('the system profiling hook has changed unexpectedly')
+			if self.all_threads:
+				if threading._profile_hook is self:
+					threading.setprofile(self._previous_thread_profiler)
+				else:  # pragma: no cover
+					warn('the threading profiling hook has changed unexpectedly')
+			self._active, self._pending = False, False
+
+	def __enter__(self):
+		self.start()
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.stop()
+
+	def __call__(self, frame, event, arg):
+		if not self._active and not self._pending:
+			# This happens if all_threads was enabled and a thread was created when the checker was
+			# running but was then stopped. The thread's profiler callback can't be reset any other
+			# way but this.
+			sys.setprofile(self._previous_thread_profiler)
+			return
+		if self._pending:
+			if self._previous_profiler is not None:
+				self._previous_profiler(frame, event, arg)
+		else:
+			# If an actual profiler is running, don't include the type checking times in its results
+			if event == 'call':
+				if self._is_checking():
+					try:
+						#check_argument_types(caller_level=self._caller_level_shift+1)
+						_check_caller_type(False, caller_level=self._caller_level_shift+1)
+					except RuntimeError:
+						# Caller could not be determined.
+						pass
+					except pytypes.TypeCheckError:
+						_saved_profilers[threading.current_thread().ident] = self
+						self._cleared = True
+						raise
+				if self._previous_profiler is not None:
+					self._previous_profiler(frame, event, arg)
+			elif event == 'return':
+				if self._previous_profiler is not None:
+					self._previous_profiler(frame, event, arg)
+				if self._is_checking():
+					try:
+						#check_return_type(arg, caller_level=self._caller_level_shift+1)
+						_check_caller_type(True, None, arg, caller_level=self._caller_level_shift+1)
+					except RuntimeError:
+						# Caller could not be determined.
+						pass
+					except pytypes.TypeCheckError:
+						_saved_profilers[threading.current_thread().ident] = self
+						self._cleared = True
+						raise
+				if self._is_logging():
+					try:
+						cllable, clss, slf, clsm, prop, prop_getter = \
+								_get_current_call_info(caller_level=self._caller_level_shift+1)
+						act_func = util._actualfunc(cllable)
+						specs = util.getargspecs(act_func)
+						call_args = util.get_current_args(self._caller_level_shift+1, cllable,
+								util.getargnames(specs))
+						if slf or clsm:
+							call_args = call_args[1:]
+						pytypes.log_type(call_args, arg, cllable if prop is None else prop,
+								slf, prop_getter, clss, specs)
+					except:
+						pass
+			else:
+				if self._previous_profiler is not None:
+					self._previous_profiler(frame, event, arg)

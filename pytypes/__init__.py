@@ -32,26 +32,26 @@ do_logging_in_typechecked : bool
 	switched on and off at any time.
 
 global_typechecked_decorator : bool
-	Flag indicating global typechecking mode.
+	Flag indicating global typechecking mode via decorators.
 	Default: False
 	Every function or method with type annotation is typechecked now.
 	Will affect all functions and methods imported after this flag
-	was set. Use set_global_typechecked_decorator for a retrospective option.
+	was set. Use enable_global_typechecked_decorator for a retrospective option.
 	Does not work if checking_enabled is false.
 	Does not work reliably if checking_enabled has ever been set to
 	false during current run.
 
 global_auto_override_decorator : bool
-	Flag indicating global auto_override mode.
+	Flag indicating global auto_override mode via decorators.
 	Default: False
 	Every method with type annotation that also has a parent method
 	with type annotation is now checked for type consistency with its
 	parent.
 	Will affect all functions and methods imported after this flag
-	was set. Use set_global_auto_override_decorator for a retrospective option.
+	was set. Use enable_global_auto_override_decorator for a retrospective option.
 
 global_annotations_decorator : bool
-	Flag indicating global annotation mode.
+	Flag indicating global annotation mode via decorators.
 	Default: False
 	Methods with typestring will have type hints parsed from that
 	string and get them attached as __annotations__ attribute.
@@ -61,15 +61,29 @@ global_annotations_decorator : bool
 	attached __annotations__ can be controlled using the flags
 	annotations_override_typestring and annotations_from_typestring.
 	Will affect all methods imported after this flag
-	was set. Use set_global_annotations_decorator for a retrospective option.
+	was set. Use enable_global_annotations_decorator for a retrospective option.
 
 global_typelogged_decorator : bool
-	Flag indicating global typelog mode.
+	Flag indicating global typelog mode via decorators.
 	Default: False
 	Every function and method call is recorded. The observed type
 	information can be written into stubfiles by calling dump_cache.
 	Will affect all methods imported after this flag
-	was set. Use set_global_typelogged_decorator for a retrospective option.
+	was set. Use enable_global_typelogged_decorator for a retrospective option.
+
+global_typechecked_profiler : bool
+	Flag indicating global typechecking mode via profiler.
+	Default: False
+	Read-only flag. Use enable_global_typechecked_profiler to change it.
+
+global_typelogged_profiler : bool
+	Flag indicating global typelog mode via profiler.
+	Default: False
+	Read-only flag. Use enable_global_typelogged_profiler to change it.
+
+warning_mode : bool
+	Flag indicating that typecheck errors shall be raised as warnings.
+	Default: False
 
 check_override_at_runtime : bool
 	Flag indicating override consistency is checked at runtime.
@@ -190,7 +204,7 @@ deep_type_samplesize : int
 clean_traceback : bool
 	If true, hides pytypes' internal part of exception traceback output.
 	Default: True
-	Use this variable only for reading. Use set_clean_traceback function to
+	Use this variable only for reading. Use enable_clean_traceback function to
 	modify it. Disable clean_traceback, if you want to trace a bug in pytypes.
 
 python3_5_executable : str
@@ -248,7 +262,14 @@ global_auto_override_decorator = False
 global_annotations_decorator = False
 global_typelogged_decorator = False
 
+global_typechecked_profiler = False
+global_typelogged_profiler = False
+
+_global_type_agent = None
+
 # Some behavior flags:
+
+warning_mode = False
 
 check_override_at_runtime = False
 check_override_at_class_definition_time = True
@@ -282,16 +303,16 @@ clean_traceback = True
 
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
-def set_checking_enabled(flag = True):
-	'''Convenience function to set the checking_enabled. Intended
+def enable_checking(flag = True):
+	'''Convenience function to set the checking_enabled flag. Intended
 	for use in an assert statement, so the call depends on -o flag.
 	'''
 	global checking_enabled
 	checking_enabled = flag
 	return checking_enabled
 
-def set_global_typechecked_decorator(flag = True, retrospective = True):
-	'''Sets global typechecking mode via decorators.
+def enable_global_typechecked_decorator(flag = True, retrospective = True):
+	'''Enables or disables global typechecking mode via decorators.
 	See flag global_typechecked_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
@@ -306,8 +327,8 @@ def set_global_typechecked_decorator(flag = True, retrospective = True):
 		_catch_up_global_typechecked_decorator()
 	return global_typechecked_decorator
 
-def set_global_auto_override_decorator(flag = True, retrospective = True):
-	'''Sets global auto_override mode via decorators.
+def enable_global_auto_override_decorator(flag = True, retrospective = True):
+	'''Enables or disables global auto_override mode via decorators.
 	See flag global_auto_override_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
@@ -319,8 +340,8 @@ def set_global_auto_override_decorator(flag = True, retrospective = True):
 		_catch_up_global_auto_override_decorator()
 	return global_auto_override_decorator
 
-def set_global_annotations_decorator(flag = True, retrospective = True):
-	'''Sets global annotation mode via decorators.
+def enable_global_annotations_decorator(flag = True, retrospective = True):
+	'''Enables or disables global annotation mode via decorators.
 	See flag global_annotations_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
@@ -332,8 +353,8 @@ def set_global_annotations_decorator(flag = True, retrospective = True):
 		_catch_up_global_annotations_decorator()
 	return global_annotations_decorator
 
-def set_global_typelogged_decorator(flag = True, retrospective = True):
-	'''Sets global typelog mode via decorators.
+def enable_global_typelogged_decorator(flag = True, retrospective = True):
+	'''Enables or disables global typelog mode via decorators.
 	See flag global_typelogged_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
@@ -345,7 +366,41 @@ def set_global_typelogged_decorator(flag = True, retrospective = True):
 		_catch_up_global_typelogged_decorator()
 	return global_typelogged_decorator
 
-def set_clean_traceback(flag = True):
+def enable_global_typechecked_profiler(flag = True):
+	'''Enables or disables global typechecking mode via a profiler.
+	See flag global_typechecked_profiler.
+	Does not work if checking_enabled is false.
+	'''
+	global global_typechecked_profiler, _global_type_agent, global_typelogged_profiler
+	global_typechecked_profiler = flag
+	if flag and checking_enabled:
+		if _global_type_agent is None:
+			_global_type_agent = TypeAgent()
+			_global_type_agent.start()
+		elif not _global_type_agent.active:
+			_global_type_agent.start()
+	elif not flag and not global_typelogged_profiler and \
+			not _global_type_agent is None and _global_type_agent.active:
+		_global_type_agent.stop()
+
+def enable_global_typelogged_profiler(flag = True):
+	'''Enables or disables global typelogging mode via a profiler.
+	See flag global_typelogged_profiler.
+	Does not work if typelogging_enabled is false.
+	'''
+	global global_typelogged_profiler, _global_type_agent, global_typechecked_profiler
+	global_typelogged_profiler = flag
+	if flag and typelogging_enabled:
+		if _global_type_agent is None:
+			_global_type_agent = TypeAgent()
+			_global_type_agent.start()
+		elif not _global_type_agent.active:
+			_global_type_agent.start()
+	elif not flag and not global_typechecked_profiler and \
+			not _global_type_agent is None and _global_type_agent.active:
+		_global_type_agent.stop()
+
+def enable_clean_traceback(flag = True):
 	'''Activates traceback cleaning. This means that traceback of uncaught
 	TypeErrors does not include pytypes' internal calls for typechecking etc,
 	but instead focuses on the location of an ill-typed call itself.
@@ -353,11 +408,11 @@ def set_clean_traceback(flag = True):
 	global clean_traceback
 	clean_traceback = flag
 	if clean_traceback:
-		sys.excepthook = _pytypes_excepthook
+		_install_excepthook()
 
 # This way we glue typechecking to activeness of the assert statement by default,
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
-assert(set_checking_enabled())
+assert(enable_checking())
 
 def _detect_issue351():
 	'''Detect if github.com/python/typing/issues/351 applies
@@ -428,6 +483,23 @@ class ReturnTypeError(TypeCheckError):
 	'''
 	pass
 
+class TypeWarning(RuntimeWarning):
+	'''Warning type to indicate errors regarding failing typechecks.
+	'''
+	pass
+
+class InputTypeWarning(TypeWarning):
+	'''Warning type to indicate errors regarding failing typechecks of
+	function or method parameters.
+	'''
+	pass
+
+class ReturnTypeWarning(TypeWarning):
+	'''Warning type to indicate errors regarding failing typechecks of
+	function or method return values.
+	'''
+	pass
+
 class OverrideError(TypeError):
 	'''Error type to indicate errors regarding failing checks of
 	method's override consistency.
@@ -445,17 +517,20 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
 		get_generator_type, get_generator_yield_type, \
 		is_Union, get_Union_params, get_Tuple_params, \
 		get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-		annotations, get_member_types, Empty, _catch_up_global_annotations_decorator
+		annotations, get_member_types, Empty, _catch_up_global_annotations_decorator, \
+		TypeAgent, restore_profiler
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
-		get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook
+		get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook, \
+		_install_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
 		is_no_type_check, override, check_argument_types, auto_override, \
-		_catch_up_global_auto_override_decorator, _catch_up_global_typechecked_decorator
+		_catch_up_global_auto_override_decorator, _catch_up_global_typechecked_decorator, \
+		TypeChecker, _checkfunctype, _checkfuncresult
 from .typelogger import dump_cache, log_type, typelogged, typelogged_module, \
-		_catch_up_global_typelogged_decorator, _register_logged_func
+		_catch_up_global_typelogged_decorator, _register_logged_func, TypeLogger
 
-set_clean_traceback()
+enable_clean_traceback()
 
 # Some exemplary overrides for this modules's global settings:
 
