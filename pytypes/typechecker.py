@@ -1,10 +1,21 @@
+# Copyright 2017 Stefan Richthofer
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Created on 20.08.2016
+
 '''
 Part of pytypes. Contains code specifically for typechecking.
-
-
-Created on 20.08.2016
-
-@author: Stefan Richthofer
 '''
 
 import sys, typing, types, inspect, re as _re, atexit
@@ -605,7 +616,6 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 		msg = _make_type_error_message(tpch, func, slf, func_class, argSig,
 				'called with incompatible types', prop_getter)
 		_raise_typecheck_error(msg, False, check_val, tpch, argSig, func)
-				#func_class, slf, prop_getter)
 		if force_exception:
 			raise InputTypeError(msg)
 	return checked_val
@@ -623,7 +633,6 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 		msg = _make_type_error_message(tpch, func, slf, func_class, resSig,
 				'returned incompatible type', prop_getter)
 		_raise_typecheck_error(msg, True, check_val, tpch, resSig, func)
-				#func_class, slf, prop_getter)
 		if force_exception:
 			raise ReturnTypeError(msg)
 	return checked_val
