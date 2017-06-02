@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-![pytypes Logo](https://raw.githubusercontent.com/Stewori/pytypes/4ed74b0f7e89588bb9818576aa9a84c4aed3a6cd/pytypes_logo_text.jpg)
+![pytypes Logo](https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.png)
 
 
 Welcome to the pytypes project
