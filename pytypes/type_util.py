@@ -43,27 +43,27 @@ else:
 
 EMPTY = TypeVar('EMPTY', bound=Container, covariant=True)
 class Empty(Generic[EMPTY]):
-	'''pytypes-specific type to represent empty lists, sets, dictionaries
+	"""pytypes-specific type to represent empty lists, sets, dictionaries
 	and other empty containers.
-	'''
+	"""
 	pass
 
 def get_generator_yield_type(genr):
-	'''Obtains the yield type of a generator object.
-	'''
+	"""Obtains the yield type of a generator object.
+	"""
 	return get_generator_type(genr).__args__[0]
 
 def get_generator_type(genr):
-	'''Obtains PEP 484 style type of a generator object, i.e. returns a
+	"""Obtains PEP 484 style type of a generator object, i.e. returns a
 	typing.Generator object.
-	'''
+	"""
 	if 'gen_type' in genr.gi_frame.f_locals:
 		return genr.gi_frame.f_locals['gen_type']
 	else:
 		return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
 
 def get_iterable_itemtype(obj):
-	'''Attempts to get an iterable's itemtype without iterating over it,
+	"""Attempts to get an iterable's itemtype without iterating over it,
 	not even partly. Note that iterating over an iterable might modify
 	its inner state, e.g. if it is an iterator.
 	Note that obj is expected to be an iterable, not a typing.Iterable.
@@ -71,7 +71,7 @@ def get_iterable_itemtype(obj):
 	info, e.g. by looking for type annotations of '__iter__' or '__getitem__'.
 	It is intended for (unknown) iterables, where the type cannot be obtained
 	via sampling without the risk of modifying inner state.
-	'''
+	"""
 	# support further specific iterables on demand
 	try:
 		if isinstance(obj, range):
@@ -110,8 +110,8 @@ def get_iterable_itemtype(obj):
 		raise TypeError('Not an iterable: '+str(type(obj)))
 
 def get_Generic_itemtype(sq, simplify = True):
-	'''sq must be a typing.Tuple or subclass of typing.Iterable or typing.Container.
-	'''
+	"""sq must be a typing.Tuple or subclass of typing.Iterable or typing.Container.
+	"""
 	if isinstance(sq, TupleMeta):
 		if simplify:
 			itm_tps = [x for x in get_Tuple_params(sq)]
@@ -129,10 +129,10 @@ def get_Generic_itemtype(sq, simplify = True):
 				raise TypeError("Has no itemtype: "+str(sq))
 
 def get_Tuple_params(tpl):
-	'''Python version independent function to obtain the parameters
+	"""Python version independent function to obtain the parameters
 	of a typing.Tuple object.
 	Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
-	'''
+	"""
 	try:
 		return tpl.__tuple_params__
 	except AttributeError:
@@ -145,10 +145,10 @@ def get_Tuple_params(tpl):
 			return None
 
 def get_Union_params(un):
-	'''Python version independent function to obtain the parameters
+	"""Python version independent function to obtain the parameters
 	of a typing.Union object.
 	Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
-	'''
+	"""
 	try:
 		return un.__union_params__
 	except AttributeError:
@@ -156,10 +156,10 @@ def get_Union_params(un):
 		return un.__args__
 
 def get_Callable_args_res(clb):
-	'''Python version independent function to obtain the parameters
+	"""Python version independent function to obtain the parameters
 	of a typing.Callable object. Returns as tuple: args, result.
 	Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
-	'''
+	"""
 	try:
 		return clb.__args__, clb.__result__
 	except AttributeError:
@@ -167,11 +167,11 @@ def get_Callable_args_res(clb):
 		return clb.__args__[:-1], clb.__args__[-1]
 
 def is_iterable(obj):
-	'''Tests if an object implements the iterable protocol.
+	"""Tests if an object implements the iterable protocol.
 	This function is intentionally not capitalized, because
 	it does not check w.r.t. (capital) Iterable class from
 	typing or collections.
-	'''
+	"""
 	try:
 		itr = iter(obj)
 		del itr
@@ -180,9 +180,9 @@ def is_iterable(obj):
 		return False
 
 def is_Union(tp):
-	'''Python version independent check if a type is typing.Union.
+	"""Python version independent check if a type is typing.Union.
 	Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
-	'''
+	"""
 	if tp is Union:
 		return True
 	try:
@@ -195,7 +195,7 @@ def is_Union(tp):
 			return False
 
 def deep_type(obj, depth = None, max_sample = None):
-	'''Tries to construct a type for a given value. In contrast to type(...),
+	"""Tries to construct a type for a given value. In contrast to type(...),
 	deep_type does its best to fit structured types from typing as close as
 	possible to the given value.
 	E.g. deep_type((1, 2, 'a')) will return Tuple[int, int, str] rather than
@@ -207,7 +207,7 @@ def deep_type(obj, depth = None, max_sample = None):
 	from lists, sets and dictionaries to determine the element type. By default,
 	all elements are probed. If there are fewer elements than max_sample, all
 	existing elements are probed.
-	'''
+	"""
 	return _deep_type(obj, [], depth, max_sample)
 
 def _deep_type(obj, checked, depth = None, max_sample = None):
@@ -317,14 +317,14 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
 	return res
 
 def is_builtin_type(tp):
-	'''Checks if the given type is a builtin one.
-	'''
+	"""Checks if the given type is a builtin one.
+	"""
 	return hasattr(__builtins__, tp.__name__) and tp is getattr(__builtins__, tp.__name__)
 
 def has_type_hints(func0):
-	'''Detects if the given function or method has type annotations.
+	"""Detects if the given function or method has type annotations.
 	Also considers typecomments and stubfiles.
-	'''
+	"""
 	return _has_type_hints(func0)
 
 def _has_type_hints(func0, func_class = None, nesting = None):
@@ -353,14 +353,14 @@ def _has_type_hints(func0, func_class = None, nesting = None):
 		return False
 
 def type_str(tp):
-	'''Generates a nicely readable string representation of the given type.
+	"""Generates a nicely readable string representation of the given type.
 	The returned representation is workable as a source code string and would
 	reconstruct the given type if handed to eval, provided that globals/locals
 	are configured appropriately (e.g. assumes that various types from typing
 	have been imported).
 	Used as type-formatting backend of ptypes' code generator abilities
 	in modules typelogger and stubfile_2_converter.
-	'''
+	"""
 	if isinstance(tp, tuple):
 		return '('+', '.join([type_str(tp0) for tp0 in tp])+')'
 	try:
@@ -411,16 +411,16 @@ def type_str(tp):
 		return str(tp).replace('typing.', '')
 
 def get_types(func):
-	'''Works like get_type_hints, but returns types as a sequence rather than
+	"""Works like get_type_hints, but returns types as a sequence rather than
 	a dictionary. Types are returned the order of the corresponding arguments
 	in the signature of func.
-	'''
+	"""
 	return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
 def get_member_types(obj, member_name, prop_getter = False):
-	'''Still experimental, incomplete and hardly tested.
+	"""Still experimental, incomplete and hardly tested.
 	Works like get_types, but is also applicable to descriptors.
-	'''
+	"""
 	cls = obj.__class__
 	member = getattr(cls, member_name)
 	slf = not (isinstance(member, staticmethod) or isinstance(member, classmethod))
@@ -429,8 +429,8 @@ def get_member_types(obj, member_name, prop_getter = False):
 
 def _get_types(func, clsm, slf, clss = None, prop_getter = False,
 			unspecified_type = Any, infer_defaults = None):
-	'''Helper for get_types and get_member_types.
-	'''
+	"""Helper for get_types and get_member_types.
+	"""
 	func0 = util._actualfunc(func, prop_getter)
 	# check consistency regarding special case with 'self'-keyword
 	if not slf:
@@ -451,20 +451,20 @@ def _get_types(func, clsm, slf, clss = None, prop_getter = False,
 	return _match_stub_type(args), _match_stub_type(res)
 
 def get_type_hints(func):
-	'''Resembles typing.get_type_hints, but is also workable on Python 2.7 and
+	"""Resembles typing.get_type_hints, but is also workable on Python 2.7 and
 	searches stubfiles for type information.
 	Also on Python 3, this takes type comments
 	(python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code)
 	into account if present.
-	'''
+	"""
 	if not has_type_hints(func):
 		# What about defaults?
 		return {}
 	return _get_type_hints(func)
 
 def _get_type_hints(func, args = None, res = None, infer_defaults = None):
-	'''Helper for get_type_hints.
-	'''
+	"""Helper for get_type_hints.
+	"""
 	if args is None or res is None:
 		args2, res2 = _get_types(func, util.is_classmethod(func),
 				util.is_method(func), unspecified_type = type(NotImplemented),
@@ -642,8 +642,8 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 	return res
 
 def _issubclass_Mapping_covariant(subclass, superclass):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	# This subclass-check treats Mapping-values as covariant
 	if isinstance(subclass, GenericMeta):
 		if not issubclass(subclass.__origin__, Mapping):
@@ -656,8 +656,8 @@ def _issubclass_Mapping_covariant(subclass, superclass):
 	return issubclass(subclass, superclass)
 
 def _find_Generic_super_origin(subclass, superclass_origin):
-	'''Helper for _issubclass_Generic.
-	'''
+	"""Helper for _issubclass_Generic.
+	"""
 	stack = [subclass]
 	param_map = {}
 	while len(stack) > 0:
@@ -683,8 +683,8 @@ def _find_Generic_super_origin(subclass, superclass_origin):
 	return None
 
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
-	'''Helper for _issubclass_Generic.
-	'''
+	"""Helper for _issubclass_Generic.
+	"""
 	if subclass.__origin__ is superclass_origin:
 		return subclass.__args__
 	prms = _find_Generic_super_origin(subclass, superclass_origin)
@@ -692,8 +692,8 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
 			for prm in prms]
 
 def _issubclass_Generic(subclass, superclass):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	# this function is partly based on code from typing module 3.5.2.2
 	if subclass is None:
 		return False
@@ -801,8 +801,8 @@ def _issubclass_Generic(subclass, superclass):
 	return _issubclass_2(subclass, superclass.__extra__)
 
 def _issubclass_Tuple(subclass, superclass):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	# this function is partly based on code from typing module 3.5.2.2
 	if subclass in _extra_dict:
 		subclass = _extra_dict[subclass]
@@ -832,8 +832,8 @@ def _issubclass_Tuple(subclass, superclass):
 				for x, p in zip(sub_args, super_args)))
 
 def _issubclass_Union(subclass, superclass):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	# this function is partly based on code from typing module 3.5.2.2
 	super_args = get_Union_params(superclass)
 	if super_args is None:
@@ -855,8 +855,8 @@ def _issubclass_Union(subclass, superclass):
 # This is just a crutch, because issubclass sometimes tries to be too smart.
 # Note that this doesn't consider __subclasshook__ etc, so use with care!
 def _has_base(cls, base):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	if cls is base:
 		return True
 	elif cls is None:
@@ -867,9 +867,9 @@ def _has_base(cls, base):
 	return False
 
 def _issubclass(subclass, superclass):
-	'''Access this via pytypes.is_subtype.
+	"""Access this via pytypes.is_subtype.
 	Works like issubclass, but supports PEP 484 style types from typing module.
-	'''
+	"""
 	if superclass is Any:
 		return True
 	if subclass is Any:
@@ -896,8 +896,8 @@ def _issubclass(subclass, superclass):
 	return _issubclass_2(subclass, superclass)
 
 def _issubclass_2(subclass, superclass):
-	'''Helper for _issubclass, a.k.a pytypes.issubtype.
-	'''
+	"""Helper for _issubclass, a.k.a pytypes.issubtype.
+	"""
 	if isinstance(superclass, TupleMeta):
 		return _issubclass_Tuple(subclass, superclass)
 	if isinstance(superclass, GenericMeta):
@@ -943,9 +943,9 @@ def _isinstance_Callable(obj, cls, check_callables = True):
 	return not check_callables
 
 def _isinstance(obj, cls):
-	'''Access this via pytypes.is_of_type.
+	"""Access this via pytypes.is_of_type.
 	Works like isinstance, but supports PEP 484 style types from typing module.
-	'''
+	"""
 	# Special treatment if cls is Iterable[...]
 	if isinstance(cls, GenericMeta) and cls.__origin__ is typing.Iterable:
 		if not is_iterable(obj):
@@ -968,8 +968,8 @@ def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
 				% (type_str(expected_tp), type_str(tp))
 
 def generator_checker_py3(gen, gen_type):
-	'''Builds a typechecking wrapper around a Python 3 style generator object.
-	'''
+	"""Builds a typechecking wrapper around a Python 3 style generator object.
+	"""
 	initialized = False
 	sn = None
 	try:
@@ -1005,8 +1005,8 @@ def generator_checker_py3(gen, gen_type):
 		raise st
 
 def generator_checker_py2(gen, gen_type):
-	'''Builds a typechecking wrapper around a Python 2 style generator object.
-	'''
+	"""Builds a typechecking wrapper around a Python 2 style generator object.
+	"""
 	initialized = False
 	sn = None
 	while True:
@@ -1039,9 +1039,9 @@ def _find_typed_base_method(meth, cls):
 	return None, None
 
 def annotations_func(func):
-	'''Works like annotations, but is only applicable to functions,
+	"""Works like annotations, but is only applicable to functions,
 	methods and properties.
-	'''
+	"""
 	if not has_type_hints(func):
 		# What about defaults?
 		func.__annotations__ =  {}
@@ -1050,8 +1050,8 @@ def annotations_func(func):
 	return func
 
 def annotations_class(cls):
-	'''Works like annotations, but is only applicable to classes.
-	'''
+	"""Works like annotations, but is only applicable to classes.
+	"""
 	assert(isclass(cls))
 	# To play it safe we avoid to modify the dict while iterating over it,
 	# so we previously cache keys.
@@ -1068,9 +1068,9 @@ def annotations_class(cls):
 	return cls
 
 def annotations_module(md):
-	'''Works like annotations, but is only applicable to modules (by explicit call).
+	"""Works like annotations, but is only applicable to modules (by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if isinstance(md, str):
 		if md in sys.modules:
 			md = sys.modules[md]
@@ -1096,7 +1096,7 @@ def annotations_module(md):
 	return md
 
 def annotations(memb):
-	'''Decorator applicable to functions, methods, properties,
+	"""Decorator applicable to functions, methods, properties,
 	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_annotations_decorator to apply this on all modules.
@@ -1108,7 +1108,7 @@ def annotations(memb):
 	Behavior in case of collision with previously (manually)
 	attached __annotations__ can be controlled using the flags
 	pytypes.annotations_override_typestring and pytypes.annotations_from_typestring.
-	'''
+	"""
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
 		return annotations_func(memb)
 	if isclass(memb):
@@ -1128,7 +1128,7 @@ def _catch_up_global_annotations_decorator():
 				annotations_module(mod_name)
 
 def simplify_for_Union(type_list):
-	'''Removes types that are subtypes of other elements in the list.
+	"""Removes types that are subtypes of other elements in the list.
 	Does not return a copy, but instead modifies the given list.
 	Intended for preprocessing of types to be combined into a typing.Union.
 	Subtypecheck is backed by pytypes.is_subtype, so this differs from
@@ -1137,7 +1137,7 @@ def simplify_for_Union(type_list):
 	https://www.python.org/dev/peps/pep-0484/#the-numeric-tower
 	(treats int as subtype of float as subtype of complex)
 	Use pytypes.apply_numeric_tower flag to switch off numeric tower support.
-	'''
+	"""
 	i = 0
 	while i < len(type_list):
 		j = 0
@@ -1156,10 +1156,10 @@ def simplify_for_Union(type_list):
 		i += 1
 
 def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
-	'''From a PEP 484 style type-tuple with types for *varargs and/or **kw
+	"""From a PEP 484 style type-tuple with types for *varargs and/or **kw
 	this returns a type-tuple containing Tuple[tp, ...] and Dict[str, kw-tp]
 	instead.
-	'''
+	"""
 	# todo: Maybe move also slf-logic here
 	vargs = argspecs.varargs
 	try:
@@ -1318,7 +1318,7 @@ def _check_caller_type(return_type, cllable = None, call_args = None, clss = Non
 		return True
 
 def restore_profiler():
-	'''If a typechecking profiler is active, e.g. created by
+	"""If a typechecking profiler is active, e.g. created by
 	pytypes.set_global_typechecked_profiler(), such a profiler
 	must be restored whenever a TypeCheckError is caught.
 	The call must stem from the thread that raised the error.
@@ -1326,7 +1326,7 @@ def restore_profiler():
 	Alternatively one can turn pytypes into warning mode. In that
 	mode no calls to this function are required (unless one uses
 	filterwarnings("error") or likewise).
-	'''
+	"""
 	idn = threading.current_thread().ident
 	if not sys.getprofile() is None:
 		warn("restore_profiler: Current profile is not None!")

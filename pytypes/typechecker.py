@@ -14,9 +14,9 @@
 
 # Created on 20.08.2016
 
-'''
+"""
 Part of pytypes. Contains code specifically for typechecking.
-'''
+"""
 
 import sys, typing, types, inspect, re as _re, atexit
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
@@ -81,9 +81,9 @@ def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
 builtins.__import__ = _pytypes___import__
 
 class _DelayedCheck():
-	'''Delayed checks are needed for definition time typechecks that involve
+	"""Delayed checks are needed for definition time typechecks that involve
 	forward declarations.
-	'''
+	"""
 	def __init__(self, func, method, class_name, base_method, base_class, exc_info):
 		self.func = func
 		self.method = method
@@ -127,9 +127,9 @@ def _run_delayed_checks(raise_NameError = False, module_name = None):
 atexit.register(_run_delayed_checks, True)
 
 def _preprocess_override(meth_types, base_types, meth_argspec, base_argspec):
-	'''This function linearizes type info of ordinary, vararg, kwonly and varkw
+	"""This function linearizes type info of ordinary, vararg, kwonly and varkw
 	arguments, such that override-feasibility can be conveniently checked. 
-	'''
+	"""
 	try:
 		base_kw = base_argspec.keywords
 		kw = meth_argspec.keywords
@@ -333,7 +333,7 @@ def _function_instead_of_method_error(method):
 			% (method.__module__, method.__name__))
 
 def override(func, auto = False):
-	'''Decorator applicable to methods only.
+	"""Decorator applicable to methods only.
 	For a version applicable also to classes or modules use auto_override.
 	Asserts that for the decorated method a parent method exists in its mro.
 	If both the decorated method and its parent method are type annotated,
@@ -343,7 +343,7 @@ def override(func, auto = False):
 	places that support the parent method's signature.
 	Use pytypes.check_override_at_runtime and pytypes.check_override_at_class_definition_time
 	to control whether checks happen at class definition time or at "actual runtime".
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return func
 	# notes:
@@ -640,8 +640,8 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
-	'''Works like typechecked, but is only applicable to functions, methods and properties.
-	'''
+	"""Works like typechecked, but is only applicable to functions, methods and properties.
+	"""
 	if not pytypes.checking_enabled and not pytypes.do_logging_in_typechecked:
 		return func
 	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func)
@@ -828,8 +828,8 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 		return checker_tp
 
 def typechecked_class(cls, force = False, force_recursive = False):
-	'''Works like typechecked, but is only applicable to classes.
-	'''
+	"""Works like typechecked, but is only applicable to classes.
+	"""
 	return _typechecked_class(cls, force, force_recursive)
 
 def _typechecked_class(cls, force = False, force_recursive = False, nesting = None):
@@ -866,9 +866,9 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 
 # Todo: Extend tests for this
 def typechecked_module(md, force_recursive = False):
-	'''Works like typechecked, but is only applicable to modules (by explicit call).
+	"""Works like typechecked, but is only applicable to modules (by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return md
 	if isinstance(md, str):
@@ -897,13 +897,13 @@ def typechecked_module(md, force_recursive = False):
 	return md
 
 def typechecked(memb):
-	'''Decorator applicable to functions, methods, properties,
+	"""Decorator applicable to functions, methods, properties,
 	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_typechecked_decorator to apply this on all modules.
 	Asserts compatibility of runtime argument and return values of all targeted functions
 	and methods w.r.t. PEP 484-style type annotations of these functions and methods.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return memb
 	if is_no_type_check(memb):
@@ -917,8 +917,8 @@ def typechecked(memb):
 	return memb
 
 def auto_override_class(cls, force = False, force_recursive = False):
-	'''Works like auto_override, but is only applicable to classes.
-	'''
+	"""Works like auto_override, but is only applicable to classes.
+	"""
 	if not pytypes.checking_enabled:
 		return cls
 	assert(isclass(cls))
@@ -940,9 +940,9 @@ def auto_override_class(cls, force = False, force_recursive = False):
 	return cls
 
 def auto_override_module(md, force_recursive = False):
-	'''Works like auto_override, but is only applicable to modules (by explicit call).
+	"""Works like auto_override, but is only applicable to modules (by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return md
 	if isinstance(md, str):
@@ -968,7 +968,7 @@ def auto_override_module(md, force_recursive = False):
 	return md
 
 def auto_override(memb):
-	'''Decorator applicable to methods, classes or modules (by explicit call).
+	"""Decorator applicable to methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_auto_override_decorator to apply this on all modules.
 	Works like override decorator on type annotated methods that actually have a type
@@ -980,7 +980,7 @@ def auto_override(memb):
 	of type information (note that return type is contravariant).
 	Use pytypes.check_override_at_runtime and pytypes.check_override_at_class_definition_time
 	to control whether checks happen at class definition time or at "actual runtime".
-	'''
+	"""
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
 		return override(memb, True)
 	if isclass(memb):
@@ -1010,12 +1010,12 @@ def _catch_up_global_auto_override_decorator():
 				_auto_override_modules(mod_name)
 
 def no_type_check(memb):
-	'''Works like typing.no_type_check, but also supports cases where
+	"""Works like typing.no_type_check, but also supports cases where
 	typing.no_type_check fails due to AttributeError. This can happen,
 	because typing.no_type_check wants to access __no_type_check__, which
 	might fail if e.g. a class is using slots or an object doesn't support
 	custom attributes.
-	'''
+	"""
 	try:
 		return typing.no_type_check(memb)
 	except(AttributeError):
@@ -1023,9 +1023,9 @@ def no_type_check(memb):
 		return memb
 
 def is_no_type_check(memb):
-	'''Checks if an object was annotated with @no_type_check
+	"""Checks if an object was annotated with @no_type_check
 	(from typing or pytypes.typechecker).
-	'''
+	"""
 	try:
 		return hasattr(memb, '__no_type_check__') and memb.__no_type_check__ or \
 				memb in _not_type_checked
@@ -1033,17 +1033,17 @@ def is_no_type_check(memb):
 		return False
 
 def check_argument_types(cllable = None, call_args = None, clss = None, caller_level = 0):
-	'''Can be called from within a function or method to apply typechecking to
+	"""Can be called from within a function or method to apply typechecking to
 	the arguments that were passed in by the caller. Checking is applied w.r.t.
 	type hints of the function or method hosting the call to check_argument_types.
-	'''
+	"""
 	return _check_caller_type(False, cllable, call_args, clss, caller_level+1)
 
 def check_return_type(value, cllable = None, clss = None, caller_level = 0):
-	'''Can be called from within a function or method to apply typechecking to
+	"""Can be called from within a function or method to apply typechecking to
 	the value that is going to be returned. Checking is applied w.r.t.
 	type hints of the function or method hosting the call to check_return_type.
-	'''
+	"""
 	return _check_caller_type(True, cllable, value, clss, caller_level+1)
 
 class TypeChecker(TypeAgent):

@@ -14,10 +14,10 @@
 
 # Created on 12.12.2016
 
-'''
+"""
 Todo: Some functions in this module can be simplified or replaced
       by more consequent use of inspect module.
-'''
+"""
 
 import pytypes, subprocess, hashlib, sys, os, inspect
 
@@ -76,10 +76,10 @@ def _find_files(file_name, search_paths):
 	return res
 
 def getargspecs(func):
-	'''Bridges inspect.getargspec and inspect.getfullargspec.
+	"""Bridges inspect.getargspec and inspect.getfullargspec.
 	Automatically selects the proper one depending of current Python version.
 	Automatically bypasses wrappers from typechecked- and override-decorators.
-	'''
+	"""
 	if func is None:
 		raise TypeError('None is not a Python function')
 	if hasattr(func, 'ch_func'):
@@ -92,9 +92,9 @@ def getargspecs(func):
 		return inspect.getargspec(func)
 
 def get_required_kwonly_args(argspecs):
-	'''Determines whether given argspecs implies required keywords-only args
+	"""Determines whether given argspecs implies required keywords-only args
 	and returns them as a list. Returns empty list if no such args exist.
-	'''
+	"""
 	try:
 		kwonly = argspecs.kwonlyargs
 		if argspecs.kwonlydefaults is None:
@@ -108,9 +108,9 @@ def get_required_kwonly_args(argspecs):
 		return []
 
 def getargnames(argspecs, with_unbox=False):
-	'''Resembles list of arg-names as would be seen in a function signature, including
+	"""Resembles list of arg-names as would be seen in a function signature, including
 	var-args, var-keywords and keyword-only args.
-	'''
+	"""
 	# todo: We can maybe make use of inspect.formatargspec
 	args = argspecs.args
 	vargs = argspecs.varargs
@@ -134,11 +134,11 @@ def getargnames(argspecs, with_unbox=False):
 	return res
 
 def getargskw(args, kw, argspecs):
-	'''Resembles list of args as would be passed to a function call, including
+	"""Resembles list of args as would be passed to a function call, including
 	var-args, var-keywords and keyword-only args.
 	Arg values are taken from args, kw and - if needed - from argspecs defaults.
 	These values are then ordered according to argspecs and returned as a list.
-	'''
+	"""
 	return _getargskw(args, kw, argspecs)[0]
 
 def _getargskw(args, kw, argspecs):
@@ -217,9 +217,9 @@ def _getargskw(args, kw, argspecs):
 	return tuple(res), err
 
 def fromargskw(argskw, argspecs, slf_or_clsm = False):
-	'''Turns a linearized list of args into (args, keywords) form
+	"""Turns a linearized list of args into (args, keywords) form
 	according to given argspecs (like inspect module provides).
-	'''
+	"""
 	res_args = argskw
 	try:
 		kwds = argspecs.keywords
@@ -323,10 +323,10 @@ def _get_class_nesting_list(cls, module_or_class):
 		return [] if res is None else res
 
 def get_staticmethod_qualname(staticmeth):
-	'''Determines the fully qualified name of a static method.
+	"""Determines the fully qualified name of a static method.
 	Yields a result similar to what __qualname__ would contain, but is applicable
 	to static methods and also works in Python 2.7.
-	'''
+	"""
 	func = _actualfunc(staticmeth)
 	module = sys.modules[func.__module__]
 	nst = _get_class_nesting_list_for_staticmethod(staticmeth, module, [], set())
@@ -334,10 +334,10 @@ def get_staticmethod_qualname(staticmeth):
 	return '.'.join(nst)+'.'+func.__name__
 
 def get_class_qualname(cls):
-	'''Determines the fully qualified name of a class.
+	"""Determines the fully qualified name of a class.
 	Yields a result similar to what __qualname__ contains, but also works on
 	Python 2.7.
-	'''
+	"""
 	if hasattr(cls, '__qualname__'):
 		return cls.__qualname__
 	module = sys.modules[cls.__module__]
@@ -351,8 +351,8 @@ def get_class_qualname(cls):
 	return cls.__name__
 
 def get_class_that_defined_method(meth):
-	'''Determines the class owning the given method.
-	'''
+	"""Determines the class owning the given method.
+	"""
 	if is_classmethod(meth):
 		return meth.__self__
 	if hasattr(meth, 'im_class'):
@@ -373,10 +373,10 @@ def get_class_that_defined_method(meth):
 	raise ValueError(str(meth)+' is not a method.')
 
 def is_method(func):
-	'''Detects if the given callable is a method. In context of pytypes this
+	"""Detects if the given callable is a method. In context of pytypes this
 	function is more reliable than plain inspect.ismethod, e.g. it automatically
 	bypasses wrappers from typechecked and override decorators.
-	'''
+	"""
 	func0 = _actualfunc(func)
 	argNames = getargnames(getargspecs(func0))
 	if len(argNames) > 0:
@@ -394,8 +394,8 @@ def is_method(func):
 	return False
 
 def is_classmethod(meth):
-	'''Detects if the given callable is a classmethod.
-	'''
+	"""Detects if the given callable is a classmethod.
+	"""
 	if inspect.ismethoddescriptor(meth):
 		return isinstance(meth, classmethod)
 	if not inspect.ismethod(meth):
@@ -444,9 +444,9 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 			return ('%s.%s') % (func0.__module__, func0.__name__)
 
 def get_current_function(caller_level = 0):
-	'''Determines the function from which this function was called.
+	"""Determines the function from which this function was called.
 	Use caller_level > 0 to get even earlier functions from current stack.
-	'''
+	"""
 	return _get_current_function_fq(1+caller_level)[0][0]
 
 def _get_current_function_fq(caller_level = 0):
@@ -458,9 +458,9 @@ def _get_current_function_fq(caller_level = 0):
 	return res, code
 
 def get_current_args(caller_level = 0, func = None, argNames = None):
-	'''Determines the args of current function call.
+	"""Determines the args of current function call.
 	Use caller_level > 0 to get args of even earlier function calls in current stack.
-	'''
+	"""
 	if argNames is None:
 		argNames = getargnames(getargspecs(func))
 	if func is None:
@@ -472,9 +472,9 @@ def get_current_args(caller_level = 0, func = None, argNames = None):
 	return tuple([lcs[t] for t in argNames])
 
 def getmodule(code):
-	'''More robust variant of inspect.getmodule.
+	"""More robust variant of inspect.getmodule.
 	E.g. has less issues on Jython.
-	'''
+	"""
 	try:
 		md = inspect.getmodule(code, code.co_filename)
 	except AttributeError:
@@ -491,12 +491,12 @@ def getmodule(code):
 	return md
 
 def get_callable_fq_for_code(code, locals_dict = None):
-	'''Determines the function belonging to a given code object in a fully qualified fashion.
+	"""Determines the function belonging to a given code object in a fully qualified fashion.
 	Returns a tuple consisting of
 	- the callable
 	- a list of classes and inner classes, locating the callable (like a fully qualified name)
 	- the corresponding self object, if the callable is a method
-	'''
+	"""
 	if code in _code_callable_dict:
 		res = _code_callable_dict[code]
 		if not res[0] is None or locals_dict is None:

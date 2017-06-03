@@ -14,12 +14,12 @@
 
 # Created on 29.04.2017
 
-'''
+"""
 pytypes.typelogger is a module for automatic creation of
 PEP 484 stubfiles based on runtime observations.
 
 Also allows creation of Python 2.7 compatible stubfiles.
-'''
+"""
 
 from .type_util import deep_type, type_str, get_Tuple_params, \
 		Empty, simplify_for_Union, _get_types, _has_type_hints, \
@@ -47,9 +47,9 @@ def _print(line):
 
 def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspecs=None, \
 			args_kw_type=None, ret_type = None):
-	'''Stores information of a function or method call into a cache, so pytypes can
+	"""Stores information of a function or method call into a cache, so pytypes can
 	create a PEP 484 stubfile from this information later on (see dump_cache).
-	'''
+	"""
 	if args_kw_type is None:
 		args_kw_type = deep_type(args_kw)
 	if ret_type is None:
@@ -72,10 +72,10 @@ def _register_logged_func(func, slf, prop_getter, clss, argspecs):
 	return node
 
 def combine_argtype(observations):
-	'''Combines a list of Tuple types into one.
+	"""Combines a list of Tuple types into one.
 	Basically these are combined element wise into a Union with some
 	additional unification effort (e.g. can apply PEP 484 style numeric tower).
-	'''
+	"""
 	assert len(observations) > 0
 	assert isinstance(observations[0], TupleMeta)
 	if len(observations) > 1:
@@ -101,10 +101,10 @@ def combine_argtype(observations):
 		return observations[0]
 
 def combine_type(observations):
-	'''Combines a list of types into one.
+	"""Combines a list of types into one.
 	Basically these are combined into a Union with some
 	additional unification effort (e.g. can apply PEP 484 style numeric tower).
-	'''
+	"""
 	assert len(observations) > 0
 	if len(observations) == 1:
 		return observations[0]
@@ -146,7 +146,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 	except:
 		exec_info = 'unknown call'
 	with open(stubpath, 'w') as stub_handle:
-		lines = ["'''",
+		lines = [""""",
 				'Auto created Python 2.7-compliant stubfile of ' if python2 
 						else 'Auto created stubfile of \n',
 				src_fname,
@@ -160,7 +160,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 				'If you edit this file, be aware it was auto generated.',
 				'Save your customized version to a distinct place;',
 				'this file might get overwritten without notice.',
-				"'''",
+				""""",
 				'',
 				#'import typing',
 				'from typing import Any, Tuple, List, Union, Generic, Optional, \\',
@@ -178,12 +178,12 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 		stub_handle.writelines(lines)
 
 def dump_cache(path=default_typelogger_path, python2=False, suffix=None):
-	'''Writes cached observations by @typelogged into stubfiles.
+	"""Writes cached observations by @typelogged into stubfiles.
 	Files will be created in the directory provided as 'path'; overwrites
 	existing files without notice.
 	Uses 'pyi2' suffix if 'python2' flag is given else 'pyi'. Resulting
 	files will be Python 2.7 compilant accordingly.
-	'''
+	"""
 	if suffix is None:
 		suffix = 'pyi2' if python2 else 'pyi'
 	modules = {}
@@ -296,10 +296,10 @@ def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None)
 
 # currently not used; kept here as potential future feature
 def get_indentation(func):
-	'''Extracts a function's indentation as a string,
+	"""Extracts a function's indentation as a string,
 	In contrast to an inspect.indentsize based implementation,
 	this function preserves tabs if present.
-	'''
+	"""
 	src_lines = getsourcelines(func)[0]
 	for line in src_lines:
 		if not (line.startswith('@') or line.startswith('def') or line.lstrip().startswith('#')):
@@ -588,9 +588,9 @@ class _class_node(_base_node):
 		return findsource(self.clss)[1]
 
 def typelogged_func(func):
-	'''Works like typelogged, but is only applicable to functions,
+	"""Works like typelogged, but is only applicable to functions,
 	methods and properties.
-	'''
+	"""
 	if not pytypes.typelogging_enabled:
 		return func
 	if hasattr(func, 'do_logging'):
@@ -603,8 +603,8 @@ def typelogged_func(func):
 		return _typeinspect_func(func, False, True)
 
 def typelogged_class(cls):
-	'''Works like typelogged, but is only applicable to classes.
-	'''
+	"""Works like typelogged, but is only applicable to classes.
+	"""
 	if not pytypes.typelogging_enabled:
 		return cls
 	assert(isclass(cls))
@@ -623,9 +623,9 @@ def typelogged_class(cls):
 	return cls
 
 def typelogged_module(md):
-	'''Works like typelogged, but is only applicable to modules by explicit call).
+	"""Works like typelogged, but is only applicable to modules by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if not pytypes.typelogging_enabled:
 		return md
 	if isinstance(md, str):
@@ -653,14 +653,14 @@ def typelogged_module(md):
 	return md
 
 def typelogged(memb):
-	'''Decorator applicable to functions, methods, properties,
+	"""Decorator applicable to functions, methods, properties,
 	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_typelogged_decorator to apply this on all modules.
 	Observes function and method calls at runtime and allows pytypes to generate stubfiles
 	from the acquired type information.
 	Use dump_cache to write a stubfile in this manner.
-	'''
+	"""
 	if not pytypes.typelogging_enabled:
 		return memb
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):

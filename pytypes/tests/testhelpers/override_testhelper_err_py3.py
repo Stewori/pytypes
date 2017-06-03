@@ -14,10 +14,10 @@
 
 # Created on 01.12.2016
 
-'''
+"""
 Designed to cause an OverrideError on import.
 (unless typechecker.check_override_at_runtime == False)
-'''
+"""
 
 from pytypes import override
 
