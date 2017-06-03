@@ -253,7 +253,7 @@ default_typelogger_path : str
 	Default: 'typelogger_output'
 """
 
-import typing, sys
+import typing
 
 version = '1.0a1'
 

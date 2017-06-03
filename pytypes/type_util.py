@@ -14,14 +14,20 @@
 
 # Created on 13.12.2016
 
+import random
+import sys
+import types
+import threading
+import typing
 from inspect import isfunction, ismethod, ismethoddescriptor, isclass, ismodule
-import typing; from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
+from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
 		GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
+from warnings import warn, warn_explicit
+
+import pytypes
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
-from warnings import warn, warn_explicit
-import sys, types, pytypes, random, threading
 
 _annotated_modules = {}
 _extra_dict = {}

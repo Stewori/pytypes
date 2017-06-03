@@ -14,8 +14,10 @@
 
 # Created on 13.12.2016
 
-import inspect, pytypes
+import inspect
 from typing import Any, Tuple
+
+import pytypes
 from pytypes import TypeSyntaxError
 
 

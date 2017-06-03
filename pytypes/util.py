@@ -19,7 +19,12 @@ Todo: Some functions in this module can be simplified or replaced
       by more consequent use of inspect module.
 """
 
-import pytypes, subprocess, hashlib, sys, os, inspect
+import pytypes
+import subprocess
+import hashlib
+import sys
+import os
+import inspect
 
 _code_callable_dict = {}
 _sys_excepthook = sys.__excepthook__

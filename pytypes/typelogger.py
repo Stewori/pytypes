@@ -21,6 +21,15 @@ PEP 484 stubfiles based on runtime observations.
 Also allows creation of Python 2.7 compatible stubfiles.
 """
 
+import sys
+import os
+import abc
+import datetime
+from typing import Union, Any, Tuple, TupleMeta
+from inspect import isclass, ismodule, isfunction, ismethod, \
+		ismethoddescriptor, getsourcelines, findsource
+
+import pytypes
 from .type_util import deep_type, type_str, get_Tuple_params, \
 		Empty, simplify_for_Union, _get_types, _has_type_hints, \
 		_preprocess_typecheck, get_Union_params, is_Union, \
@@ -29,10 +38,6 @@ from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
 from . import version, default_indent, default_typelogger_path, \
 		util
-from typing import Union, Any, Tuple, TupleMeta
-from inspect import isclass, ismodule, isfunction, ismethod, \
-		ismethoddescriptor, getsourcelines, findsource
-import sys, os, abc, datetime, pytypes
 
 _member_cache = {}
 _fully_typelogged_modules = {}

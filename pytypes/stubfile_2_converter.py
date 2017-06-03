@@ -28,9 +28,15 @@ using the suffix 'pyi2'. If such a file exists, pytypes will take
 it as override of the pyi-file when running on Python 2.7.
 """
 
-import sys, os, imp, inspect, numbers, typing
-import typechecker as tpc
+import sys
+import imp
+import inspect
+import numbers
+import os
+import typing
 from typing import Any
+
+import typechecker as tpc
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..')
 from pytypes import util

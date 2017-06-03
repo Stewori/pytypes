@@ -18,16 +18,22 @@
 Part of pytypes. Contains code specifically for typechecking.
 """
 
-import sys, typing, types, inspect, re as _re, atexit
+import atexit
+import inspect
+import re as _re
+import sys
+import typing
+import types
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
+from warnings import warn
+
+import pytypes
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
 		_preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
-from warnings import warn
-import pytypes
 
 if sys.version_info.major >= 3:
 	import builtins

@@ -14,11 +14,19 @@
 
 # Created on 13.12.2016
 
-import sys, inspect, os, imp, subprocess
-import warnings, tempfile, atexit
+import atexit
+import imp
+import inspect
+import os
+import subprocess
+import sys
+import tempfile
+import warnings
 from inspect import isclass, ismodule, ismethod
 from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
-import pytypes; from pytypes import util
+
+import pytypes
+from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
 stub_modules = {}
