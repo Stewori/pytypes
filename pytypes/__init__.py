@@ -314,6 +314,7 @@ clean_traceback = True
 
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
+
 def enable_checking(flag = True):
 	"""Convenience function to set the checking_enabled flag. Intended
 	for use in an assert statement, so the call depends on -o flag.
@@ -321,6 +322,7 @@ def enable_checking(flag = True):
 	global checking_enabled
 	checking_enabled = flag
 	return checking_enabled
+
 
 def enable_global_typechecked_decorator(flag = True, retrospective = True):
 	"""Enables or disables global typechecking mode via decorators.
@@ -338,6 +340,7 @@ def enable_global_typechecked_decorator(flag = True, retrospective = True):
 		_catch_up_global_typechecked_decorator()
 	return global_typechecked_decorator
 
+
 def enable_global_auto_override_decorator(flag = True, retrospective = True):
 	"""Enables or disables global auto_override mode via decorators.
 	See flag global_auto_override_decorator.
@@ -350,6 +353,7 @@ def enable_global_auto_override_decorator(flag = True, retrospective = True):
 	if global_auto_override_decorator and retrospective:
 		_catch_up_global_auto_override_decorator()
 	return global_auto_override_decorator
+
 
 def enable_global_annotations_decorator(flag = True, retrospective = True):
 	"""Enables or disables global annotation mode via decorators.
@@ -364,6 +368,7 @@ def enable_global_annotations_decorator(flag = True, retrospective = True):
 		_catch_up_global_annotations_decorator()
 	return global_annotations_decorator
 
+
 def enable_global_typelogged_decorator(flag = True, retrospective = True):
 	"""Enables or disables global typelog mode via decorators.
 	See flag global_typelogged_decorator.
@@ -376,6 +381,7 @@ def enable_global_typelogged_decorator(flag = True, retrospective = True):
 	if global_typelogged_decorator and retrospective:
 		_catch_up_global_typelogged_decorator()
 	return global_typelogged_decorator
+
 
 def enable_global_typechecked_profiler(flag = True):
 	"""Enables or disables global typechecking mode via a profiler.
@@ -394,6 +400,7 @@ def enable_global_typechecked_profiler(flag = True):
 			not _global_type_agent is None and _global_type_agent.active:
 		_global_type_agent.stop()
 
+
 def enable_global_typelogged_profiler(flag = True):
 	"""Enables or disables global typelogging mode via a profiler.
 	See flag global_typelogged_profiler.
@@ -411,6 +418,7 @@ def enable_global_typelogged_profiler(flag = True):
 			not _global_type_agent is None and _global_type_agent.active:
 		_global_type_agent.stop()
 
+
 def enable_clean_traceback(flag = True):
 	"""Activates traceback cleaning. This means that traceback of uncaught
 	TypeErrors does not include pytypes' internal calls for typechecking etc,
@@ -425,6 +433,7 @@ def enable_clean_traceback(flag = True):
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
 assert(enable_checking())
 
+
 def _detect_issue351():
 	"""Detect if github.com/python/typing/issues/351 applies
 	to the installed typing-version.
@@ -435,6 +444,7 @@ def _detect_issue351():
 	res = Tuple[str] == typing.Tuple[str]
 	del Tuple
 	return res
+
 
 if _detect_issue351():
 	# monkeypatch the issue away...
@@ -477,10 +487,12 @@ if not hasattr(typing, '_generic_new'):
 		return res
 	typing.Generic.__new__ = __Generic__new__
 
+
 class TypeCheckError(TypeError):
 	"""Error type to indicate all errors regarding runtime typechecking.
 	"""
 	pass
+
 
 class InputTypeError(TypeCheckError):
 	"""Error type to indicate errors regarding failing typechecks of
@@ -488,16 +500,19 @@ class InputTypeError(TypeCheckError):
 	"""
 	pass
 
+
 class ReturnTypeError(TypeCheckError):
 	"""Error type to indicate errors regarding failing typechecks of
 	function or method return values.
 	"""
 	pass
 
+
 class TypeWarning(RuntimeWarning):
 	"""Warning type to indicate errors regarding failing typechecks.
 	"""
 	pass
+
 
 class InputTypeWarning(TypeWarning):
 	"""Warning type to indicate errors regarding failing typechecks of
@@ -505,17 +520,20 @@ class InputTypeWarning(TypeWarning):
 	"""
 	pass
 
+
 class ReturnTypeWarning(TypeWarning):
 	"""Warning type to indicate errors regarding failing typechecks of
 	function or method return values.
 	"""
 	pass
 
+
 class OverrideError(TypeError):
 	"""Error type to indicate errors regarding failing checks of
 	method's override consistency.
 	"""
 	pass
+
 
 class TypeSyntaxError(TypeError):
 	"""Error type to indicate errors regarding ill-formated typestrings.

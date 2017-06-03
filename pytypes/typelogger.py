@@ -45,7 +45,8 @@ def _print(line):
 	if not silent:
 		print(line)
 
-def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspecs=None, \
+
+def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspecs=None,
 			args_kw_type=None, ret_type = None):
 	"""Stores information of a function or method call into a cache, so pytypes can
 	create a PEP 484 stubfile from this information later on (see dump_cache).
@@ -59,6 +60,7 @@ def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspe
 	node = _register_logged_func(func, slf, prop_getter, clss, argspecs)
 	node.add_observation(args_kw_type, ret_type)
 
+
 def _register_logged_func(func, slf, prop_getter, clss, argspecs):
 	if isinstance(func, property):
 		func_key = func.fget if prop_getter else func.fset
@@ -70,6 +72,7 @@ def _register_logged_func(func, slf, prop_getter, clss, argspecs):
 		node = _typed_member(func, slf, prop_getter, clss, argspecs)
 		_member_cache[func_key] = node
 	return node
+
 
 def combine_argtype(observations):
 	"""Combines a list of Tuple types into one.
@@ -100,6 +103,7 @@ def combine_argtype(observations):
 	else:
 		return observations[0]
 
+
 def combine_type(observations):
 	"""Combines a list of types into one.
 	Basically these are combined into a Union with some
@@ -113,10 +117,12 @@ def combine_type(observations):
 			simplify_for_Union(observations)
 		return Union[tuple(observations)]
 
+
 def _print_cache():
 	for key in _member_cache:
 		node = _member_cache[key]
 		print (node)
+
 
 def _dump_module(module_node, path=default_typelogger_path, python2=False, suffix=None):
 	if suffix is None:
@@ -177,6 +183,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 		_print(''.join(lines))
 		stub_handle.writelines(lines)
 
+
 def dump_cache(path=default_typelogger_path, python2=False, suffix=None):
 	"""Writes cached observations by @typelogged into stubfiles.
 	Files will be created in the directory provided as 'path'; overwrites
@@ -198,6 +205,7 @@ def dump_cache(path=default_typelogger_path, python2=False, suffix=None):
 		mnode.append(node)
 	for module in modules:
 		_dump_module(modules[module], path, python2, suffix)
+
 
 def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
 	tps = get_Tuple_params(arg_Tuple)
@@ -268,6 +276,7 @@ def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
 			names.append('**'+kw)
 	return arg_tps, vararg_tp, kw_tp, kwonly_tps
 
+
 def _prepare_arg_types_list(arg_Tuple, argspecs, slf_or_clsm = False, names=None):
 	arg_tps, vararg_tp, kw_tp, kwonly_tps = _prepare_arg_types(
 			arg_Tuple, argspecs, slf_or_clsm, names)
@@ -280,6 +289,7 @@ def _prepare_arg_types_list(arg_Tuple, argspecs, slf_or_clsm = False, names=None
 	if not kw_tp is None:
 		res.append(kw_tp)
 	return res
+
 
 def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None):
 	arg_tps, vararg_tp, kw_tp, kwonly_tps = _prepare_arg_types(
@@ -294,6 +304,7 @@ def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None)
 		res.append('**'+type_str(kw_tp))
 	return ''.join(('(', ', '.join(res), ')'))
 
+
 # currently not used; kept here as potential future feature
 def get_indentation(func):
 	"""Extracts a function's indentation as a string,
@@ -306,8 +317,10 @@ def get_indentation(func):
 			return line[:len(line) - len(line.lstrip())]
 	return default_indent
 
+
 def _node_get_line(node):
 	return node.get_line()
+
 
 class _base_node(object):
 	__metaclass__  = abc.ABCMeta
@@ -332,6 +345,7 @@ class _base_node(object):
 
 	def get_line(self):
 		return 0
+
 
 class _typed_member(_base_node):
 	def __init__(self, member, slf=False, prop_getter=False, clss=None, argspecs=None):
@@ -493,6 +507,7 @@ class _typed_member(_base_node):
 		else:
 			return self.member.__func__.__code__.co_firstlineno
 
+
 class _module_node(_base_node):
 	def __init__(self, mname):
 		self.name = mname
@@ -555,6 +570,7 @@ class _module_node(_base_node):
 				clss_node = clss_node1
 			clss_node.append(typed_member)
 
+
 class _class_node(_base_node):
 	def __init__(self, clss):
 		self.name = clss.__name__
@@ -587,6 +603,7 @@ class _class_node(_base_node):
 	def get_line(self):
 		return findsource(self.clss)[1]
 
+
 def typelogged_func(func):
 	"""Works like typelogged, but is only applicable to functions,
 	methods and properties.
@@ -601,6 +618,7 @@ def typelogged_func(func):
 		return _typeinspect_func(func, func.do_typecheck, True)
 	else:
 		return _typeinspect_func(func, False, True)
+
 
 def typelogged_class(cls):
 	"""Works like typelogged, but is only applicable to classes.
@@ -621,6 +639,7 @@ def typelogged_class(cls):
 		elif isclass(memb):
 			typelogged_class(memb)
 	return cls
+
 
 def typelogged_module(md):
 	"""Works like typelogged, but is only applicable to modules by explicit call).
@@ -652,6 +671,7 @@ def typelogged_module(md):
 	_fully_typelogged_modules[md.__name__] = len(md.__dict__)
 	return md
 
+
 def typelogged(memb):
 	"""Decorator applicable to functions, methods, properties,
 	classes or modules (by explicit call).
@@ -671,6 +691,7 @@ def typelogged(memb):
 		return typelogged_module(memb, True)
 	return memb
 
+
 def _catch_up_global_typelogged_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _fully_typelogged_modules:
@@ -680,6 +701,7 @@ def _catch_up_global_typelogged_decorator():
 				md = None
 			if not md is None and ismodule(md):
 				typelogged_module(mod_name)
+
 
 class TypeLogger(TypeAgent):
 

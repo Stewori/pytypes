@@ -46,6 +46,7 @@ def _print(line):
 	if not silent:
 		print(line)
 
+
 def _typestring(_types):
 	if _types[0] is Any:
 		argstr = '...'
@@ -55,15 +56,19 @@ def _typestring(_types):
 	retstr = tpc._type_str(_types[1])
 	return '('+argstr+') -> '+retstr
 
+
 def _typecomment(_types):
 	return '# type: '+_typestring(_types)
+
 
 def typecomment(func):
 	return _typecomment(tpc.get_types(func))
 
+
 def signature(func):
 	argstr = ', '.join(tpc.getargspecs(func)[0])
 	return 'def '+func.__name__+'('+argstr+'):'
+
 
 def _write_func(func, lines, inc = 0, decorators = None):
 	if not decorators is None:
@@ -73,9 +78,11 @@ def _write_func(func, lines, inc = 0, decorators = None):
 	lines.append((inc+1)*indent+typecomment(func))
 	lines.append((inc+1)*indent+'pass')
 
+
 def signature_class(clss):
 	base_names = [base.__name__ for base in clss.__bases__]
 	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
+
 
 def _write_class(clss, lines, inc = 0):
 	_print("write class: "+str(clss))
@@ -111,6 +118,7 @@ def _write_class(clss, lines, inc = 0):
 
 	if not anyElement:
 		lines.append((inc+1)*indent+'pass')
+
 
 def convert(in_file, out_file = None):
 	_print('in_file: '+in_file)
@@ -159,9 +167,11 @@ def convert(in_file, out_file = None):
 		lines.append('\n')
 		out_file_handle.writelines(lines)
 
+
 def err_no_in_file():
 	print("Error: No in_file given! Use -h for help.")
 	sys.exit(os.EX_USAGE)
+
 
 def print_usage():
 	print("stubfile_2_converter usage:")
@@ -170,6 +180,7 @@ def print_usage():
 	print("-o [out_file] : custom output-file")
 	print("-s            : silent mode")
 	print("-h            : usage")
+
 
 if __name__ == '__main__':
 	if '-h' in sys.argv:
