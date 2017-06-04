@@ -14,16 +14,22 @@
 
 # Created on 12.12.2016
 
-'''
+"""
 Todo: Some functions in this module can be simplified or replaced
       by more consequent use of inspect module.
-'''
+"""
 
-import pytypes, subprocess, hashlib, sys, os, inspect
+import pytypes
+import subprocess
+import hashlib
+import sys
+import os
+import inspect
 
 _code_callable_dict = {}
 _sys_excepthook = sys.__excepthook__
 #_excepthook_installed = False
+
 
 def _check_python3_5_version():
 	try:
@@ -33,12 +39,14 @@ def _check_python3_5_version():
 	except Exception:
 		return False
 
+
 def _md5(fname):
 	m = hashlib.md5()
 	with open(fname, 'rb') as f:
 		for chunk in iter(lambda: f.read(4096), b''):
 			m.update(chunk)
 	return m.hexdigest()
+
 
 def _python_version_string():
 	try:
@@ -52,6 +60,7 @@ def _python_version_string():
 			' '.join([str(x) for x in sys.version_info[3:]])]
 	return '%s %s %s' % tuple(lst)
 
+
 def _full_module_file_name_nosuffix(module_name):
 	module = sys.modules[module_name]
 	bn = os.path.basename(module.__file__).rpartition('.')[0]
@@ -59,6 +68,7 @@ def _full_module_file_name_nosuffix(module_name):
 		return module.__package__.replace('.', os.sep)+os.sep+bn
 	else:
 		return bn
+
 
 def _find_files(file_name, search_paths):
 	res = []
@@ -75,11 +85,12 @@ def _find_files(file_name, search_paths):
 			res.append(file_path)
 	return res
 
+
 def getargspecs(func):
-	'''Bridges inspect.getargspec and inspect.getfullargspec.
+	"""Bridges inspect.getargspec and inspect.getfullargspec.
 	Automatically selects the proper one depending of current Python version.
 	Automatically bypasses wrappers from typechecked- and override-decorators.
-	'''
+	"""
 	if func is None:
 		raise TypeError('None is not a Python function')
 	if hasattr(func, 'ch_func'):
@@ -91,10 +102,11 @@ def getargspecs(func):
 	else:
 		return inspect.getargspec(func)
 
+
 def get_required_kwonly_args(argspecs):
-	'''Determines whether given argspecs implies required keywords-only args
+	"""Determines whether given argspecs implies required keywords-only args
 	and returns them as a list. Returns empty list if no such args exist.
-	'''
+	"""
 	try:
 		kwonly = argspecs.kwonlyargs
 		if argspecs.kwonlydefaults is None:
@@ -107,10 +119,11 @@ def get_required_kwonly_args(argspecs):
 	except AttributeError:
 		return []
 
+
 def getargnames(argspecs, with_unbox=False):
-	'''Resembles list of arg-names as would be seen in a function signature, including
+	"""Resembles list of arg-names as would be seen in a function signature, including
 	var-args, var-keywords and keyword-only args.
-	'''
+	"""
 	# todo: We can maybe make use of inspect.formatargspec
 	args = argspecs.args
 	vargs = argspecs.varargs
@@ -133,13 +146,15 @@ def getargnames(argspecs, with_unbox=False):
 		res.append('**'+kw if with_unbox else kw)
 	return res
 
+
 def getargskw(args, kw, argspecs):
-	'''Resembles list of args as would be passed to a function call, including
+	"""Resembles list of args as would be passed to a function call, including
 	var-args, var-keywords and keyword-only args.
 	Arg values are taken from args, kw and - if needed - from argspecs defaults.
 	These values are then ordered according to argspecs and returned as a list.
-	'''
+	"""
 	return _getargskw(args, kw, argspecs)[0]
+
 
 def _getargskw(args, kw, argspecs):
 	res = []
@@ -216,10 +231,11 @@ def _getargskw(args, kw, argspecs):
 			res.append(kw)
 	return tuple(res), err
 
+
 def fromargskw(argskw, argspecs, slf_or_clsm = False):
-	'''Turns a linearized list of args into (args, keywords) form
+	"""Turns a linearized list of args into (args, keywords) form
 	according to given argspecs (like inspect module provides).
-	'''
+	"""
 	res_args = argskw
 	try:
 		kwds = argspecs.keywords
@@ -252,6 +268,7 @@ def fromargskw(argskw, argspecs, slf_or_clsm = False):
 		res_kw = {}
 	return res_args, res_kw
 
+
 def _unchecked_backend(func):
 	if hasattr(func, 'ov_func'):
 		return _unchecked_backend(func.ov_func)
@@ -259,6 +276,7 @@ def _unchecked_backend(func):
 		return _unchecked_backend(func.ch_func)
 	else:
 		return func
+
 
 def _actualfunc(func, prop_getter = False):
 	if type(func) == classmethod or type(func) == staticmethod:
@@ -274,6 +292,7 @@ def _actualfunc(func, prop_getter = False):
 	elif hasattr(func, 'ch_func'):
 		return _actualfunc((func.ch_func), prop_getter)
 	return func
+
 
 def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack, rec_set):
 	if hasattr(module_or_class, _actualfunc(staticmeth).__name__):
@@ -293,6 +312,7 @@ def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack,
 			stack.pop()
 	return None
 
+
 def _get_class_nesting_list_py2(cls, module_or_class, stack, rec_set):
 	classes = [cl[1] for cl in inspect.getmembers(module_or_class, inspect.isclass)]
 	mod_name = module_or_class.__module__ if inspect.isclass(module_or_class) \
@@ -309,6 +329,7 @@ def _get_class_nesting_list_py2(cls, module_or_class, stack, rec_set):
 			stack.pop()
 	return None
 
+
 def _get_class_nesting_list(cls, module_or_class):
 	if hasattr(cls, '__qualname__'):
 		names = cls.__qualname__.split('.')
@@ -322,22 +343,24 @@ def _get_class_nesting_list(cls, module_or_class):
 		res = _get_class_nesting_list_py2(cls, module_or_class, [], set())
 		return [] if res is None else res
 
+
 def get_staticmethod_qualname(staticmeth):
-	'''Determines the fully qualified name of a static method.
+	"""Determines the fully qualified name of a static method.
 	Yields a result similar to what __qualname__ would contain, but is applicable
 	to static methods and also works in Python 2.7.
-	'''
+	"""
 	func = _actualfunc(staticmeth)
 	module = sys.modules[func.__module__]
 	nst = _get_class_nesting_list_for_staticmethod(staticmeth, module, [], set())
 	nst = [cl.__name__ for cl in nst]
 	return '.'.join(nst)+'.'+func.__name__
 
+
 def get_class_qualname(cls):
-	'''Determines the fully qualified name of a class.
+	"""Determines the fully qualified name of a class.
 	Yields a result similar to what __qualname__ contains, but also works on
 	Python 2.7.
-	'''
+	"""
 	if hasattr(cls, '__qualname__'):
 		return cls.__qualname__
 	module = sys.modules[cls.__module__]
@@ -350,9 +373,10 @@ def get_class_qualname(cls):
 		return '.'.join(nst)
 	return cls.__name__
 
+
 def get_class_that_defined_method(meth):
-	'''Determines the class owning the given method.
-	'''
+	"""Determines the class owning the given method.
+	"""
 	if is_classmethod(meth):
 		return meth.__self__
 	if hasattr(meth, 'im_class'):
@@ -374,11 +398,12 @@ def get_class_that_defined_method(meth):
 			pass
 	raise ValueError(str(meth)+' is not a method.')
 
+
 def is_method(func):
-	'''Detects if the given callable is a method. In context of pytypes this
+	"""Detects if the given callable is a method. In context of pytypes this
 	function is more reliable than plain inspect.ismethod, e.g. it automatically
 	bypasses wrappers from typechecked and override decorators.
-	'''
+	"""
 	func0 = _actualfunc(func)
 	argNames = getargnames(getargspecs(func0))
 	if len(argNames) > 0:
@@ -395,9 +420,10 @@ def is_method(func):
 			return inspect.ismethod(func)
 	return False
 
+
 def is_classmethod(meth):
-	'''Detects if the given callable is a classmethod.
-	'''
+	"""Detects if the given callable is a classmethod.
+	"""
 	if inspect.ismethoddescriptor(meth):
 		return isinstance(meth, classmethod)
 	if not inspect.ismethod(meth):
@@ -446,10 +472,11 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 			return ('%s.%s') % (func0.__module__, func0.__name__)
 
 def get_current_function(caller_level = 0):
-	'''Determines the function from which this function was called.
+	"""Determines the function from which this function was called.
 	Use caller_level > 0 to get even earlier functions from current stack.
-	'''
+	"""
 	return _get_current_function_fq(1+caller_level)[0][0]
+
 
 def _get_current_function_fq(caller_level = 0):
 	stck = inspect.stack()
@@ -459,10 +486,11 @@ def _get_current_function_fq(caller_level = 0):
 		res = get_callable_fq_for_code(code, stck[2+caller_level][0].f_locals)
 	return res, code
 
+
 def get_current_args(caller_level = 0, func = None, argNames = None):
-	'''Determines the args of current function call.
+	"""Determines the args of current function call.
 	Use caller_level > 0 to get args of even earlier function calls in current stack.
-	'''
+	"""
 	if argNames is None:
 		argNames = getargnames(getargspecs(func))
 	if func is None:
@@ -473,10 +501,11 @@ def get_current_args(caller_level = 0, func = None, argNames = None):
 	lcs = stck[1+caller_level][0].f_locals
 	return tuple([lcs[t] for t in argNames])
 
+
 def getmodule(code):
-	'''More robust variant of inspect.getmodule.
+	"""More robust variant of inspect.getmodule.
 	E.g. has less issues on Jython.
-	'''
+	"""
 	try:
 		md = inspect.getmodule(code, code.co_filename)
 	except AttributeError:
@@ -492,13 +521,14 @@ def getmodule(code):
 		md = inspect.getmodule(code)
 	return md
 
+
 def get_callable_fq_for_code(code, locals_dict = None):
-	'''Determines the function belonging to a given code object in a fully qualified fashion.
+	"""Determines the function belonging to a given code object in a fully qualified fashion.
 	Returns a tuple consisting of
 	- the callable
 	- a list of classes and inner classes, locating the callable (like a fully qualified name)
 	- the corresponding self object, if the callable is a method
-	'''
+	"""
 	if code in _code_callable_dict:
 		res = _code_callable_dict[code]
 		if not res[0] is None or locals_dict is None:
@@ -515,6 +545,7 @@ def get_callable_fq_for_code(code, locals_dict = None):
 		return res, nesting, slf
 	else:
 		return None, None, None
+
 
 def _get_callable_from_locals(code, locals_dict, module, slf, nesting):
 	keys = [key for key in locals_dict]
@@ -540,6 +571,7 @@ def _get_callable_from_locals(code, locals_dict, module, slf, nesting):
 			else:
 				nesting.pop()
 	return None, False
+
 
 def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 	keys = [key for key in module_or_class.__dict__]
@@ -585,6 +617,7 @@ def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 				nesting.pop()
 	return None, False
 
+
 def _code_matches_func(func, code):
 	if func.__code__ == code:
 		return True
@@ -600,12 +633,14 @@ def _code_matches_func(func, code):
 				except AttributeError:
 					return False
 
+
 def _mro(clss, dest = []):
 	if not clss in dest:
 		dest.append(clss)
 		for clss2 in clss.__bases__:
 			_mro(clss2, dest)
 	return dest
+
 
 def mro(clss):
 	# We can replace this by inspect.getmro, but we should
@@ -614,6 +649,7 @@ def mro(clss):
 		return clss.__mro__
 	except AttributeError:
 		return _mro(clss)
+
 
 def _has_base_method(meth, cls):
 	meth0 = _actualfunc(meth)
@@ -624,6 +660,7 @@ def _has_base_method(meth, cls):
 					or inspect.ismethoddescriptor(fmeth):
 				return True
 	return False
+
 
 def _calc_traceback_limit(tb):
 	"""Calculates limit-parameter to strip away pytypes' internals when used
@@ -639,11 +676,13 @@ def _calc_traceback_limit(tb):
 			tb2 = tb2.tb_next
 	return limit
 
+
 def _calc_traceback_list_offset(tb_list):
 	for off in range(len(tb_list)):
 		if tb_list[off][0].split(os.sep)[-2] == 'pytypes':
 			return off-2
 	return -1
+
 
 def _install_excepthook():
 	global _sys_excepthook #, _excepthook_installed
@@ -653,6 +692,7 @@ def _install_excepthook():
 	if sys.excepthook != _pytypes_excepthook:
 		_sys_excepthook = sys.excepthook
 		sys.excepthook = _pytypes_excepthook
+
 
 def _pytypes_excepthook(exctype, value, tb):
 	""""An excepthook suitable for use as sys.excepthook, that strips away
