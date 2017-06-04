@@ -14,11 +14,19 @@
 
 # Created on 13.12.2016
 
-import sys, inspect, os, imp, subprocess
-import warnings, tempfile, atexit
+import atexit
+import imp
+import inspect
+import os
+import subprocess
+import sys
+import tempfile
+import warnings
 from inspect import isclass, ismodule, ismethod
 from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
-import pytypes; from pytypes import util
+
+import pytypes
+from pytypes import util
 
 stub_descr = ('.pyi', 'r', imp.PY_SOURCE)
 stub_modules = {}
@@ -32,6 +40,7 @@ if os.name == 'java':
 else:
 	module_filename_delim = '.'
 
+
 def _create_Python_2_stub(module_filepath, out_file = None):
 	if out_file is None:
 		out_file = _gen_stub2_filename(module_filepath)
@@ -41,6 +50,7 @@ def _create_Python_2_stub(module_filepath, out_file = None):
 	# env = {} is required to prevent pydev from crashing
 	subprocess.call([pytypes.python3_5_executable, conv_script,
 			'-s', '-o', out_file, module_filepath], env = {})
+
 
 def _match_classes(stub_module_or_class, original_module_or_class, original_module_name):
 	classes = [cl[1] for cl in inspect.getmembers(original_module_or_class, isclass)]
@@ -54,8 +64,10 @@ def _match_classes(stub_module_or_class, original_module_or_class, original_modu
 			stub_class._match_type = cl
 			_match_classes(stub_class, cl, original_module_name)
 
+
 def _match_module(stub_module, original_module):
 	return _match_classes(stub_module, original_module, original_module.__name__)
+
 
 def _re_match_module(module_name, final = False):
 	if sys.version_info.major >= 3:
@@ -73,6 +85,7 @@ def _re_match_module(module_name, final = False):
 				stub_modules[m_key] = stub_m
 				del _stub_modules_loading[m_key]
 
+
 def _get_stub_module(module_filepath, original_module):
 	module_name = os.path.basename(module_filepath)
 	pck = original_module.__name__.rsplit('.', 1)[0]
@@ -87,6 +100,7 @@ def _get_stub_module(module_filepath, original_module):
 	except SyntaxError:
 		return None
 
+
 def _find_stub_files(module_name):
 	full_name = util._full_module_file_name_nosuffix(module_name)
 	file_name = full_name+'.pyi'
@@ -94,8 +108,10 @@ def _find_stub_files(module_name):
 	return util._find_files(file_name, pytypes.stub_path), util._find_files(
 			file_name2, pytypes.stub_path)
 
+
 def _plain_stub2_filename(stub_file):
 	return stub_file.rpartition(module_filename_delim)[0]+'.pyi2'
+
 
 def _gen_stub2_filename(stub_file, base_module):
 	if os.path.isfile(stub_file):
@@ -110,6 +126,7 @@ def _gen_stub2_filename(stub_file, base_module):
 	else:
 		# If there is no original file, no generated file(name) can be created:
 		return None
+
 
 def _check_py2_stubmodule(pyi_file, pyi2_module):
 	if pyi2_module.__doc__ is None:
@@ -127,6 +144,7 @@ def _check_py2_stubmodule(pyi_file, pyi2_module):
 		return lines[3].endswith(util._md5(in_file))
 	else:
 		return False
+
 
 def get_stub_module(func):
 	if not hasattr(func, '__module__') or func.__module__ is None:
@@ -214,6 +232,7 @@ def get_stub_module(func):
 	stub_modules[m_key] = None
 	return None
 
+
 def _match_stub_type(stub_type):
 	if not (sys.version_info.major >= 3):
 		return stub_type
@@ -246,6 +265,7 @@ def _match_stub_type(stub_type):
 	else:
 		res = stub_type
 	return res
+
 
 def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting = None):
 	# Check for stubfile

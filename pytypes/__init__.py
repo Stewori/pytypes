@@ -14,7 +14,7 @@
 
 # Created on 12.12.2016
 
-'''
+"""
 pytypes main package.
 
 This file provides some behavioral flags and options you can modify to
@@ -251,9 +251,9 @@ default_indent : str
 default_typelogger_path : str
 	Directory where typelogger places generated stubs.
 	Default: 'typelogger_output'
-'''
+"""
 
-import typing, sys
+import typing
 
 version = '1.0a1'
 
@@ -314,16 +314,18 @@ clean_traceback = True
 
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
+
 def enable_checking(flag = True):
-	'''Convenience function to set the checking_enabled flag. Intended
+	"""Convenience function to set the checking_enabled flag. Intended
 	for use in an assert statement, so the call depends on -o flag.
-	'''
+	"""
 	global checking_enabled
 	checking_enabled = flag
 	return checking_enabled
 
+
 def enable_global_typechecked_decorator(flag = True, retrospective = True):
-	'''Enables or disables global typechecking mode via decorators.
+	"""Enables or disables global typechecking mode via decorators.
 	See flag global_typechecked_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
@@ -331,57 +333,61 @@ def enable_global_typechecked_decorator(flag = True, retrospective = True):
 	Does not work if checking_enabled is false.
 	Does not work reliably if checking_enabled has ever been set to
 	false during current run.
-	'''
+	"""
 	global global_typechecked_decorator
 	global_typechecked_decorator = flag
 	if global_typechecked_decorator and retrospective:
 		_catch_up_global_typechecked_decorator()
 	return global_typechecked_decorator
 
+
 def enable_global_auto_override_decorator(flag = True, retrospective = True):
-	'''Enables or disables global auto_override mode via decorators.
+	"""Enables or disables global auto_override mode via decorators.
 	See flag global_auto_override_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
-	'''
+	"""
 	global global_auto_override_decorator
 	global_auto_override_decorator = flag
 	if global_auto_override_decorator and retrospective:
 		_catch_up_global_auto_override_decorator()
 	return global_auto_override_decorator
 
+
 def enable_global_annotations_decorator(flag = True, retrospective = True):
-	'''Enables or disables global annotation mode via decorators.
+	"""Enables or disables global annotation mode via decorators.
 	See flag global_annotations_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
-	'''
+	"""
 	global global_annotations_decorator
 	global_annotations_decorator = flag
 	if global_annotations_decorator and retrospective:
 		_catch_up_global_annotations_decorator()
 	return global_annotations_decorator
 
+
 def enable_global_typelogged_decorator(flag = True, retrospective = True):
-	'''Enables or disables global typelog mode via decorators.
+	"""Enables or disables global typelog mode via decorators.
 	See flag global_typelogged_decorator.
 	In contrast to setting the flag directly, this function provides
 	a retrospective option. If retrospective is true, this will also
 	affect already imported modules, not only future imports.
-	'''
+	"""
 	global global_typelogged_decorator
 	global_typelogged_decorator = flag
 	if global_typelogged_decorator and retrospective:
 		_catch_up_global_typelogged_decorator()
 	return global_typelogged_decorator
 
+
 def enable_global_typechecked_profiler(flag = True):
-	'''Enables or disables global typechecking mode via a profiler.
+	"""Enables or disables global typechecking mode via a profiler.
 	See flag global_typechecked_profiler.
 	Does not work if checking_enabled is false.
-	'''
+	"""
 	global global_typechecked_profiler, _global_type_agent, global_typelogged_profiler
 	global_typechecked_profiler = flag
 	if flag and checking_enabled:
@@ -394,11 +400,12 @@ def enable_global_typechecked_profiler(flag = True):
 			not _global_type_agent is None and _global_type_agent.active:
 		_global_type_agent.stop()
 
+
 def enable_global_typelogged_profiler(flag = True):
-	'''Enables or disables global typelogging mode via a profiler.
+	"""Enables or disables global typelogging mode via a profiler.
 	See flag global_typelogged_profiler.
 	Does not work if typelogging_enabled is false.
-	'''
+	"""
 	global global_typelogged_profiler, _global_type_agent, global_typechecked_profiler
 	global_typelogged_profiler = flag
 	if flag and typelogging_enabled:
@@ -411,11 +418,12 @@ def enable_global_typelogged_profiler(flag = True):
 			not _global_type_agent is None and _global_type_agent.active:
 		_global_type_agent.stop()
 
+
 def enable_clean_traceback(flag = True):
-	'''Activates traceback cleaning. This means that traceback of uncaught
+	"""Activates traceback cleaning. This means that traceback of uncaught
 	TypeErrors does not include pytypes' internal calls for typechecking etc,
 	but instead focuses on the location of an ill-typed call itself.
-	'''
+	"""
 	global clean_traceback
 	clean_traceback = flag
 	if clean_traceback:
@@ -425,16 +433,18 @@ def enable_clean_traceback(flag = True):
 # no matter what conditions it depends on (or will depend on, e.g. currently -O flag).
 assert(enable_checking())
 
+
 def _detect_issue351():
-	'''Detect if github.com/python/typing/issues/351 applies
+	"""Detect if github.com/python/typing/issues/351 applies
 	to the installed typing-version.
-	'''
+	"""
 	class Tuple(typing.Generic[typing.T]):
 		pass
 
 	res = Tuple[str] == typing.Tuple[str]
 	del Tuple
 	return res
+
 
 if _detect_issue351():
 	# monkeypatch the issue away...
@@ -477,49 +487,57 @@ if not hasattr(typing, '_generic_new'):
 		return res
 	typing.Generic.__new__ = __Generic__new__
 
+
 class TypeCheckError(TypeError):
-	'''Error type to indicate all errors regarding runtime typechecking.
-	'''
+	"""Error type to indicate all errors regarding runtime typechecking.
+	"""
 	pass
+
 
 class InputTypeError(TypeCheckError):
-	'''Error type to indicate errors regarding failing typechecks of
+	"""Error type to indicate errors regarding failing typechecks of
 	function or method parameters.
-	'''
+	"""
 	pass
+
 
 class ReturnTypeError(TypeCheckError):
-	'''Error type to indicate errors regarding failing typechecks of
+	"""Error type to indicate errors regarding failing typechecks of
 	function or method return values.
-	'''
+	"""
 	pass
+
 
 class TypeWarning(RuntimeWarning):
-	'''Warning type to indicate errors regarding failing typechecks.
-	'''
+	"""Warning type to indicate errors regarding failing typechecks.
+	"""
 	pass
+
 
 class InputTypeWarning(TypeWarning):
-	'''Warning type to indicate errors regarding failing typechecks of
+	"""Warning type to indicate errors regarding failing typechecks of
 	function or method parameters.
-	'''
+	"""
 	pass
+
 
 class ReturnTypeWarning(TypeWarning):
-	'''Warning type to indicate errors regarding failing typechecks of
+	"""Warning type to indicate errors regarding failing typechecks of
 	function or method return values.
-	'''
+	"""
 	pass
+
 
 class OverrideError(TypeError):
-	'''Error type to indicate errors regarding failing checks of
+	"""Error type to indicate errors regarding failing checks of
 	method's override consistency.
-	'''
+	"""
 	pass
 
+
 class TypeSyntaxError(TypeError):
-	'''Error type to indicate errors regarding ill-formated typestrings.
-	'''
+	"""Error type to indicate errors regarding ill-formated typestrings.
+	"""
 	pass
 
 # We import some public API for central access:

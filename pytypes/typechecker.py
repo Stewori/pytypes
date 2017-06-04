@@ -14,20 +14,26 @@
 
 # Created on 20.08.2016
 
-'''
+"""
 Part of pytypes. Contains code specifically for typechecking.
-'''
+"""
 
-import sys, typing, types, inspect, re as _re, atexit
+import atexit
+import inspect
+import re as _re
+import sys
+import typing
+import types
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
+from warnings import warn
+
+import pytypes
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
 		_preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
-from warnings import warn
-import pytypes
 
 if sys.version_info.major >= 3:
 	import builtins
@@ -81,9 +87,9 @@ def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
 builtins.__import__ = _pytypes___import__
 
 class _DelayedCheck():
-	'''Delayed checks are needed for definition time typechecks that involve
+	"""Delayed checks are needed for definition time typechecks that involve
 	forward declarations.
-	'''
+	"""
 	def __init__(self, func, method, class_name, base_method, base_class, exc_info):
 		self.func = func
 		self.method = method
@@ -126,10 +132,11 @@ def _run_delayed_checks(raise_NameError = False, module_name = None):
 
 atexit.register(_run_delayed_checks, True)
 
+
 def _preprocess_override(meth_types, base_types, meth_argspec, base_argspec):
-	'''This function linearizes type info of ordinary, vararg, kwonly and varkw
+	"""This function linearizes type info of ordinary, vararg, kwonly and varkw
 	arguments, such that override-feasibility can be conveniently checked. 
-	'''
+	"""
 	try:
 		base_kw = base_argspec.keywords
 		kw = meth_argspec.keywords
@@ -202,6 +209,7 @@ def _preprocess_override(meth_types, base_types, meth_argspec, base_argspec):
 	return (typing.Tuple[tuple(arg_types2)], meth_types[1]), \
 			(typing.Tuple[tuple(base_arg_types2)], base_types[1])
 
+
 def _check_override_types(method, meth_types, class_name, base_method, base_class):
 	# regarding kw:
 	# For child to have wider args than parent:
@@ -239,6 +247,7 @@ def _check_override_types(method, meth_types, class_name, base_method, base_clas
 					% (fq_name_child, fq_name_parent)
 					+ 'Incompatible result types: %s is not a subtype of %s.'
 					% (type_str(meth_types[1]), type_str(base_types[1])))
+
 
 def _check_override_argspecs(method, argSpecs, class_name, base_method, base_class):
 	ovargs = util.getargspecs(base_method)
@@ -324,16 +333,19 @@ def _check_override_argspecs(method, argSpecs, class_name, base_method, base_cla
 				+ 'Mismatching argument count. Base-method: %i+%i   child: %i+%i'
 				% (len(ovargs.args)-d1, d1, len(argSpecs.args)-d2, d2))
 
+
 def _no_base_method_error(method):
 	return OverrideError('%s in %s does not override any other method.\n'
 			% (method.__name__, method.__module__))
+
 
 def _function_instead_of_method_error(method):
 	return OverrideError('@override was applied to a function, not a method: %s.%s.\n'
 			% (method.__module__, method.__name__))
 
+
 def override(func, auto = False):
-	'''Decorator applicable to methods only.
+	"""Decorator applicable to methods only.
 	For a version applicable also to classes or modules use auto_override.
 	Asserts that for the decorated method a parent method exists in its mro.
 	If both the decorated method and its parent method are type annotated,
@@ -343,7 +355,7 @@ def override(func, auto = False):
 	places that support the parent method's signature.
 	Use pytypes.check_override_at_runtime and pytypes.check_override_at_class_definition_time
 	to control whether checks happen at class definition time or at "actual runtime".
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return func
 	# notes:
@@ -516,6 +528,7 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
 	return '\n  '+fq_func_name+'\n  '+incomp_text+':\n'+_cmp_msg_format \
 			% (type_str(expected_tp), type_str(tp))
 
+
 def _checkinstance(obj, cls, is_args, func, force = False):
 	if isinstance(cls, typing.TupleMeta):
 		prms = pytypes.get_Tuple_params(cls)
@@ -600,6 +613,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 				return False, obj
 	return _isinstance(obj, cls), obj
 
+
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
 			prop_getter = False, argspecs = None, var_type = None, force_exception = False):
 	if argspecs is None:
@@ -620,6 +634,7 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 			raise InputTypeError(msg)
 	return checked_val
 
+
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 			make_checked_val = False, prop_getter = False, force_exception = False):
 	if make_checked_val:
@@ -637,11 +652,12 @@ def _checkfuncresult(resSig, check_val, func, slf, func_class, \
 			raise ReturnTypeError(msg)
 	return checked_val
 
+
 # Todo: Rename to something that better indicates this is also applicable to some descriptors,
 #       e.g. to typechecked_member
 def typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False):
-	'''Works like typechecked, but is only applicable to functions, methods and properties.
-	'''
+	"""Works like typechecked, but is only applicable to functions, methods and properties.
+	"""
 	if not pytypes.checking_enabled and not pytypes.do_logging_in_typechecked:
 		return func
 	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func)
@@ -827,10 +843,12 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 	else:
 		return checker_tp
 
+
 def typechecked_class(cls, force = False, force_recursive = False):
-	'''Works like typechecked, but is only applicable to classes.
-	'''
+	"""Works like typechecked, but is only applicable to classes.
+	"""
 	return _typechecked_class(cls, force, force_recursive)
+
 
 def _typechecked_class(cls, force = False, force_recursive = False, nesting = None):
 	if not pytypes.checking_enabled:
@@ -866,9 +884,9 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 
 # Todo: Extend tests for this
 def typechecked_module(md, force_recursive = False):
-	'''Works like typechecked, but is only applicable to modules (by explicit call).
+	"""Works like typechecked, but is only applicable to modules (by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return md
 	if isinstance(md, str):
@@ -896,14 +914,15 @@ def typechecked_module(md, force_recursive = False):
 	_fully_typechecked_modules[md.__name__] = len(md.__dict__)
 	return md
 
+
 def typechecked(memb):
-	'''Decorator applicable to functions, methods, properties,
+	"""Decorator applicable to functions, methods, properties,
 	classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_typechecked_decorator to apply this on all modules.
 	Asserts compatibility of runtime argument and return values of all targeted functions
 	and methods w.r.t. PEP 484-style type annotations of these functions and methods.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return memb
 	if is_no_type_check(memb):
@@ -916,9 +935,10 @@ def typechecked(memb):
 		return typechecked_module(memb, True)
 	return memb
 
+
 def auto_override_class(cls, force = False, force_recursive = False):
-	'''Works like auto_override, but is only applicable to classes.
-	'''
+	"""Works like auto_override, but is only applicable to classes.
+	"""
 	if not pytypes.checking_enabled:
 		return cls
 	assert(isclass(cls))
@@ -939,10 +959,11 @@ def auto_override_class(cls, force = False, force_recursive = False):
 				auto_override_class(memb, force_recursive, force_recursive)
 	return cls
 
+
 def auto_override_module(md, force_recursive = False):
-	'''Works like auto_override, but is only applicable to modules (by explicit call).
+	"""Works like auto_override, but is only applicable to modules (by explicit call).
 	md must be a module or a module name contained in sys.modules.
-	'''
+	"""
 	if not pytypes.checking_enabled:
 		return md
 	if isinstance(md, str):
@@ -967,8 +988,9 @@ def auto_override_module(md, force_recursive = False):
 	_auto_override_modules[md.__name__] = len(md.__dict__)
 	return md
 
+
 def auto_override(memb):
-	'''Decorator applicable to methods, classes or modules (by explicit call).
+	"""Decorator applicable to methods, classes or modules (by explicit call).
 	If applied on a module, memb must be a module or a module name contained in sys.modules.
 	See pytypes.set_global_auto_override_decorator to apply this on all modules.
 	Works like override decorator on type annotated methods that actually have a type
@@ -980,7 +1002,7 @@ def auto_override(memb):
 	of type information (note that return type is contravariant).
 	Use pytypes.check_override_at_runtime and pytypes.check_override_at_class_definition_time
 	to control whether checks happen at class definition time or at "actual runtime".
-	'''
+	"""
 	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
 		return override(memb, True)
 	if isclass(memb):
@@ -988,6 +1010,7 @@ def auto_override(memb):
 	if ismodule(memb):
 		return auto_override_module(memb, True)
 	return memb
+
 
 def _catch_up_global_typechecked_decorator():
 	for mod_name in sys.modules:
@@ -999,6 +1022,7 @@ def _catch_up_global_typechecked_decorator():
 			if not md is None and ismodule(md):
 				typechecked_module(mod_name)
 
+
 def _catch_up_global_auto_override_decorator():
 	for mod_name in sys.modules:
 		if not mod_name in _auto_override_modules:
@@ -1009,42 +1033,47 @@ def _catch_up_global_auto_override_decorator():
 			if not md is None and ismodule(md):
 				_auto_override_modules(mod_name)
 
+
 def no_type_check(memb):
-	'''Works like typing.no_type_check, but also supports cases where
+	"""Works like typing.no_type_check, but also supports cases where
 	typing.no_type_check fails due to AttributeError. This can happen,
 	because typing.no_type_check wants to access __no_type_check__, which
 	might fail if e.g. a class is using slots or an object doesn't support
 	custom attributes.
-	'''
+	"""
 	try:
 		return typing.no_type_check(memb)
 	except(AttributeError):
 		_not_type_checked.add(memb)
 		return memb
 
+
 def is_no_type_check(memb):
-	'''Checks if an object was annotated with @no_type_check
+	"""Checks if an object was annotated with @no_type_check
 	(from typing or pytypes.typechecker).
-	'''
+	"""
 	try:
 		return hasattr(memb, '__no_type_check__') and memb.__no_type_check__ or \
 				memb in _not_type_checked
 	except TypeError:
 		return False
 
+
 def check_argument_types(cllable = None, call_args = None, clss = None, caller_level = 0):
-	'''Can be called from within a function or method to apply typechecking to
+	"""Can be called from within a function or method to apply typechecking to
 	the arguments that were passed in by the caller. Checking is applied w.r.t.
 	type hints of the function or method hosting the call to check_argument_types.
-	'''
+	"""
 	return _check_caller_type(False, cllable, call_args, clss, caller_level+1)
 
+
 def check_return_type(value, cllable = None, clss = None, caller_level = 0):
-	'''Can be called from within a function or method to apply typechecking to
+	"""Can be called from within a function or method to apply typechecking to
 	the value that is going to be returned. Checking is applied w.r.t.
 	type hints of the function or method hosting the call to check_return_type.
-	'''
+	"""
 	return _check_caller_type(True, cllable, value, clss, caller_level+1)
+
 
 class TypeChecker(TypeAgent):
 

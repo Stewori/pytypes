@@ -2417,7 +2417,7 @@ class TestOverride(unittest.TestCase):
 
 
 class TestStubfile(unittest.TestCase):
-	'''
+	"""
 	Planned Test-cases:
 	- each should test func-access, class-access, method, static method, classmethod
 	
@@ -2436,7 +2436,7 @@ class TestStubfile(unittest.TestCase):
 	[ Ok ] plain 3.5-stub
 	[ToDo] plain 3.5-stub in search-dir
 	[ToDo] 3.5-stub with Python 2-override
-	'''
+	"""
 
 	def test_plain_2_7_stub(self):
 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2

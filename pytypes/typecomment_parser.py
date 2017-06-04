@@ -14,9 +14,12 @@
 
 # Created on 13.12.2016
 
-import inspect, pytypes
+import inspect
 from typing import Any, Tuple
+
+import pytypes
 from pytypes import TypeSyntaxError
+
 
 def _striptrailingcomment(s):
 	pos = s.find('#')
@@ -24,6 +27,7 @@ def _striptrailingcomment(s):
 		return s[:pos].strip()
 	else:
 		return s.strip()
+
 
 def _parse_typecomment_oneline(line):
 	commStart = line.find('#')
@@ -37,6 +41,7 @@ def _parse_typecomment_oneline(line):
 				if len(comment) > 0:
 					return comment
 	return None
+
 
 def _get_typestrings(obj, slf):
 	try:
@@ -159,6 +164,7 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
 					'Typestring does not account for declared var-length args',
 					typestring, func, slf, func_class))
 	return argString
+
 
 def _funcsigtypesfromstring(typestring, argTypes = None, argspec = None, globals = globals(),
 		selfType = None, argCount = None, unspecified_type = Any, defaults = None, func = None,
