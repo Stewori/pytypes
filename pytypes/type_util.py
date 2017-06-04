@@ -563,7 +563,12 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
 		if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
 			globs = {}
 			globs.update(sys.modules[func.__module__].__dict__)
-			globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
+			try:
+				# In case of something like stubfile_2_converter a stub without module
+				# might be present, which would cause KeyError here.
+				globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
+			except KeyError:
+				pass
 		else:
 			globs = sys.modules[func.__module__].__dict__
 	argNames = util.getargnames(argSpecs)

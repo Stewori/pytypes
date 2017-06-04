@@ -29,11 +29,11 @@ it as override of the pyi-file when running on Python 2.7.
 """
 
 import sys, os, imp, inspect, numbers, typing
-import typechecker as tpc
+from pytypes import util, type_util as tpc
+import pytypes
 from typing import Any
 if __name__ == '__main__':
 	sys.path.append(sys.path[0]+os.sep+'..')
-from pytypes import util
 
 
 silent = False
@@ -46,31 +46,33 @@ def _print(line):
 	if not silent:
 		print(line)
 
-def _typestring(_types):
+def _typestring(_types, argspecs, slf_or_clsm=False):
 	if _types[0] is Any:
 		argstr = '...'
 	else:
-		argstr = ', '.join([tpc._type_str(tp) for tp in \
-				pytypes.get_Tuple_params(_types[0])])
-	retstr = tpc._type_str(_types[1])
-	return '('+argstr+') -> '+retstr
+		args = tpc._preprocess_typecheck(_types[0], argspecs, slf_or_clsm)
+		argstr = pytypes.typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm)
+	retstr = tpc.type_str(_types[1])
+	return (argstr+' -> '+retstr).replace('NoneType', 'None')
 
-def _typecomment(_types):
-	return '# type: '+_typestring(_types)
+def _typecomment(_types, argspec, slf_or_clsm=False):
+	return '# type: '+_typestring(_types, argspec, slf_or_clsm)
 
-def typecomment(func):
-	return _typecomment(tpc.get_types(func))
+def typecomment(func, argspec=None, slf_or_clsm=False):
+	if argspec is None:
+		argspec = util.getargspecs(func)
+	return _typecomment(tpc.get_types(func), argspec, slf_or_clsm)
 
 def signature(func):
-	argstr = ', '.join(tpc.getargspecs(func)[0])
+	argstr = ', '.join(util.getargnames(util.getargspecs(func), True))
 	return 'def '+func.__name__+'('+argstr+'):'
 
-def _write_func(func, lines, inc = 0, decorators = None):
+def _write_func(func, lines, inc = 0, decorators=None, slf_or_clsm=False):
 	if not decorators is None:
 		for dec in decorators:
 			lines.append(inc*indent+'@'+dec)
 	lines.append(inc*indent+signature(func))
-	lines.append((inc+1)*indent+typecomment(func))
+	lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm))
 	lines.append((inc+1)*indent+'pass')
 
 def signature_class(clss):
@@ -80,7 +82,7 @@ def signature_class(clss):
 def _write_class(clss, lines, inc = 0):
 	_print("write class: "+str(clss))
 	anyElement = False
-	lines.append(signature_class(clss))
+	lines.append(inc*indent+signature_class(clss))
 	mb = inspect.getmembers(clss, lambda t: inspect.isfunction(t) or \
 			inspect.isclass(t) or inspect.ismethoddescriptor(t))
 	# todo: Care for overload-decorator
@@ -89,7 +91,7 @@ def _write_class(clss, lines, inc = 0):
 			el = clss.__dict__[elem[0]]
 			if inspect.isfunction(el):
 				lines.append('')
-				_write_func(el, lines, inc+1)
+				_write_func(el, lines, inc+1, slf_or_clsm=True)
 				anyElement = True
 			elif inspect.isclass(el):
 				lines.append('')
@@ -106,7 +108,7 @@ def _write_class(clss, lines, inc = 0):
 		attr = getattr(clss, key)
 		if inspect.ismethod(attr):
 			lines.append('')
-			_write_func(attr, lines, inc+1, ['classmethod'])
+			_write_func(attr, lines, inc+1, ['classmethod'], True)
 			anyElement = True
 
 	if not anyElement:

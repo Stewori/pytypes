@@ -203,14 +203,18 @@ def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
 	tps = get_Tuple_params(arg_Tuple)
 	arg_tps = []
 	off = 1 if slf_or_clsm else 0
+	i = off-1
 	if names is None:
 		for i in range(off, len(argspecs.args)):
 			arg_tps.append(tps[i-off])
+		if slf_or_clsm:
+			i -= 1
 	else:
 		for i in range(off, len(argspecs.args)):
 			arg_tps.append(tps[i-off])
 			names.append(argspecs.args[i])
-
+		if slf_or_clsm:
+			i -= 1
 	vararg_tp = None
 	if not argspecs.varargs is None:
 		i += 1

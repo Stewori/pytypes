@@ -77,6 +77,37 @@ def _make_typestring_err_msg(msg, typestring, func, slf, func_class):
 	fq_func_name = pytypes.util._fully_qualified_func_name(func, slf, func_class)
 	return '\n  '+fq_func_name+'\n  '+msg+':\n'+typestring
 
+def _outter_split(inpt, delim, openers, closers=None, opener_lookup=None):
+	"""Splits only at delims that are at outter-most level regarding
+	openers/closers pairs.
+	Unchecked requirements:
+	Only supports length-1 delim, openers and closers.
+	delim must not be member of openers or closers.
+	len(openers) == len(closers) or closers == None
+	"""
+	if closers is None:
+		closers = openers
+	if opener_lookup is None:
+		opener_lookup = {}
+		for i in range(len(openers)):
+			opener_lookup[openers[i]] = i
+	stack = []
+	res = []
+	splt = 0
+	for i in range(len(inpt)):
+		if inpt[i] == delim and len(stack) == 0:
+			res.append(inpt[splt:i].strip())
+			splt = i+1
+		elif inpt[i] in opener_lookup:
+			stack.append(opener_lookup[inpt[i]])
+		elif len(stack) > 0 and inpt[i] == closers[stack[-1]]:
+			stack.pop()
+	res.append(inpt[splt:].strip())
+	return res
+
+_openers = ('[', '(', '{', '"', "'")
+_closers = (']', ')', '}', '"', "'")
+_opener_lookup = {'[': 0, '(': 1, '{': 2, '"': 3, "'": 4}
 def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_class):
 	vkw_count = argString.count('**')
 	args = None
@@ -85,7 +116,7 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
 				"Typestring contains multiple var-keywords ('**') args",
 				typestring, func, slf, func_class))
 	if vkw_count > 0:
-		args = argString.strip()[1:-1].split(',')
+		args = _outter_split(argString.strip()[1:-1], ',', _openers, _closers, _opener_lookup)
 		argString = argString.replace('**', '')
 	varg_count = argString.count('*')
 	if varg_count > 1:
@@ -94,7 +125,7 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
 				typestring, func, slf, func_class))
 	if varg_count > 0:
 		if args is None:
-			args = argString.strip()[1:-1].split(',')
+			args = _outter_split(argString.strip()[1:-1], ',', _openers, _closers, _opener_lookup)
 		argString = argString.replace('*', '')
 	if not args is None:
 		tpnames = pytypes.util.getargnames(argspec)
@@ -106,7 +137,7 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
 		assert_count = 0
 		assert_count_kw = 0
 		for arg in args:
-			if arg.strip().startswith('**'):
+			if arg.startswith('**'):
 				assert_count_kw += 1
 				kw_msg = "'**' misplaced in typestring"
 				try:
@@ -117,7 +148,7 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
 					if not tpnames[idx] == argspec.keywords:
 						raise TypeSyntaxError(_make_typestring_err_msg(
 								kw_msg, typestring, func, slf, func_class))
-			elif arg.strip().startswith('*'):
+			elif arg.startswith('*'):
 				assert_count += 1
 				if idx >= len(tpnames) or not tpnames[idx] == argspec.varargs:
 					raise TypeSyntaxError(_make_typestring_err_msg(

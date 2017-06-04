@@ -360,8 +360,10 @@ def get_class_that_defined_method(meth):
 	elif hasattr(meth, '__qualname__'):
 		# Python 3
 		try:
-			cls = getattr(inspect.getmodule(meth),
-					meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0])
+			cls_names = meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0].split('.')
+			cls = inspect.getmodule(meth)
+			for cls_name in cls_names:
+				cls = getattr(cls, cls_name)
 			if isinstance(cls, type):
 				return cls
 		except AttributeError:
