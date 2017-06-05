@@ -36,8 +36,7 @@ from .type_util import deep_type, type_str, get_Tuple_params, \
 		get_Generic_itemtype, TypeAgent
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
-from . import version, default_indent, default_typelogger_path, \
-		util
+from . import version, util
 
 _member_cache = {}
 _fully_typelogged_modules = {}
@@ -129,9 +128,11 @@ def _print_cache():
 		print (node)
 
 
-def _dump_module(module_node, path=default_typelogger_path, python2=False, suffix=None):
+def _dump_module(module_node, path=None, python2=False, suffix=None):
 	if suffix is None:
 		suffix = 'pyi2' if python2 else 'pyi'
+	if path is None:
+		path = pytypes.default_typelogger_path
 	basic_name = module_node.get_basic_filename()
 	src_fname = module_node.module.__file__
 	if src_fname is None:
@@ -153,11 +154,11 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 			exec_info_lst.append(sys.argv[0])
 			if len(sys.argv) > 1:
 				exec_info_lst.append(' '.join(sys.argv[1:]))
-		exec_info = ('\n'+default_indent).join(exec_info_lst)
+		exec_info = ('\n'+pytypes.default_indent).join(exec_info_lst)
 	except:
 		exec_info = 'unknown call'
 	with open(stubpath, 'w') as stub_handle:
-		lines = [""""",
+		lines = ['"""',
 				'Auto created Python 2.7-compliant stubfile of ' if python2 
 						else 'Auto created stubfile of \n',
 				src_fname,
@@ -171,7 +172,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 				'If you edit this file, be aware it was auto generated.',
 				'Save your customized version to a distinct place;',
 				'this file might get overwritten without notice.',
-				""""",
+				'"""',
 				'',
 				#'import typing',
 				'from typing import Any, Tuple, List, Union, Generic, Optional, \\',
@@ -189,7 +190,7 @@ def _dump_module(module_node, path=default_typelogger_path, python2=False, suffi
 		stub_handle.writelines(lines)
 
 
-def dump_cache(path=default_typelogger_path, python2=False, suffix=None):
+def dump_cache(path=None, python2=False, suffix=None):
 	"""Writes cached observations by @typelogged into stubfiles.
 	Files will be created in the directory provided as 'path'; overwrites
 	existing files without notice.
@@ -198,6 +199,8 @@ def dump_cache(path=default_typelogger_path, python2=False, suffix=None):
 	"""
 	if suffix is None:
 		suffix = 'pyi2' if python2 else 'pyi'
+	if path is None:
+		path = pytypes.default_typelogger_path
 	modules = {}
 	for key in _member_cache:
 		node = _member_cache[key]
@@ -324,7 +327,7 @@ def get_indentation(func):
 	for line in src_lines:
 		if not (line.startswith('@') or line.startswith('def') or line.lstrip().startswith('#')):
 			return line[:len(line) - len(line.lstrip())]
-	return default_indent
+	return pytypes.default_indent
 
 
 def _node_get_line(node):
@@ -338,7 +341,7 @@ class _base_node(object):
 		idn = self._idn
 		if not idn is None:
 			return idn
-		idn = default_indent
+		idn = pytypes.default_indent
 		self._idn = idn
 		return idn
 

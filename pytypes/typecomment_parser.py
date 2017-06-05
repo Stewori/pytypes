@@ -75,12 +75,15 @@ def _get_typestrings(obj, slf):
 			return res
 	return None, result[1:] if slf else result
 
+
 def _isargsellipsis(argStr):
 	return argStr[1:-1].strip() == '...'
+
 
 def _make_typestring_err_msg(msg, typestring, func, slf, func_class):
 	fq_func_name = pytypes.util._fully_qualified_func_name(func, slf, func_class)
 	return '\n  '+fq_func_name+'\n  '+msg+':\n'+typestring
+
 
 def _outter_split(inpt, delim, openers, closers=None, opener_lookup=None):
 	"""Splits only at delims that are at outter-most level regarding
@@ -109,6 +112,7 @@ def _outter_split(inpt, delim, openers, closers=None, opener_lookup=None):
 			stack.pop()
 	res.append(inpt[splt:].strip())
 	return res
+
 
 _openers = ('[', '(', '{', '"', "'")
 _closers = (']', ')', '}', '"', "'")
