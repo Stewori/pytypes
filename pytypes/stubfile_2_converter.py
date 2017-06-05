@@ -77,13 +77,26 @@ def signature(func):
 	return 'def '+func.__name__+'('+argstr+'):'
 
 
-def _write_func(func, lines, inc = 0, decorators=None, slf_or_clsm=False):
+def _write_func(func, lines, inc=0, decorators=None, slf_or_clsm=False):
 	if not decorators is None:
 		for dec in decorators:
 			lines.append(inc*indent+'@'+dec)
 	lines.append(inc*indent+signature(func))
-	lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm))
+	if type_util.has_type_hints(func):
+		lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm))
 	lines.append((inc+1)*indent+'pass')
+
+
+def _write_property(prop, lines, inc=0, decorators=None):
+	if not decorators is None:
+		for dec in decorators:
+			lines.append(inc*indent+'@'+dec)
+	if not prop.fget is None:
+		_write_func(prop.fget, lines, inc, ['property'], True)
+	if not prop.fset is None:
+		if not prop.fget is None:
+			lines.append('')
+		_write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True)
 
 
 def signature_class(clss):
@@ -116,11 +129,16 @@ def _write_class(clss, lines, inc = 0):
 
 	# classmethods are not obtained via inspect.getmembers.
 	# We have to look into __dict__ for that.
+	# Same for properties.
 	for key in clss.__dict__:
 		attr = getattr(clss, key)
 		if inspect.ismethod(attr):
 			lines.append('')
 			_write_func(attr, lines, inc+1, ['classmethod'], True)
+			anyElement = True
+		elif isinstance(attr, property):
+			lines.append('')
+			_write_property(attr, lines, inc+1)
 			anyElement = True
 
 	if not anyElement:
