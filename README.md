@@ -503,14 +503,14 @@ a dictionary. Types are returned in the same order as the corresponding
 arguments have in the signature of func.
 
 
-### check_argument_types(cllable = None, call_args = None, clss = None, caller_level = 0)
+### check_argument_types(cllable=None, call_args=None, clss=None, caller_level=0)
 
 This function mimics [typeguard](https://github.com/agronholm/typeguard) syntax and semantics. It can be applied
 within a function or method to check argument values to comply with type annotations.
 It behaves similar to `@typechecked` except that it is not a decorator and does not check the return type.
 A decorator less way for argument checking yields less interference with some debuggers.
 
-### check_return_type(value, cllable = None, clss = None, caller_level = 0)
+### check_return_type(value, cllable=None, clss=None, caller_level=0)
 
 This function works like `check_argument_types`, but applies to the return value.
 Because it is impossible for pytypes to automatically figure out the value to be returned in a function,
@@ -526,7 +526,7 @@ Works like `isinstance`, but supports PEP 484 style types from typing module.
 Works like `issubclass`, but supports PEP 484 style types from typing module.
 
 
-### deep_type(obj, depth = None, max_sample = None)
+### deep_type(obj, depth=None, max_sample=None)
 
 Tries to construct a type for a given value. In contrast to `type(...)`,
 `deep_type` does its best to fit structured types from `typing` as close as

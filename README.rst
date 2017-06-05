@@ -73,13 +73,13 @@ Why write another runtime typecheck decorator?
 
 | There have been earlier approaches for runtime-typechecking. However,
   most of them predate PEP 484 or lack some crucial
-| features like support of Python 2.7 or support of stubfiles. Also,
+  features like support of Python 2.7 or support of stubfiles. Also,
   none of them features a typechecking override
-| decorator. There were separate approaches for override decorators, but
+  decorator. There were separate approaches for override decorators, but
   these usually don't consider PEP 484 at all.
-| So we decided that it's time for a new runtime typechecking framework,
+  So we decided that it's time for a new runtime typechecking framework,
   designed to support PEP 484 from the roots,
-| including its extensive features like (Python 2.7-style-)type comments
+  including its extensive features like (Python 2.7-style-)type comments
   and stub files.
 
 Quick manual
@@ -90,17 +90,16 @@ Quick manual
 
 | Decorator applicable to functions, methods, properties and classes.
 | Asserts compatibility of runtime argument and return values of all
-  targeted functions
-| and methods w.r.t. `PEP
-  484 <https://www.python.org/dev/peps/pep-0484/>`__-style type
+  targeted functions and methods w.r.t.
+  `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__-style type
   annotations of these functions and methods.
 
 | This supports
-| `stubfiles <https://www.python.org/dev/peps/pep-0484/#stub-files>`__
+  `stubfiles <https://www.python.org/dev/peps/pep-0484/#stub-files>`__
   and
-| `type
+  `type
   comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__
-| and is thus workable on Python 2.7.
+  and is thus workable on Python 2.7.
 
 Disabling typechecking
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -109,9 +108,9 @@ Disabling typechecking
   statements, turns off typechecking completely.
 | Alternatively, one can modify the flag ``pytypes.checking_enabled``.
   Note that this must be done right after import of
-| pytypes, because it affects the way how ``@typechecked`` decorator
+  pytypes, because it affects the way how ``@typechecked`` decorator
   works. For modules that were imported with this
-| flag disabled, typechecking cannot be turned on later on within the
+  flag disabled, typechecking cannot be turned on later on within the
   same runtime.
 
 Usage Python 2
@@ -146,15 +145,14 @@ Usage Python 3
 | Asserts that for the decorated method a parent method exists in its
   mro.
 | If both the decorated method and its parent method are type annotated,
-| the decorator additionally asserts compatibility of the annotated
+  the decorator additionally asserts compatibility of the annotated
   types.
 | Note that the return type is checked in contravariant manner.
-| A successful check guarantees that the child method can always be used
-  in
-| places that support the parent method's signature.
+  A successful check guarantees that the child method can always be used
+  in places that support the parent method's signature.
 | Use pytypes.check\_override\_at\_runtime and
   pytypes.check\_override\_at\_class\_definition\_time
-| to control whether checks happen at class definition time or at
+  to control whether checks happen at class definition time or at
   "actual runtime".
 
 The following rules apply for override checking:
@@ -215,20 +213,17 @@ Usage Example
 
 | Decorator applicable to methods and classes.
 | Works like override decorator on type annotated methods that actually
-  have a type
-| annotated parent method. Has no effect on methods that do not override
-  anything.
+  have a type annotated parent method. Has no effect on methods that do
+  not override anything.
 | In contrast to plain override decorator, auto\_override can be applied
-  easily on
-| every method in a class or module.
+  easily on every method in a class or module.
 | In contrast to explicit override decorator, auto\_override is not
-  suitable to detect
-| typos in spelling of a child method's name. It is only useful to
-  assert compatibility
-| of type information (note that return type is contravariant).
+  suitable to detect typos in spelling of a child method's name.
+  It is only useful to assert compatibility of type information
+  (note that return type is contravariant).
 | Use ``pytypes.check_override_at_runtime`` and
   ``pytypes.check_override_at_class_definition_time``
-| to control whether checks happen at class definition time or at
+  to control whether checks happen at class definition time or at
   "actual runtime".
 
 The following rules apply, if a parent method exists:
@@ -249,13 +244,13 @@ The following rules apply, if a parent method exists:
 
 | Decorator applicable to functions, methods, properties and classes.
 | Methods with type comment will have type hints parsed from that
-| string and get them attached as ``__annotations__`` attribute.
-| Methods with either a type comment or ordinary type annotations in
-| a stubfile will get that information attached as ``__annotations__``
-| attribute (also a relevant use case in Python 3).
+  string and get them attached as ``__annotations__`` attribute.
+  Methods with either a type comment or ordinary type annotations in
+  a stubfile will get that information attached as ``__annotations__``
+  attribute (also a relevant use case in Python 3).
 | Behavior in case of collision with previously (manually)
-| attached ``__annotations__`` can be controlled using the flags
-| ``pytypes.annotations_override_typestring`` and
+  attached ``__annotations__`` can be controlled using the flags
+  ``pytypes.annotations_override_typestring`` and
   ``pytypes.annotations_from_typestring``.
 
 @typelogged decorator
@@ -270,11 +265,9 @@ Disabling typelogging
 
 | One can disable typelogging via the flag
   ``pytypes.typelogging_enabled``. Note that this must be done right
-  after import of
-| pytypes, because it affects the way how ``@typelogged`` decorator
-  works. For modules that were imported with this
-| flag disabled, typelogging cannot be turned on later on within the
-  same runtime.
+  after import of pytypes, because it affects the way how ``@typelogged`` decorator
+  works. For modules that were imported with this flag disabled, typelogging cannot
+  be turned on later on within the same runtime.
 
 Usage example
 ~~~~~~~~~~~~~
@@ -434,22 +427,20 @@ Global mode and module wide mode
 
 | The pytypes decorators ``@typechecked``, ``@auto_override``,
   ``@annotations`` and ``@typelogged``
-| can be applied module wide by explicitly calling them on a module
-  object or a module name
-| contained in ``sys.modules``. In such a case, the decorator is applied
-  to all functions and
-| classes in that module and recursively to all methods, properties and
+  can be applied module wide by explicitly calling them on a module
+  object or a module name contained in ``sys.modules``.
+  In such a case, the decorator is applied to all functions and
+  classes in that module and recursively to all methods, properties and
   inner classes too.
 
 Global mode via profilers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | The pytypes decorators ``@typechecked`` and ``@typelogged`` have
-  corresponding profiler
-| implementations ``TypeChecker`` and ``TypeLogger``. You can
-  conveniently install them
-| globally via ``enable_global_typechecked_profiler()`` and
-| ``enable_global_typelogged_profiler()``.
+  corresponding profiler implementations ``TypeChecker`` and ``TypeLogger``.
+| You can conveniently install them globally via
+  ``enable_global_typechecked_profiler()`` and
+  ``enable_global_typelogged_profiler()``.
 | Alternatively you can apply them in a ``with``-context:
 
 .. code:: python
@@ -464,9 +455,8 @@ Global mode via profilers
         agnt_test(12)
 
 | One glitch is to consider in case you want to catch ``TypeCheckError``
-| (i.e. ``ReturnTypeError`` or ``InputTypeError`` as well) and continue
-  execution
-| afterwards. The TypeChecker would be suspended unless you call
+  (i.e. ``ReturnTypeError`` or ``InputTypeError`` as well) and continue
+  execution afterwards. The TypeChecker would be suspended unless you call
   ``restore_profiler``, e.g.:
 
 .. code:: python
@@ -485,33 +475,27 @@ Global mode via profilers
             # handle error....
 
 | Note that the call to ``restore_profiler`` must be performed by the
-  thread that raised
-| the error.
+  thread that raised the error.
 
 | Alternatively you can enable ``pytypes.warning_mode = True`` to raise
-  warnings rather
-| than errors. (This only helps if you don't use
+  warnings rather than errors. (This only helps if you don't use
   ``filterwarnings("error")`` or likewise.)
 
 Global mode via decorators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | The pytypes decorators ``@typechecked``, ``@auto_override``,
-  ``@annotations`` and ``@typelogged``
-| can be applied globally to all loaded modules and subsequently loaded
-  modules.
+  ``@annotations`` and ``@typelogged`` can be applied globally to all
+  loaded modules and subsequently loaded modules.
 | Modules that were loaded while typechecking or typelogging was
-  disabled will not be
-| affected. Apart from that this will affect every module in the way
-  described above.
+  disabled will not be affected. Apart from that this will affect every
+  module in the way described above.
 | Note that we recommend to use the profilers explained in the previous
-  section if global
-| typechecking or typelogging is required.
+  section if global typechecking or typelogging is required.
 
 | Use this feature with care as it is still experimental and can notably
-  slow down your
-| python runtime. In any case, it is intended for debugging and testing
-  phase only.
+  slow down your python runtime. In any case, it is intended for debugging
+  and testing phase only.
 
 -  To apply ``@typechecked`` globally, use
    ``pytypes.set_global_typechecked_decorator``
@@ -526,35 +510,29 @@ OOP support
 -----------
 
 | All the above decorators work smoothly with OOP. You can safely apply
-| ``@typechecked``, ``@annotations`` and ``@typelogged`` on methods,
-  abstract methods,
-| static methods, class methods and properties.
+  ``@typechecked``, ``@annotations`` and ``@typelogged`` on methods,
+  abstract methods, static methods, class methods and properties.
 | ``@override`` is – already by semantics – only applicable to methods,
 | ``@auto_override`` is additionally applicable to classes and modules.
 | pytypes also takes care of inner classes and resolves name space
   properly.
 | Make sure to apply decorators from pytypes *on top of*
   ``@staticmethod``, ``@classmethod``,
-| ``@property`` or ``@abstractmethod`` rather than the other way round.
-  This is because OOP
-| support involves some special treatment internally, so OOP decorators
-  must be visible
-| to pytypes decorators.
-| This also applies to old-style classes.
+  ``@property`` or ``@abstractmethod`` rather than the other way round.
+  This is because OOP support involves some special treatment internally,
+  so OOP decorators must be visible to pytypes decorators. This also applies
+  to old-style classes.
 
 No @override on ``__init__``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | For now ``@override`` cannot be applied to ``__init__``, because
-  ``__init__`` typically extends the
-| list of initialization parameters and usually uses ``super`` to
-  explicitly serve a parent's
-| signature.
+  ``__init__`` typically extends the list of initialization parameters
+  and usually uses ``super`` to explicitly serve a parent's signature.
 | The purpose of ``@override`` is to avoid typos and to guarantee that
-  the child method can
-| always be used as a fill in for the parent in terms of signature and
-  type information.
-| Both aspects are hardly relevant for ``__init__``:
+  the child method can always be used as a fill in for the parent in
+  terms of signature and type information. Both aspects are hardly
+  relevant for ``__init__``:
 
 -  a typo is unlikely and would show up quickly for various reasons
 -  when creating an instance the caller usually knows the exact class to
@@ -567,49 +545,43 @@ Utilities
 ---------
 
 | Utility functions described in this section can be directly imported
-  from the pytypes module.
-| Only the most important utility functions are listed here.
+  from the pytypes module. Only the most important utility functions are listed here.
 
 get\_type\_hints(func)
 ~~~~~~~~~~~~~~~~~~~~~~
 
 | Resembles ``typing.get_type_hints``, but is also workable on Python
-  2.7 and searches stubfiles for
-| type information. Also on Python 3, this takes
-| `type
-  comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__
-| into account if present.
+  2.7 and searches stubfiles for type information. Also on Python 3, this takes
+  `type comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__
+  into account if present.
 
 get\_types(func)
 ~~~~~~~~~~~~~~~~
 
 | Works like ``get_type_hints``, but returns types as a sequence rather
-  than
-| a dictionary. Types are returned in the same order as the
-  corresponding
-| arguments have in the signature of func.
+  than a dictionary. Types are returned in the same order as the
+  corresponding arguments have in the signature of func.
 
-check\_argument\_types(cllable = None, call\_args = None, clss = None, caller\_level = 0)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+check\_argument\_types(cllable=None, call\_args=None, clss=None, caller\_level=0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | This function mimics
   `typeguard <https://github.com/agronholm/typeguard>`__ syntax and
-  semantics. It can be applied
-| within a function or method to check argument values to comply with
+  semantics. It can be applied within a function or method to check argument values to comply with
   type annotations.
 | It behaves similar to ``@typechecked`` except that it is not a
   decorator and does not check the return type.
 | A decorator less way for argument checking yields less interference
   with some debuggers.
 
-check\_return\_type(value, cllable = None, clss = None, caller\_level = 0)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+check\_return\_type(value, cllable=None, clss=None, caller\_level=0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | This function works like ``check_argument_types``, but applies to the
   return value.
 | Because it is impossible for pytypes to automatically figure out the
   value to be returned in a function,
-| it must be explicitly provided as the ``value``-parameter.
+  it must be explicitly provided as the ``value``-parameter.
 
 is\_of\_type(obj, cls)
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -623,79 +595,66 @@ is\_subtype(subclass, superclass)
 Works like ``issubclass``, but supports PEP 484 style types from typing
 module.
 
-deep\_type(obj, depth = None, max\_sample = None)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+deep\_type(obj, depth=None, max\_sample=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | Tries to construct a type for a given value. In contrast to
   ``type(...)``,
-| ``deep_type`` does its best to fit structured types from ``typing`` as
-  close as
-| possible to the given value.
+  ``deep_type`` does its best to fit structured types from ``typing`` as
+  close as possible to the given value.
 | E.g. ``deep_type((1, 2, 'a'))`` will return ``Tuple[int, int, str]``
-  rather than
-| just ``tuple``.
+  rather than just ``tuple``.
 | Supports various types from ``typing``, but not yet all.
 | Also detects nesting up to given depth (uses
-  ``pytypes.default_typecheck_depth``
-| if no value is given).
+  ``pytypes.default_typecheck_depth`` if no value is given).
 | If a value for ``max_sample`` is given, this number of elements is
-  probed
-| from lists, sets and dictionaries to determine the element type. By
-  default,
-| all elements are probed. If there are fewer elements than
-  ``max_sample``, all
-| existing elements are probed.
+  probed from lists, sets and dictionaries to determine the element type. By
+  default, all elements are probed. If there are fewer elements than
+  ``max_sample``, all existing elements are probed.
 
 type\_str(tp)
 ~~~~~~~~~~~~~
 
 | Generates a nicely readable string representation of the given type.
 | The returned representation is workable as a source code string and
-  would
-| reconstruct the given type if handed to eval, provided that
-  globals/locals
-| are configured appropriately (e.g. assumes that various types from
-  ``typing``
-| have been imported).
+  would reconstruct the given type if handed to eval, provided that
+  globals/locals are configured appropriately (e.g. assumes that various types from
+  ``typing`` have been imported).
 | Used as type-formatting backend of ptypes' code generator abilities
-| in modules ``typelogger`` and ``stubfile_2_converter``.
+  in modules ``typelogger`` and ``stubfile_2_converter``.
 
 no\_type\_check
 ~~~~~~~~~~~~~~~
 
 | Works like typing.no\_type\_check, but also supports cases where
-  typing.no\_type\_check
-| fails due to AttributeError. This can happen, because
-  ``typing.no_type_check`` wants
-| to access ``__no_type_check__``, which might fail if e.g. a class is
-  using slots or an
-| object does not support custom attributes.
+  typing.no\_type\_check fails due to AttributeError. This can happen, because
+  ``typing.no_type_check`` wants to access ``__no_type_check__``, which might fail if e.g. a class is
+  using slots or an object does not support custom attributes.
 
 dump\_cache(path=default\_typelogger\_path, python2=False, suffix=None)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | Writes cached observations by ``@typelogged`` into stubfiles.
 | Files will be created in the directory provided as 'path'; overwrites
-| existing files without notice.
-| Uses 'pyi2' suffix if 'python2' flag is given else 'pyi'. Resulting
-| files will be Python 2.7 compliant accordingly.
+  existing files without notice.
+  Uses 'pyi2' suffix if 'python2' flag is given else 'pyi'. Resulting
+  files will be Python 2.7 compliant accordingly.
 
 Python 2.7 compliant stubfiles
 ------------------------------
 
 | Currently pytypes uses the python runtime, i.e. ``import``, ``eval``,
   ``dir`` and inspect to parse stubfiles and type comments.
-| A runtime independent parser for stubfiles is a desired future
+  A runtime independent parser for stubfiles is a desired future
   feature, but is not yet available. This means that
-| conventional PEP 484 stubfiles would not work on Python 2.7. To
+  conventional PEP 484 stubfiles would not work on Python 2.7. To
   resolve this gap, pytypes features a converter script
-| that can convert conventional stubfiles into Python 2.7 compliant
+  that can convert conventional stubfiles into Python 2.7 compliant
   form.
 | More specifically it converts parameter annotations into type comments
   and converts ``...`` syntax into ``pass``.
 | As of this writing it does not deal with type variables and does not
-  convert import section reliably.
-| Thus, it is in experimental state and resulting stubfiles often
+  convert import section reliably. Thus, it is in experimental state and resulting stubfiles often
   require some manual adjustment.
 
 'pyi2' suffix
@@ -703,11 +662,11 @@ Python 2.7 compliant stubfiles
 
 | pytypes uses the suffix 'pyi2' for Python 2.7 compliant stubfiles, but
   does not require it. Plain 'pyi' is also an
-| acceptable suffix (as far as pytypes is concerned), because Python 2.7
+  acceptable suffix (as far as pytypes is concerned), because Python 2.7
   compliant stubfiles can also be used in Python 3.
 | The main purpose of 'pyi2' suffix is to avoid name conflicts when
   conventional stubfiles and Python 2.7 compliant
-| stubfiles coexist for the same module. In that case the pyi2 file will
+  stubfiles coexist for the same module. In that case the pyi2 file will
   override the pyi file when running on Python 2.7.
 
 stubfile\_2\_converter
