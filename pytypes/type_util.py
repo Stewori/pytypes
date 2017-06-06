@@ -392,7 +392,9 @@ def type_str(tp):
 		pass
 	tp = _match_stub_type(tp)
 	impl = ('__builtin__', 'builtins', '__main__')
-	if isclass(tp) and not isinstance(tp, GenericMeta) \
+	if isinstance(tp, TypeVar):
+		return tp.__name__
+	elif isclass(tp) and not isinstance(tp, GenericMeta) \
 			and not hasattr(typing, tp.__name__):
 		if not tp.__module__ in impl:
 			module = sys.modules[tp.__module__]

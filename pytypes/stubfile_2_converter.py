@@ -42,6 +42,9 @@ if __name__ == '__main__':
 
 
 silent = False
+run_as_script = False
+_mod_file_base = None
+_mod_name = None
 indent = '\t'
 stub_open_mode = "U"
 stub_descr = (".pyi", stub_open_mode, imp.PY_SOURCE)
@@ -59,7 +62,12 @@ def _typestring(_types, argspecs, slf_or_clsm=False):
 		args = type_util._preprocess_typecheck(_types[0], argspecs, slf_or_clsm)
 		argstr = typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm)
 	retstr = type_util.type_str(_types[1])
-	return (argstr+' -> '+retstr).replace('NoneType', 'None')
+	res = (argstr+' -> '+retstr)
+	res = res.replace('NoneType', 'None')
+	if run_as_script:
+		res = res.replace(_mod_file_base+'.', '')
+	res = res.replace(_mod_name+'.', '') # better get this from func
+	return res
 
 
 def _typecomment(_types, argspec, slf_or_clsm=False):
@@ -99,9 +107,27 @@ def _write_property(prop, lines, inc=0, decorators=None):
 		_write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True)
 
 
+def _base_name(clss):
+	if hasattr(clss, '__parameters__'):
+		return '%s[%s]'%(clss.__name__, ', '.join([p.__name__ for p in clss.__parameters__]))
+	else:
+		return clss.__name__
+
+
 def signature_class(clss):
-	base_names = [base.__name__ for base in clss.__bases__]
+	base_names = [_base_name(base) for base in clss.__bases__]
 	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
+
+
+def _write_TypeVar(tpv, lines, inc=0):
+	args = [tpv.__name__]
+	if not tpv.__bound__ is None:
+		args.append('bound='+type_util.type_str(tpv.__bound__))
+	if tpv.__covariant__:
+		args.append('covariant=True')
+	if tpv.__contravariant__:
+		args.append('contravariant=True')
+	lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
 
 
 def _write_class(clss, lines, inc = 0):
@@ -120,7 +146,10 @@ def _write_class(clss, lines, inc = 0):
 				anyElement = True
 			elif inspect.isclass(el):
 				lines.append('')
-				_write_class(el, lines, inc+1)
+				if isinstance(el, typing.TypeVar):
+					_write_TypeVar(el, lines, inc+1)
+				else:
+					_write_class(el, lines, inc+1)
 				anyElement = True
 			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
 				lines.append('')
@@ -145,7 +174,24 @@ def _write_class(clss, lines, inc = 0):
 		lines.append((inc+1)*indent+'pass')
 
 
+def _func_get_line(func):
+	try:
+		return func.__code__.co_firstlineno
+	except:
+		pass
+	if isinstance(func, property):
+		return func.fget.__code__.co_firstlineno if not func.fget is None \
+				else func.fset.__code__.co_firstlineno
+	else:
+		return func.__func__.__code__.co_firstlineno
+
+
+def _class_get_line(clss):
+	return inspect.findsource(clss)[1]
+
+
 def convert(in_file, out_file = None):
+	global _mod_file_base, _mod_name
 	_print('in_file: '+in_file)
 	assert(os.path.isfile(in_file))
 	checksum = util._md5(in_file)
@@ -155,11 +201,24 @@ def convert(in_file, out_file = None):
 
 	with open(in_file, stub_open_mode) as module_file:
 		module_name = os.path.basename(in_file)
+		_mod_file_base = module_name
+		_mod_name = module_name.rsplit('.')[0]
 		stub_module = imp.load_module(
 				module_name, module_file, in_file, stub_descr)
 
 	funcs = [func[1] for func in inspect.getmembers(stub_module, inspect.isfunction)]
 	cls = [cl[1] for cl in inspect.getmembers(stub_module, inspect.isclass)]
+	tpvs = []
+	i = 0
+	while i < len(cls):
+		if isinstance(cls[i], typing.TypeVar):
+			tpvs.append(cls[i])
+			del cls[i]
+		else:
+			i += 1
+
+	funcs.sort(key=_func_get_line)
+	cls.sort(key=_class_get_line)
 
 	directory = os.path.dirname(out_file)
 	if not os.path.exists(directory):
@@ -176,13 +235,19 @@ def convert(in_file, out_file = None):
 				'import typing',
 				'from typing import Any, Tuple, List, Union, Generic, Optional, \\',
 				2*indent+'TypeVar, Set, FrozenSet, Dict, Generator',
-				'import numbers']
+				'import numbers',
+				'']
+
+		for tpv in tpvs:
+			_write_TypeVar(tpv, lines)
+
 		for func in funcs:
 			lines.append('')
 			_write_func(func, lines)
 
 		for cl in cls:
 			if not (hasattr(numbers, cl.__name__) or hasattr(typing, cl.__name__)):
+				# Todo: Improve this to check for current module.
 				lines.append('\n')
 				_write_class(cl, lines)
 
@@ -224,4 +289,5 @@ if __name__ == '__main__':
 		out_file = sys.argv[index_o+1]
 	except ValueError:
 		pass
+	run_as_script = True
 	convert(in_file, out_file)
