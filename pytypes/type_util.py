@@ -436,11 +436,13 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
 	elif update_assumed_globals == True:
 		if not assumed_globals is None:
 			if hasattr(tp, '__origin__'):
-				assumed_globals.add(tp.__origin__)
+				toadd = tp.__origin__
 			elif isinstance(tp, CallableMeta):
-				assumed_globals.add(typing.Callable)
+				toadd = typing.Callable
 			else:
-				assumed_globals.add(tp)
+				toadd = tp
+			if not sys.modules[toadd.__module__] in implicit_globals:
+				assumed_globals.add(toadd)
 		return tp_name
 	else:
 		md = sys.modules[tp.__module__]
