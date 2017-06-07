@@ -109,19 +109,27 @@ def _write_property(prop, lines, inc=0, decorators=None, assumed_globals=None):
 				assumed_globals)
 
 
-def _base_name(clss):
+def _base_name(clss, assumed_globals=None, implicit_globals=None):
 	if hasattr(clss, '__parameters__'):
 		return '%s[%s]'%(clss.__name__, ', '.join([p.__name__ for p in clss.__parameters__]))
 	else:
 		return clss.__name__
 
 
-def signature_class(clss):
+def signature_class(clss, assumed_globals=None, implicit_globals=None):
+	if implicit_globals is None:
+		implicit_globals = type_util._implicit_globals
+	else:
+		implicit_globals = implicit_globals.copy()
+		implicit_globals.update(type_util._implicit_globals)
+	for bs in clss.__bases__:
+		if not sys.modules[bs.__module__] in implicit_globals:
+			assumed_globals.add(bs)
 	try:
 		bases = clss.__orig_bases__
 	except AttributeError:
 		bases = clss.__bases__
-	base_names = [_base_name(base) for base in bases]
+	base_names = [_base_name(base, assumed_globals, implicit_globals) for base in bases]
 	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
 
 
@@ -136,10 +144,10 @@ def _write_TypeVar(tpv, lines, inc=0):
 	lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
 
 
-def _write_class(clss, lines, inc = 0, assumed_globals=None):
+def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=None):
 	_print("write class: "+str(clss))
 	anyElement = False
-	lines.append(inc*indent+signature_class(clss))
+	lines.append(inc*indent+signature_class(clss, assumed_globals, implicit_globals))
 	mb = inspect.getmembers(clss, lambda t: inspect.isfunction(t) or \
 			inspect.isclass(t) or inspect.ismethoddescriptor(t))
 	# todo: Care for overload-decorator
@@ -156,7 +164,7 @@ def _write_class(clss, lines, inc = 0, assumed_globals=None):
 				if isinstance(el, TypeVar):
 					_write_TypeVar(el, lines, inc+1)
 				else:
-					_write_class(el, lines, inc+1, assumed_globals)
+					_write_class(el, lines, inc+1, assumed_globals, implicit_globals)
 				anyElement = True
 			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
 				lines.append('')
@@ -192,51 +200,6 @@ def _func_get_line(func):
 				else func.fset.__code__.co_firstlineno
 	else:
 		return func.__func__.__code__.co_firstlineno
-
-
-def _name(obj):
-	try:
-		return obj.__name__
-	except:
-		if type_util.is_Union(obj):
-			return 'Union'
-	return str(obj)
-
-
-def _make_import_section(required_globals, typevars):
-	mdict = {}
-	for obj in required_globals:
-		if obj.__module__ in mdict:
-			mdict[obj.__module__].append(_name(obj))
-		else:
-			mdict[obj.__module__] = [_name(obj)]
-	if len(typevars) > 0:
-		for tpv in typevars:
-			tpvmd = util.search_class_module(tpv)
-			if not tpvmd is None and not tpvmd in type_util._implicit_globals \
-					and not tpvmd in _implicit_globals:
-				if tpvmd.__name__ in mdict:
-					mdict[tpvmd.__name__].append(tpv.__name__)
-				else:
-					mdict[tpvmd.__name__] = [tpv.__name__]
-			elif tpvmd in _implicit_globals:
-				if 'typing' in mdict:
-					mdict['typing'].append('TypeVar')
-				else:
-					mdict['typing'] = ['TypeVar']
-	lines = []
-	mnames = [mn for mn in mdict]
-	mnames.sort()
-	for mname in mnames:
-		pck = sys.modules[mname].__package__
-		if not pck is None and not pck == '':
-			name = pck+'.'+mname
-		else:
-			name = mname
-		lst = mdict[mname]
-		lst.sort()
-		lines.append('from %s import %s'%(name, ', '.join(lst)))
-	return lines
 
 
 def _class_get_line(clss):
@@ -313,9 +276,10 @@ def convert(in_file, out_file = None):
 		for cl in cls:
 			if sys.modules[cl.__module__] in _implicit_globals:
 				lines.append('\n')
-				_write_class(cl, lines, assumed_globals=assumed_glbls)
+				_write_class(cl, lines, assumed_globals=assumed_glbls,
+						implicit_globals=_implicit_globals)
 
-		imp_lines = _make_import_section(assumed_glbls, tpvs)
+		imp_lines = typelogger._make_import_section(assumed_glbls, tpvs, _implicit_globals)
 		lines.insert(imp_index, '\n'.join(imp_lines))
 		for i in range(len(lines)):
 			_print(lines[i])
