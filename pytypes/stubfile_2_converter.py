@@ -233,6 +233,7 @@ def convert(in_file, out_file = None):
 			else:
 				i += 1
 	else:
+		# Python 3.6
 		tpvs = [tpv[1] for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, typing.TypeVar))]
 
 	funcs.sort(key=_func_get_line)

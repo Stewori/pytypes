@@ -1507,6 +1507,7 @@ def restore_profiler():
 		sys.setprofile(_saved_profilers[idn])
 		del _saved_profilers[idn]
 
+
 class TypeAgent(object):
 
 	def __init__(self, all_threads = True):

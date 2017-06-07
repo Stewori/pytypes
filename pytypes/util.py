@@ -376,10 +376,11 @@ def get_class_qualname(cls):
 
 def search_class_module(cls, deep_search=True):
 	"""E.g. if cls is a TypeVar, cls.__module__ won't contain the actual module
-	that declares cls. This function works like get_class_qualname, but returns
-	the actual module declaring cls as second result.
+	that declares cls. This returns the actual module declaring cls.
 	Can be used with any class (not only TypeVar), though usually cls.__module__
 	is the recommended way.
+	If deep_search is True (default) this even finds the correct module if it
+	declares cls as an inner class of another class.
 	"""
 	for md_name in sys.modules:
 		module = sys.modules[md_name]
@@ -457,6 +458,7 @@ def is_classmethod(meth):
 		return False
 	return meth == getattr(meth.__self__, meth.__name__)
 
+
 def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 	func0 = _actualfunc(func)
 	# Todo: separate classmethod/static method prefix from qualified_func_name
@@ -493,6 +495,7 @@ def _fully_qualified_func_name(func, slf_or_clsm, func_class, cls_name = None):
 					func0.__name__)
 		else:
 			return ('%s.%s') % (func0.__module__, func0.__name__)
+
 
 def get_current_function(caller_level = 0):
 	"""Determines the function from which this function was called.
