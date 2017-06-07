@@ -374,6 +374,29 @@ def get_class_qualname(cls):
 	return cls.__name__
 
 
+def search_class_module(cls, deep_search=True):
+	"""E.g. if cls is a TypeVar, cls.__module__ won't contain the actual module
+	that declares cls. This function works like get_class_qualname, but returns
+	the actual module declaring cls as second result.
+	Can be used with any class (not only TypeVar), though usually cls.__module__
+	is the recommended way.
+	"""
+	for md_name in sys.modules:
+		module = sys.modules[md_name]
+		if hasattr(module, cls.__name__) and getattr(module, cls.__name__) is cls:
+			return module
+	if deep_search:
+		for md_name in sys.modules:
+			module = sys.modules[md_name]
+			try:
+				nst = _get_class_nesting_list(cls, module)
+				if cls is nst[-1]:
+					return module
+			except:
+				pass
+	return None
+
+
 def get_class_that_defined_method(meth):
 	"""Determines the class owning the given method.
 	"""

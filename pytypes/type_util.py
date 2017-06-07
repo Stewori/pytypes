@@ -363,10 +363,10 @@ def _has_type_hints(func0, func_class = None, nesting = None):
 		# Some typehint caused this NameError, so typhints are present in some form
 		return True
 	except TypeError:
-		# func seems to be not suitable of having type hints
+		# func seems to be not suitable to have type hints
 		return False
 	except AttributeError:
-		# func seems to be not suitable of having type hints
+		# func seems to be not suitable to have type hints
 		return False
 	try:
 		tpStr = _get_typestrings(func, False)
@@ -375,7 +375,92 @@ def _has_type_hints(func0, func_class = None, nesting = None):
 		return False
 
 
-def type_str(tp):
+_implicit_globals = set()
+try:
+	_implicit_globals.add(sys.modules['__builtin__'])
+except:
+	_implicit_globals.add(sys.modules['builtins'])
+def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_globals=None,
+			implicit_globals=None):
+	# type: (type, Optional[Union[Set[Union[type, types.ModuleType]], Mapping[Union[type, types.ModuleType], str]]], Optional[bool]) -> str
+	"""Provides the fully qualified name of a type relative to a set of
+	modules and types that is assumed as globally available.
+	If assumed_globals is None this always returns the fully qualified name.
+	If update_assumed_globals is True, this will return the plain type name,
+	but will add the type to assumed_globals (expected to be a set).
+	This way a caller can query how to generate an appropriate import section.
+	If update_assumed_globals is False, assumed_globals can alternatively be
+	a mapping rather than a set. In that case the mapping is expected to be
+	an alias table, mapping modules or types to their alias names desired for
+	displaying.
+	update_assumed_globals can be None (default). In that case this will return the
+	plain type name if assumed_globals is None as well (default).
+	This mode is there to have a less involved default behavior.
+	"""
+	if tp_name is None:
+		tp_name = tp.__name__
+	if implicit_globals is None:
+		implicit_globals = _implicit_globals
+	else:
+		implicit_globals = implicit_globals.copy()
+		implicit_globals.update(_implicit_globals)
+	if assumed_globals is None:
+		if update_assumed_globals is None:
+			return tp_name
+		md = sys.modules[tp.__module__]
+		if md in implicit_globals:
+			return tp_name
+		name = tp.__module__+'.'+tp_name
+		pck = None
+		if not (md.__package__ is None or md.__package__ == ''
+				or name.startswith(md.__package__)):
+			pck = md.__package__
+		return name if pck is None else pck+'.'+name
+	if tp in assumed_globals:
+		try:
+			return assumed_globals[tp]
+		except:
+			return tp_name
+	elif hasattr(tp, '__origin__') and tp.__origin__ in assumed_globals:
+		try:
+			return assumed_globals[tp.__origin__]
+		except:
+			return tp_name
+	# For some reason Callable does not have __origin__, so we special-case
+	# it here. Todo: Find a cleaner solution.
+	elif isinstance(tp, CallableMeta) and typing.Callable in assumed_globals:
+		try:
+			return assumed_globals[typing.Callable]
+		except:
+			return tp_name
+	elif update_assumed_globals == True:
+		if not assumed_globals is None:
+			if hasattr(tp, '__origin__'):
+				assumed_globals.add(tp.__origin__)
+			elif isinstance(tp, CallableMeta):
+				assumed_globals.add(typing.Callable)
+			else:
+				assumed_globals.add(tp)
+		return tp_name
+	else:
+		md = sys.modules[tp.__module__]
+		if md in implicit_globals:
+			return tp_name
+		md_name = tp.__module__
+		if md in assumed_globals:
+			try:
+				md_name = assumed_globals[md]
+			except:
+				pass
+		else:
+			if not (md.__package__ is None or md.__package__ == ''
+					or md_name.startswith(md.__package__)):
+				md_name = md.__package__+'.'+tp.__module__
+		return md_name+'.'+tp_name
+
+
+def type_str(tp, assumed_globals=None, update_assumed_globals=None,
+			implicit_globals=None):
 	"""Generates a nicely readable string representation of the given type.
 	The returned representation is workable as a source code string and would
 	reconstruct the given type if handed to eval, provided that globals/locals
@@ -383,57 +468,78 @@ def type_str(tp):
 	have been imported).
 	Used as type-formatting backend of ptypes' code generator abilities
 	in modules typelogger and stubfile_2_converter.
+	
+	For semantics of assumed_globals and update_assumed_globals see
+	_tp_relfq_name. Its doc applies to every argument or result contained in
+	tp (recursively) and to tp itself.
 	"""
+	if assumed_globals is None and update_assumed_globals is None:
+		if implicit_globals is None:
+			implicit_globals = set()
+		else:
+			implicit_globals = implicit_globals.copy()
+		implicit_globals.add(sys.modules['typing'])
+		implicit_globals.add(sys.modules['__main__'])
 	if isinstance(tp, tuple):
-		return '('+', '.join([type_str(tp0) for tp0 in tp])+')'
+		return '('+', '.join([type_str(tp0, assumed_globals, update_assumed_globals,
+				implicit_globals) for tp0 in tp])+')'
 	try:
-		return type_str(tp.__orig_class__)
+		return type_str(tp.__orig_class__, assumed_globals, update_assumed_globals,
+				implicit_globals)
 	except AttributeError:
 		pass
 	tp = _match_stub_type(tp)
-	impl = ('__builtin__', 'builtins', '__main__')
 	if isinstance(tp, TypeVar):
 		return tp.__name__
 	elif isclass(tp) and not isinstance(tp, GenericMeta) \
 			and not hasattr(typing, tp.__name__):
-		if not tp.__module__ in impl:
-			module = sys.modules[tp.__module__]
-			if not (module.__package__ is None or module.__package__ == ''
-					or tp.__module__.startswith(module.__package__)):
-				pck = module.__package__+'.'+tp.__module__+'.'
-			else:
-				pck = tp.__module__+'.'
-		else:
-			pck = ''
+		tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
+				implicit_globals)
 		prm = ''
 		if hasattr(tp, '__args__') and not tp.__args__ is None:
-			params = [type_str(param) for param in tp.__args__]
-			prm = '['+', '.join(params)+']'
-		return pck+tp.__name__+prm
+			params = [type_str(param, assumed_globals, update_assumed_globals,
+					implicit_globals) for param in tp.__args__]
+			prm = '[%s]'%', '.join(params)
+		return tp_name+prm
 	elif is_Union(tp):
-		try:
-			# Python 3.6
-			params = [type_str(param) for param in tp.__args__]
-		except AttributeError:
-			params = [type_str(param) for param in tp.__union_params__]
-		return 'Union['+', '.join(params)+']'
+		prms = get_Union_params(tp)
+		params = [type_str(param, assumed_globals, update_assumed_globals,
+				implicit_globals) for param in prms]
+		return '%s[%s]'%(_tp_relfq_name(Union, 'Union', assumed_globals,
+				update_assumed_globals, implicit_globals), ', '.join(params))
 	elif isinstance(tp, TupleMeta):
 		prms = get_Tuple_params(tp)
-		tpl_params = [type_str(param) for param in prms]
-		return 'Tuple['+', '.join(tpl_params)+']'
+		tpl_params = [type_str(param, assumed_globals, update_assumed_globals,
+				implicit_globals) for param in prms]
+		return '%s[%s]'%(_tp_relfq_name(Tuple, 'Tuple', assumed_globals,
+				update_assumed_globals, implicit_globals), ', '.join(tpl_params))
 	elif hasattr(tp, '__args__'):
+		tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
+				implicit_globals)
 		if tp.__args__ is None:
-			return tp.__name__
-		params = [type_str(param) for param in tp.__args__]
+			return tp_name
+		params = [type_str(param, assumed_globals, update_assumed_globals, implicit_globals)
+				for param in tp.__args__]
 		if hasattr(tp, '__result__'):
-			return tp.__name__+'[['+', '.join(params)+'], '+type_str(tp.__result__)+']'
+			return '%s[[%s], %s]'%(tp_name, ', '.join(params),
+					type_str(tp.__result__, assumed_globals, update_assumed_globals,
+					implicit_globals))
 		elif isinstance(tp, CallableMeta):
-			return tp.__name__+'[['+', '.join(params[:-1])+'], '+type_str(params[-1])+']'
+			return '%s[[%s], %s]'%(tp_name, ', '.join(params[:-1]),
+					type_str(params[-1], assumed_globals, update_assumed_globals,
+					implicit_globals))
 		else:
-			return tp.__name__+'['+', '.join(params)+']'
+			return '%s[%s]'%(tp_name, ', '.join(params))
+	elif hasattr(tp, '__name__'):
+		result = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
+				implicit_globals)
 	else:
 		# Todo: Care for other special types from typing where necessary.
-		return str(tp).replace('typing.', '')
+		result = str(tp)
+	if not implicit_globals is None:
+		for s in implicit_globals:
+			result = result.replace(s.__name__+'.', '')
+	return result
 
 
 def get_types(func):

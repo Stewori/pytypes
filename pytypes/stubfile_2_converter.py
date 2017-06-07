@@ -34,7 +34,9 @@ import inspect
 import numbers
 import os
 import typing
-from typing import Any
+from typing import Any, Tuple, List, Union, Generic, Optional, \
+		Mapping, Set, FrozenSet, Dict, Generator, Sequence, \
+		Iterable, Callable
 from pytypes import util, typelogger, type_util
 
 if __name__ == '__main__':
@@ -42,12 +44,15 @@ if __name__ == '__main__':
 
 
 silent = False
-run_as_script = False
-_mod_file_base = None
-_mod_name = None
 indent = '\t'
 stub_open_mode = "U"
 stub_descr = (".pyi", stub_open_mode, imp.PY_SOURCE)
+_assumed_globals = {Any, Tuple, List, Union, Generic, Optional, \
+		Set, FrozenSet, Dict, Generator, Mapping, Sequence, \
+		Iterable, Callable, numbers}
+_implicit_globals = set()
+# This behavior changed with Python 3.6:
+_tpvar_is_class = inspect.isclass(typing.TypeVar('_test'))
 
 
 def _print(line):
@@ -55,29 +60,28 @@ def _print(line):
 		print(line)
 
 
-def _typestring(_types, argspecs, slf_or_clsm=False):
+def _typestring(_types, argspecs, slf_or_clsm=False, assumed_globals=None):
 	if _types[0] is Any:
 		argstr = '...'
 	else:
 		args = type_util._preprocess_typecheck(_types[0], argspecs, slf_or_clsm)
-		argstr = typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm)
-	retstr = type_util.type_str(_types[1])
+		argstr = typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm,
+				assumed_globals=_assumed_globals, implicit_globals=_implicit_globals)
+	retstr = type_util.type_str(_types[1],
+			_assumed_globals, implicit_globals=_implicit_globals)
 	res = (argstr+' -> '+retstr)
 	res = res.replace('NoneType', 'None')
-	if run_as_script:
-		res = res.replace(_mod_file_base+'.', '')
-	res = res.replace(_mod_name+'.', '') # better get this from func
 	return res
 
 
-def _typecomment(_types, argspec, slf_or_clsm=False):
-	return '# type: '+_typestring(_types, argspec, slf_or_clsm)
+def _typecomment(_types, argspec, slf_or_clsm=False, assumed_globals=None):
+	return '# type: '+_typestring(_types, argspec, slf_or_clsm, assumed_globals)
 
 
-def typecomment(func, argspec=None, slf_or_clsm=False):
+def typecomment(func, argspec=None, slf_or_clsm=False, assumed_globals=None):
 	if argspec is None:
 		argspec = util.getargspecs(func)
-	return _typecomment(type_util.get_types(func), argspec, slf_or_clsm)
+	return _typecomment(type_util.get_types(func), argspec, slf_or_clsm, assumed_globals)
 
 
 def signature(func):
@@ -85,26 +89,28 @@ def signature(func):
 	return 'def '+func.__name__+'('+argstr+'):'
 
 
-def _write_func(func, lines, inc=0, decorators=None, slf_or_clsm=False):
+def _write_func(func, lines, inc=0, decorators=None, slf_or_clsm=False, assumed_globals=None):
 	if not decorators is None:
 		for dec in decorators:
 			lines.append(inc*indent+'@'+dec)
 	lines.append(inc*indent+signature(func))
 	if type_util.has_type_hints(func):
-		lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm))
+		lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm,
+				assumed_globals=assumed_globals))
 	lines.append((inc+1)*indent+'pass')
 
 
-def _write_property(prop, lines, inc=0, decorators=None):
+def _write_property(prop, lines, inc=0, decorators=None, assumed_globals=None):
 	if not decorators is None:
 		for dec in decorators:
 			lines.append(inc*indent+'@'+dec)
 	if not prop.fget is None:
-		_write_func(prop.fget, lines, inc, ['property'], True)
+		_write_func(prop.fget, lines, inc, ['property'], True, assumed_globals)
 	if not prop.fset is None:
 		if not prop.fget is None:
 			lines.append('')
-		_write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True)
+		_write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True,
+				assumed_globals)
 
 
 def _base_name(clss):
@@ -115,11 +121,15 @@ def _base_name(clss):
 
 
 def signature_class(clss):
-	base_names = [_base_name(base) for base in clss.__bases__]
+	try:
+		bases = clss.__orig_bases__
+	except AttributeError:
+		bases = clss.__bases__
+	base_names = [_base_name(base) for base in bases]
 	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
 
 
-def _write_TypeVar(tpv, lines, inc=0):
+def _write_TypeVar(tpv, lines, inc=0, assumed_globals=None):
 	args = [tpv.__name__]
 	if not tpv.__bound__ is None:
 		args.append('bound='+type_util.type_str(tpv.__bound__))
@@ -130,7 +140,7 @@ def _write_TypeVar(tpv, lines, inc=0):
 	lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
 
 
-def _write_class(clss, lines, inc = 0):
+def _write_class(clss, lines, inc = 0, assumed_globals=None):
 	_print("write class: "+str(clss))
 	anyElement = False
 	lines.append(inc*indent+signature_class(clss))
@@ -142,18 +152,20 @@ def _write_class(clss, lines, inc = 0):
 			el = clss.__dict__[elem[0]]
 			if inspect.isfunction(el):
 				lines.append('')
-				_write_func(el, lines, inc+1, slf_or_clsm=True)
+				_write_func(el, lines, inc+1, slf_or_clsm=True,
+						assumed_globals=assumed_globals)
 				anyElement = True
 			elif inspect.isclass(el):
 				lines.append('')
 				if isinstance(el, typing.TypeVar):
-					_write_TypeVar(el, lines, inc+1)
+					_write_TypeVar(el, lines, inc+1, assumed_globals)
 				else:
-					_write_class(el, lines, inc+1)
+					_write_class(el, lines, inc+1, assumed_globals)
 				anyElement = True
 			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
 				lines.append('')
-				_write_func(el.__func__, lines, inc+1, ['staticmethod'])
+				_write_func(el.__func__, lines, inc+1, ['staticmethod'],
+						assumed_globals=assumed_globals)
 				anyElement = True
 
 	# classmethods are not obtained via inspect.getmembers.
@@ -163,11 +175,11 @@ def _write_class(clss, lines, inc = 0):
 		attr = getattr(clss, key)
 		if inspect.ismethod(attr):
 			lines.append('')
-			_write_func(attr, lines, inc+1, ['classmethod'], True)
+			_write_func(attr, lines, inc+1, ['classmethod'], True, assumed_globals)
 			anyElement = True
 		elif isinstance(attr, property):
 			lines.append('')
-			_write_property(attr, lines, inc+1)
+			_write_property(attr, lines, inc+1, assumed_globals)
 			anyElement = True
 
 	if not anyElement:
@@ -191,7 +203,7 @@ def _class_get_line(clss):
 
 
 def convert(in_file, out_file = None):
-	global _mod_file_base, _mod_name
+	global _implicit_globals
 	_print('in_file: '+in_file)
 	assert(os.path.isfile(in_file))
 	checksum = util._md5(in_file)
@@ -201,21 +213,27 @@ def convert(in_file, out_file = None):
 
 	with open(in_file, stub_open_mode) as module_file:
 		module_name = os.path.basename(in_file)
-		_mod_file_base = module_name
-		_mod_name = module_name.rsplit('.')[0]
 		stub_module = imp.load_module(
 				module_name, module_file, in_file, stub_descr)
+		if module_name in sys.modules:
+			_implicit_globals.add(sys.modules[module_name])
+		module_basename = module_name.rsplit('.')[0]
+		if module_basename in sys.modules:
+			_implicit_globals.add(sys.modules[module_basename])
 
 	funcs = [func[1] for func in inspect.getmembers(stub_module, inspect.isfunction)]
 	cls = [cl[1] for cl in inspect.getmembers(stub_module, inspect.isclass)]
 	tpvs = []
 	i = 0
-	while i < len(cls):
-		if isinstance(cls[i], typing.TypeVar):
-			tpvs.append(cls[i])
-			del cls[i]
-		else:
-			i += 1
+	if _tpvar_is_class:
+		while i < len(cls):
+			if isinstance(cls[i], typing.TypeVar):
+				tpvs.append(cls[i])
+				del cls[i]
+			else:
+				i += 1
+	else:
+		tpvs = [tpv[1] for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, typing.TypeVar))]
 
 	funcs.sort(key=_func_get_line)
 	cls.sort(key=_class_get_line)
@@ -234,7 +252,8 @@ def convert(in_file, out_file = None):
 				'',
 				'import typing',
 				'from typing import Any, Tuple, List, Union, Generic, Optional, \\',
-				2*indent+'TypeVar, Set, FrozenSet, Dict, Generator',
+				2*indent+'TypeVar, Set, FrozenSet, Dict, Generator, Mapping, \\',
+				2*indent+'Sequence, Iterable, Callable',
 				'import numbers',
 				'']
 
@@ -289,5 +308,4 @@ if __name__ == '__main__':
 		out_file = sys.argv[index_o+1]
 	except ValueError:
 		pass
-	run_as_script = True
 	convert(in_file, out_file)

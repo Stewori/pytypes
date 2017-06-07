@@ -303,17 +303,22 @@ def _prepare_arg_types_list(arg_Tuple, argspecs, slf_or_clsm = False, names=None
 	return res
 
 
-def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None):
+def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None,
+			assumed_globals=None, update_assumed_globals=None, implicit_globals=None):
 	arg_tps, vararg_tp, kw_tp, kwonly_tps = _prepare_arg_types(
 			arg_Tuple, argspecs, slf_or_clsm, names)
 	res = []
-	res.extend(type_str(tp) for tp in arg_tps)
+	res.extend(type_str(tp, assumed_globals, update_assumed_globals, implicit_globals)
+			for tp in arg_tps)
 	if not vararg_tp is None:
-		res.append('*'+type_str(vararg_tp))
+		res.append('*'+type_str(vararg_tp, assumed_globals, update_assumed_globals,
+				implicit_globals))
 	if not kwonly_tps is None:
-		res.extend(type_str(tp) for tp in kwonly_tps)
+		res.extend(type_str(tp, assumed_globals, update_assumed_globals, implicit_globals)
+				for tp in kwonly_tps)
 	if not kw_tp is None:
-		res.append('**'+type_str(kw_tp))
+		res.append('**'+type_str(kw_tp, assumed_globals, update_assumed_globals,
+				implicit_globals))
 	return ''.join(('(', ', '.join(res), ')'))
 
 

@@ -1634,9 +1634,11 @@ class TestTypecheck(unittest.TestCase):
 		self.assertTrue(pytypes.is_subtype(tuple, Sequence[Any]))
 
 	def test_empty(self):
+		asg = {Dict, List, Set, pytypes.Empty}
+
 		empty_dict = pytypes.Empty[Dict]
 		self.assertEqual(pytypes.deep_type({}), empty_dict)
-		self.assertEqual(pytypes.type_str(empty_dict), 'Empty[Dict]')
+		self.assertEqual(pytypes.type_str(empty_dict, asg), 'Empty[Dict]')
 		self.assertTrue(pytypes.is_subtype(empty_dict, pytypes.Empty))
 		self.assertFalse(pytypes.is_subtype(Dict[str, int], empty_dict))
 		self.assertTrue(pytypes.is_subtype(empty_dict, Dict[str, int]))
@@ -1644,7 +1646,7 @@ class TestTypecheck(unittest.TestCase):
 
 		empty_lst = pytypes.Empty[List]
 		self.assertEqual(pytypes.deep_type([]), empty_lst)
-		self.assertEqual(pytypes.type_str(empty_lst), 'Empty[List]')
+		self.assertEqual(pytypes.type_str(empty_lst, asg), 'Empty[List]')
 		self.assertTrue(pytypes.is_subtype(empty_lst, pytypes.Empty))
 		self.assertFalse(pytypes.is_subtype(List[str], empty_lst))
 		self.assertTrue(pytypes.is_subtype(empty_lst, List[int]))
@@ -1663,7 +1665,7 @@ class TestTypecheck(unittest.TestCase):
 
 		empty_set = pytypes.Empty[Set]
 		self.assertEqual(pytypes.deep_type(set()), empty_set)
-		self.assertEqual(pytypes.type_str(empty_set), 'Empty[Set]')
+		self.assertEqual(pytypes.type_str(empty_set, asg), 'Empty[Set]')
 		self.assertTrue(pytypes.is_subtype(empty_set, pytypes.Empty))
 		self.assertFalse(pytypes.is_subtype(Set[int], empty_set))
 		self.assertTrue(pytypes.is_subtype(empty_set, Set[int]))
