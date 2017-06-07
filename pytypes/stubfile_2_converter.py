@@ -193,13 +193,22 @@ def _func_get_line(func):
 		return func.__func__.__code__.co_firstlineno
 
 
+def _name(obj):
+	try:
+		return obj.__name__
+	except:
+		if type_util.is_Union(obj):
+			return 'Union'
+	return str(obj)
+
+
 def _make_import_section(required_globals, typevars):
 	mdict = {}
 	for obj in required_globals:
 		if obj.__module__ in mdict:
-			mdict[obj.__module__].append(obj.__name__)
+			mdict[obj.__module__].append(_name(obj))
 		else:
-			mdict[obj.__module__] = [obj.__name__]
+			mdict[obj.__module__] = [_name(obj)]
 	if len(typevars) > 0:
 		for tpv in typevars:
 			tpvmd = util.search_class_module(tpv)
@@ -293,8 +302,7 @@ def convert(in_file, out_file = None):
 			_write_func(func, lines, assumed_globals=assumed_glbls)
 
 		for cl in cls:
-			if not (hasattr(numbers, cl.__name__) or hasattr(typing, cl.__name__)):
-				# Todo: Improve this to check for current module.
+			if sys.modules[cl.__module__] in _implicit_globals:
 				lines.append('\n')
 				_write_class(cl, lines, assumed_globals=assumed_glbls)
 

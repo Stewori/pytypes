@@ -435,7 +435,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
 			return tp_name
 	elif update_assumed_globals == True:
 		if not assumed_globals is None:
-			if hasattr(tp, '__origin__'):
+			if hasattr(tp, '__origin__') and not tp.__origin__ is None:
 				toadd = tp.__origin__
 			elif isinstance(tp, CallableMeta):
 				toadd = typing.Callable
