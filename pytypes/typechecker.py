@@ -32,7 +32,8 @@ from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
 		deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
-		_preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent
+		_preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent, \
+		_check_as_func
 from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
 
 if sys.version_info.major >= 3:
@@ -660,8 +661,7 @@ def typechecked_func(func, force = False, argType = None, resType = None, prop_g
 	"""
 	if not pytypes.checking_enabled and not pytypes.do_logging_in_typechecked:
 		return func
-	assert(isfunction(func) or ismethod(func) or ismethoddescriptor(func)
-			or isinstance(func, property))
+	assert(_check_as_func(func))
 	if not force and is_no_type_check(func):
 		return func
 	if hasattr(func, 'do_typecheck'):
@@ -865,8 +865,7 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
 	for key in keys:
 		memb = cls.__dict__[key]
 		if force_recursive or not is_no_type_check(memb):
-			if (isfunction(memb) or ismethod(memb) or \
-					ismethoddescriptor(memb) or isinstance(memb, property)):
+			if type_util._check_as_func(memb):
 				if _has_type_hints(getattr(cls, key), cls, nst) or \
 						hasattr(_actualfunc(memb), 'override_checked'):
 					setattr(cls, key, typechecked_func(memb, force_recursive))
@@ -906,8 +905,8 @@ def typechecked_module(md, force_recursive = False):
 	for key in keys:
 		memb = md.__dict__[key]
 		if force_recursive or not is_no_type_check(memb):
-			if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
-					and memb.__module__ == md.__name__ and has_type_hints(memb):
+			if _check_as_func(memb) and memb.__module__ == md.__name__ and \
+					has_type_hints(memb):
 				setattr(md, key, typechecked_func(memb, force_recursive))
 			elif isclass(memb) and memb.__module__ == md.__name__:
 				typechecked_class(memb, force_recursive, force_recursive)
@@ -927,7 +926,7 @@ def typechecked(memb):
 		return memb
 	if is_no_type_check(memb):
 		return memb
-	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+	if type_util._check_as_func(memb):
 		return typechecked_func(memb)
 	if isclass(memb):
 		return typechecked_class(memb)
@@ -1003,7 +1002,7 @@ def auto_override(memb):
 	Use pytypes.check_override_at_runtime and pytypes.check_override_at_class_definition_time
 	to control whether checks happen at class definition time or at "actual runtime".
 	"""
-	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+	if type_util._check_as_func(memb):
 		return override(memb, True)
 	if isclass(memb):
 		return auto_override_class(memb)

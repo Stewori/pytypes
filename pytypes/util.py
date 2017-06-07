@@ -604,8 +604,7 @@ def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
 	for key in keys:
 		slf2 = slf
 		obj = module_or_class.__dict__[key]
-		if inspect.isfunction(obj) or inspect.ismethod(obj) \
-				or inspect.ismethoddescriptor(obj) or isinstance(obj, property):
+		if pytypes.type_util._check_as_func(obj):
 			if isinstance(obj, classmethod) or isinstance(obj, staticmethod):
 				obj = obj.__func__
 				slf2 = False

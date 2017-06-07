@@ -26,14 +26,14 @@ import os
 import abc
 import datetime
 from typing import Union, Any, Tuple, TupleMeta
-from inspect import isclass, ismodule, isfunction, ismethod, \
-		ismethoddescriptor, getsourcelines, findsource
+from inspect import isclass, ismodule, getsourcelines, findsource
 
 import pytypes
 from .type_util import deep_type, type_str, get_Tuple_params, \
 		Empty, simplify_for_Union, _get_types, _has_type_hints, \
 		_preprocess_typecheck, get_Union_params, is_Union, \
-		get_Generic_itemtype, TypeAgent, _implicit_globals
+		get_Generic_itemtype, TypeAgent, _implicit_globals, \
+		_check_as_func
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
 from . import version, util
@@ -132,9 +132,17 @@ def _name(obj):
 	try:
 		return obj.__name__
 	except:
+		# For some reason, Union does not have __name__.
 		if is_Union(obj):
 			return 'Union'
 	return str(obj)
+
+
+def _module_name(md):
+	if md.__name__ == '__main__':
+		return md.__file__.rsplit(os.sep, 1)[-1].split('.', 1)[0]
+	else:
+		return md.__name__
 
 
 def _make_import_section(required_globals, typevars, implicit_globals):
@@ -163,10 +171,9 @@ def _make_import_section(required_globals, typevars, implicit_globals):
 	mnames.sort()
 	for mname in mnames:
 		pck = sys.modules[mname].__package__
-		if not pck is None and not pck == '':
-			name = pck+'.'+mname
-		else:
-			name = mname
+		name = _module_name(sys.modules[mname])
+		if not pck is None and not pck == '' and not name.startswith(pck+'.'):
+			name = pck+'.'+name
 		lst = mdict[mname]
 		lst.sort()
 		lines.append('from %s import %s'%(name, ', '.join(lst)))
@@ -188,7 +195,7 @@ def _dump_module(module_node, path=None, python2=False, suffix=None):
 	except:
 		checksum = 'unknown checksum'
 	pck_path = path if pck_path is None else os.sep.join((path, pck_path))
-	indent = module_node._indent()
+	#indent = module_node._indent()
 	stubpath = ''.join((pck_path, os.sep, basic_name, '.', suffix))
 	if not os.path.exists(pck_path):
 		os.makedirs(pck_path)
@@ -227,9 +234,11 @@ def _dump_module(module_node, path=None, python2=False, suffix=None):
 			lines[i] = lines[i]+'\n'
 		lines.append('\n')
 		assumed_glbls = set()
-		implicit_globals = {module_node.module}
-		module_node.dump(lines, 0, python2, None, assumed_glbls, implicit_globals)
-		imp_lines = _make_import_section(assumed_glbls, [], implicit_globals)
+		assumed_typevars = set()
+		implicit_globals = set()
+		module_node.dump(lines, 0, python2, None,
+				assumed_glbls, implicit_globals, assumed_typevars)
+		imp_lines = _make_import_section(assumed_glbls, assumed_typevars, implicit_globals)
 		lines.insert(imp_index, '\n'.join(imp_lines))
 		if not python2:
 			lines.append('\n')
@@ -369,6 +378,29 @@ def _prepare_arg_types_str(arg_Tuple, argspecs, slf_or_clsm = False, names=None,
 	return ''.join(('(', ', '.join(res), ')'))
 
 
+def _signature_class(clss, assumed_globals=None, implicit_globals=None,
+			assumed_typevars=None):
+	if implicit_globals is None:
+		implicit_globals = _implicit_globals
+	else:
+		implicit_globals = implicit_globals.copy()
+		implicit_globals.update(_implicit_globals)
+	for bs in clss.__bases__:
+		if not sys.modules[bs.__module__] in implicit_globals:
+			assumed_globals.add(bs)
+	try:
+		bases = clss.__orig_bases__
+	except AttributeError:
+		bases = clss.__bases__
+	if not assumed_typevars is None:
+		for base in bases:
+			if hasattr(base, '__parameters__') and len(base.__parameters__) > 0:
+				for prm in base.__parameters__:
+					assumed_typevars.add(prm)
+	base_names = [type_str(base, assumed_globals, True, implicit_globals) for base in bases]
+	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
+
+
 # currently not used; kept here as potential future feature
 def get_indentation(func):
 	"""Extracts a function's indentation as a string,
@@ -399,7 +431,7 @@ class _base_node(object):
 
 	@abc.abstractmethod
 	def dump(self, dest, indents = 0, python2 = False, props = None,
-			assumed_globals=None, implicit_globals=None):
+			assumed_globals=None, implicit_globals=None, assumed_typevars=None):
 		pass
 
 	def is_property(self):
@@ -541,7 +573,7 @@ class _typed_member(_base_node):
 		return ''.join(elements)
 
 	def dump(self, dest, indents = 0, python2 = False, props = None,
-			assumed_globals=None, implicit_globals=None):
+			assumed_globals=None, implicit_globals=None, assumed_typevars=None):
 		if not self._added_type_hints:
 			self._add_observation_from_type_info()
 		if python2:
@@ -610,13 +642,18 @@ class _module_node(_base_node):
 		return self.module.__file__.rsplit(os.sep, 1)[-1]
 
 	def dump(self, dest, indents = 0, python2 = False, props=None,
-			assumed_globals=None, implicit_globals=None):
+			assumed_globals=None, implicit_globals=None, assumed_typevars=None):
 		dump_lst = []
 		dump_lst.extend(self.classes.values())
 		dump_lst.extend(self.others.values())
 		dump_lst.sort(key=_node_get_line)
 		for elm in dump_lst:
-			elm.dump(dest, indents, python2, props, assumed_globals, implicit_globals)
+			elm.dump(dest, indents, python2, props,
+					assumed_globals, implicit_globals, assumed_typevars)
+		if not assumed_globals is None:
+			for clsn in self.classes.values():
+				if clsn.clss in assumed_globals:
+					assumed_globals.remove(clsn.clss)
 
 	def append(self, typed_member):
 		if typed_member.clss is None and not typed_member.stat:
@@ -659,21 +696,12 @@ class _class_node(_base_node):
 		self._idn = None
 
 	def dump(self, dest, indents = 0, python2 = False, props=None,
-			assumed_globals=None, implicit_globals=None):
+			assumed_globals=None, implicit_globals=None, assumed_typevars=None):
 		dest.append('\n')
 		idn = self._indent()
-		if implicit_globals is None:
-			implicit_globals = _implicit_globals
-		else:
-			implicit_globals = implicit_globals.copy()
-			implicit_globals.update(_implicit_globals)
-		for cls in self.clss.__bases__:
-			if not sys.modules[cls.__module__] in implicit_globals:
-				assumed_globals.add(cls)
-		bases = [cls.__name__ for cls in self.clss.__bases__]
-		if not python2:
-			bases.remove('object')
-		dest.append(''.join((indents*idn, 'class ', self.name, '(', ', '.join(bases),'):\n')))
+		dest.append(indents*idn + _signature_class(self.clss,
+				assumed_globals, implicit_globals, assumed_typevars))
+		dest.append('\n\n')
 		dump_lst = []
 		dump_lst.extend(self.classes.values())
 		dump_lst.extend(self.others.values())
@@ -721,8 +749,7 @@ def typelogged_class(cls):
 	keys = [key for key in cls.__dict__]
 	for key in keys:
 		memb = cls.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or \
-				ismethoddescriptor(memb)) or  isinstance(memb, property):
+		if _check_as_func(memb):
 			setattr(cls, key, typelogged_func(memb))
 		elif isclass(memb):
 			typelogged_class(memb)
@@ -751,8 +778,7 @@ def typelogged_module(md):
 	keys = [key for key in md.__dict__]
 	for key in keys:
 		memb = md.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
-				and memb.__module__ == md.__name__:
+		if _check_as_func(memb) and memb.__module__ == md.__name__:
 			setattr(md, key, typelogged_func(memb))
 		elif isclass(memb) and memb.__module__ == md.__name__:
 			typelogged_class(memb)
@@ -771,7 +797,7 @@ def typelogged(memb):
 	"""
 	if not pytypes.typelogging_enabled:
 		return memb
-	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+	if _check_as_func(memb):
 		return typelogged_func(memb)
 	if isclass(memb):
 		return typelogged_class(memb)

@@ -349,6 +349,12 @@ def has_type_hints(func0):
 	return _has_type_hints(func0)
 
 
+def _check_as_func(memb):
+	return isfunction(memb) or ismethod(memb) or \
+			isinstance(memb, classmethod) or isinstance(memb, staticmethod) or \
+			isinstance(memb, property)
+
+
 def _has_type_hints(func0, func_class = None, nesting = None):
 	actual_func = util._actualfunc(func0)
 	func = as_stub_func_if_any(actual_func, func0, func_class, nesting)
@@ -519,9 +525,14 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
 		tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
 				implicit_globals)
 		if tp.__args__ is None:
-			return tp_name
+			if hasattr(tp, '__parameters__') and not tp.__parameters__ is None:
+				args = tp.__parameters__
+			else:
+				return tp_name
+		else:
+			args = tp.__args__
 		params = [type_str(param, assumed_globals, update_assumed_globals, implicit_globals)
-				for param in tp.__args__]
+				for param in args]
 		if hasattr(tp, '__result__'):
 			return '%s[[%s], %s]'%(tp_name, ', '.join(params),
 					type_str(tp.__result__, assumed_globals, update_assumed_globals,
@@ -1224,8 +1235,7 @@ def annotations_class(cls):
 	keys = [key for key in cls.__dict__]
 	for key in keys:
 		memb = cls.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or \
-				isinstance(memb, property)):
+		if _check_as_func(memb):
 			annotations_func(memb)
 		elif isclass(memb):
 			annotations_class(memb)
@@ -1252,8 +1262,7 @@ def annotations_module(md):
 	keys = [key for key in md.__dict__]
 	for key in keys:
 		memb = md.__dict__[key]
-		if (isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb)) \
-				and memb.__module__ == md.__name__:
+		if _check_as_func(memb) and memb.__module__ == md.__name__:
 			annotations_func(memb)
 		elif isclass(memb) and memb.__module__ == md.__name__:
 			annotations_class(memb)
@@ -1275,7 +1284,7 @@ def annotations(memb):
 	attached __annotations__ can be controlled using the flags
 	pytypes.annotations_override_typestring and pytypes.annotations_from_typestring.
 	"""
-	if isfunction(memb) or ismethod(memb) or ismethoddescriptor(memb) or isinstance(memb, property):
+	if _check_as_func(memb):
 		return annotations_func(memb)
 	if isclass(memb):
 		return annotations_class(memb)

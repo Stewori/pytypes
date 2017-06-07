@@ -109,30 +109,6 @@ def _write_property(prop, lines, inc=0, decorators=None, assumed_globals=None):
 				assumed_globals)
 
 
-def _base_name(clss, assumed_globals=None, implicit_globals=None):
-	if hasattr(clss, '__parameters__'):
-		return '%s[%s]'%(clss.__name__, ', '.join([p.__name__ for p in clss.__parameters__]))
-	else:
-		return clss.__name__
-
-
-def signature_class(clss, assumed_globals=None, implicit_globals=None):
-	if implicit_globals is None:
-		implicit_globals = type_util._implicit_globals
-	else:
-		implicit_globals = implicit_globals.copy()
-		implicit_globals.update(type_util._implicit_globals)
-	for bs in clss.__bases__:
-		if not sys.modules[bs.__module__] in implicit_globals:
-			assumed_globals.add(bs)
-	try:
-		bases = clss.__orig_bases__
-	except AttributeError:
-		bases = clss.__bases__
-	base_names = [_base_name(base, assumed_globals, implicit_globals) for base in bases]
-	return 'class '+clss.__name__+'('+', '.join(base_names)+'):'
-
-
 def _write_TypeVar(tpv, lines, inc=0):
 	args = [tpv.__name__]
 	if not tpv.__bound__ is None:
@@ -147,9 +123,9 @@ def _write_TypeVar(tpv, lines, inc=0):
 def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=None):
 	_print("write class: "+str(clss))
 	anyElement = False
-	lines.append(inc*indent+signature_class(clss, assumed_globals, implicit_globals))
-	mb = inspect.getmembers(clss, lambda t: inspect.isfunction(t) or \
-			inspect.isclass(t) or inspect.ismethoddescriptor(t))
+	lines.append(inc*indent+typelogger._signature_class(clss,
+			assumed_globals, implicit_globals))
+	mb = inspect.getmembers(clss, lambda t: inspect.isclass(t) or type_util._check_as_func(t))
 	# todo: Care for overload-decorator
 	for elem in mb:
 		if elem[0] in clss.__dict__:
@@ -171,19 +147,18 @@ def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=No
 				_write_func(el.__func__, lines, inc+1, ['staticmethod'],
 						assumed_globals=assumed_globals)
 				anyElement = True
+			elif isinstance(el, property):
+				lines.append('')
+				_write_property(el, lines, inc+1, assumed_globals=assumed_globals)
+				anyElement = True
 
 	# classmethods are not obtained via inspect.getmembers.
 	# We have to look into __dict__ for that.
-	# Same for properties.
 	for key in clss.__dict__:
 		attr = getattr(clss, key)
 		if inspect.ismethod(attr):
 			lines.append('')
 			_write_func(attr, lines, inc+1, ['classmethod'], True, assumed_globals)
-			anyElement = True
-		elif isinstance(attr, property):
-			lines.append('')
-			_write_property(attr, lines, inc+1, assumed_globals=assumed_globals)
 			anyElement = True
 
 	if not anyElement:
