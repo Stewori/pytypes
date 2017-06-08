@@ -37,7 +37,7 @@ from typing import Any, TypeVar
 from pytypes import util, typelogger, type_util, version
 
 if __name__ == '__main__':
-	sys.path.append(sys.path[0]+os.sep+'..')
+    sys.path.append(sys.path[0]+os.sep+'..')
 
 
 silent = False
@@ -50,258 +50,258 @@ _tpvar_is_class = inspect.isclass(TypeVar('_test'))
 
 
 def _print(line):
-	if not silent:
-		print(line)
+    if not silent:
+        print(line)
 
 
 def _typestring(_types, argspecs, slf_or_clsm=False, assumed_globals=None):
-	if _types[0] is Any:
-		argstr = '...'
-	else:
-		args = type_util._preprocess_typecheck(_types[0], argspecs, slf_or_clsm)
-		argstr = typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm,
-				assumed_globals=assumed_globals, update_assumed_globals=True,
-				implicit_globals=_implicit_globals)
-	retstr = type_util.type_str(_types[1], assumed_globals, True, _implicit_globals)
-	res = (argstr+' -> '+retstr)
-	res = res.replace('NoneType', 'None')
-	return res
+    if _types[0] is Any:
+        argstr = '...'
+    else:
+        args = type_util._preprocess_typecheck(_types[0], argspecs, slf_or_clsm)
+        argstr = typelogger._prepare_arg_types_str(args, argspecs, slf_or_clsm,
+                assumed_globals=assumed_globals, update_assumed_globals=True,
+                implicit_globals=_implicit_globals)
+    retstr = type_util.type_str(_types[1], assumed_globals, True, _implicit_globals)
+    res = (argstr+' -> '+retstr)
+    res = res.replace('NoneType', 'None')
+    return res
 
 
 def _typecomment(_types, argspec, slf_or_clsm=False, assumed_globals=None):
-	return '# type: '+_typestring(_types, argspec, slf_or_clsm, assumed_globals)
+    return '# type: '+_typestring(_types, argspec, slf_or_clsm, assumed_globals)
 
 
 def typecomment(func, argspec=None, slf_or_clsm=False, assumed_globals=None):
-	if argspec is None:
-		argspec = util.getargspecs(func)
-	return _typecomment(type_util.get_types(func), argspec, slf_or_clsm, assumed_globals)
+    if argspec is None:
+        argspec = util.getargspecs(func)
+    return _typecomment(type_util.get_types(func), argspec, slf_or_clsm, assumed_globals)
 
 
 def signature(func):
-	argstr = ', '.join(util.getargnames(util.getargspecs(func), True))
-	return 'def '+func.__name__+'('+argstr+'):'
+    argstr = ', '.join(util.getargnames(util.getargspecs(func), True))
+    return 'def '+func.__name__+'('+argstr+'):'
 
 
 def _write_func(func, lines, inc=0, decorators=None, slf_or_clsm=False, assumed_globals=None):
-	if not decorators is None:
-		for dec in decorators:
-			lines.append(inc*indent+'@'+dec)
-	lines.append(inc*indent+signature(func))
-	if type_util.has_type_hints(func):
-		lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm,
-				assumed_globals=assumed_globals))
-	lines.append((inc+1)*indent+'pass')
+    if not decorators is None:
+        for dec in decorators:
+            lines.append(inc*indent+'@'+dec)
+    lines.append(inc*indent+signature(func))
+    if type_util.has_type_hints(func):
+        lines.append((inc+1)*indent+typecomment(func, slf_or_clsm=slf_or_clsm,
+                assumed_globals=assumed_globals))
+    lines.append((inc+1)*indent+'pass')
 
 
 def _write_property(prop, lines, inc=0, decorators=None, assumed_globals=None):
-	if not decorators is None:
-		for dec in decorators:
-			lines.append(inc*indent+'@'+dec)
-	if not prop.fget is None:
-		_write_func(prop.fget, lines, inc, ['property'], True, assumed_globals)
-	if not prop.fset is None:
-		if not prop.fget is None:
-			lines.append('')
-		_write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True,
-				assumed_globals)
+    if not decorators is None:
+        for dec in decorators:
+            lines.append(inc*indent+'@'+dec)
+    if not prop.fget is None:
+        _write_func(prop.fget, lines, inc, ['property'], True, assumed_globals)
+    if not prop.fset is None:
+        if not prop.fget is None:
+            lines.append('')
+        _write_func(prop.fset, lines, inc, ['%s.setter'%prop.fget.__name__], True,
+                assumed_globals)
 
 
 def _write_TypeVar(tpv, lines, inc=0):
-	args = [tpv.__name__]
-	if not tpv.__bound__ is None:
-		args.append('bound='+type_util.type_str(tpv.__bound__))
-	if tpv.__covariant__:
-		args.append('covariant=True')
-	if tpv.__contravariant__:
-		args.append('contravariant=True')
-	lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
+    args = [tpv.__name__]
+    if not tpv.__bound__ is None:
+        args.append('bound='+type_util.type_str(tpv.__bound__))
+    if tpv.__covariant__:
+        args.append('covariant=True')
+    if tpv.__contravariant__:
+        args.append('contravariant=True')
+    lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
 
 
 def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=None,
-			assumed_typevars=None):
-	_print("write class: "+str(clss))
-	anyElement = False
-	lines.append(inc*indent+typelogger._signature_class(clss,
-			assumed_globals, implicit_globals, assumed_typevars))
-	mb = inspect.getmembers(clss, lambda t: inspect.isclass(t) or type_util._check_as_func(t))
-	# todo: Care for overload-decorator
-	for elem in mb:
-		if elem[0] in clss.__dict__:
-			el = clss.__dict__[elem[0]]
-			if inspect.isfunction(el):
-				lines.append('')
-				_write_func(el, lines, inc+1, slf_or_clsm=True,
-						assumed_globals=assumed_globals)
-				anyElement = True
-			elif inspect.isclass(el):
-				lines.append('')
-				if isinstance(el, TypeVar):
-					_write_TypeVar(el, lines, inc+1)
-				else:
-					_write_class(el, lines, inc+1, assumed_globals, implicit_globals,
-							assumed_typevars)
-				anyElement = True
-			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
-				lines.append('')
-				_write_func(el.__func__, lines, inc+1, ['staticmethod'],
-						assumed_globals=assumed_globals)
-				anyElement = True
-			elif isinstance(el, property):
-				lines.append('')
-				_write_property(el, lines, inc+1, assumed_globals=assumed_globals)
-				anyElement = True
+            assumed_typevars=None):
+    _print("write class: "+str(clss))
+    anyElement = False
+    lines.append(inc*indent+typelogger._signature_class(clss,
+            assumed_globals, implicit_globals, assumed_typevars))
+    mb = inspect.getmembers(clss, lambda t: inspect.isclass(t) or type_util._check_as_func(t))
+    # todo: Care for overload-decorator
+    for elem in mb:
+        if elem[0] in clss.__dict__:
+            el = clss.__dict__[elem[0]]
+            if inspect.isfunction(el):
+                lines.append('')
+                _write_func(el, lines, inc+1, slf_or_clsm=True,
+                        assumed_globals=assumed_globals)
+                anyElement = True
+            elif inspect.isclass(el):
+                lines.append('')
+                if isinstance(el, TypeVar):
+                    _write_TypeVar(el, lines, inc+1)
+                else:
+                    _write_class(el, lines, inc+1, assumed_globals, implicit_globals,
+                            assumed_typevars)
+                anyElement = True
+            elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
+                lines.append('')
+                _write_func(el.__func__, lines, inc+1, ['staticmethod'],
+                        assumed_globals=assumed_globals)
+                anyElement = True
+            elif isinstance(el, property):
+                lines.append('')
+                _write_property(el, lines, inc+1, assumed_globals=assumed_globals)
+                anyElement = True
 
-	# classmethods are not obtained via inspect.getmembers.
-	# We have to look into __dict__ for that.
-	for key in clss.__dict__:
-		attr = getattr(clss, key)
-		if inspect.ismethod(attr):
-			lines.append('')
-			_write_func(attr, lines, inc+1, ['classmethod'], True, assumed_globals)
-			anyElement = True
+    # classmethods are not obtained via inspect.getmembers.
+    # We have to look into __dict__ for that.
+    for key in clss.__dict__:
+        attr = getattr(clss, key)
+        if inspect.ismethod(attr):
+            lines.append('')
+            _write_func(attr, lines, inc+1, ['classmethod'], True, assumed_globals)
+            anyElement = True
 
-	if not anyElement:
-		lines.append((inc+1)*indent+'pass')
+    if not anyElement:
+        lines.append((inc+1)*indent+'pass')
 
 
 def _func_get_line(func):
-	try:
-		return func.__code__.co_firstlineno
-	except:
-		pass
-	if isinstance(func, property):
-		return func.fget.__code__.co_firstlineno if not func.fget is None \
-				else func.fset.__code__.co_firstlineno
-	else:
-		return func.__func__.__code__.co_firstlineno
+    try:
+        return func.__code__.co_firstlineno
+    except:
+        pass
+    if isinstance(func, property):
+        return func.fget.__code__.co_firstlineno if not func.fget is None \
+                else func.fset.__code__.co_firstlineno
+    else:
+        return func.__func__.__code__.co_firstlineno
 
 
 def _class_get_line(clss):
-	return inspect.findsource(clss)[1]
+    return inspect.findsource(clss)[1]
 
 
 def convert(in_file, out_file = None):
-	global _implicit_globals
-	_print('in_file: '+in_file)
-	assert(os.path.isfile(in_file))
-	checksum = util._md5(in_file)
-	if out_file is None:
-		out_file = in_file+'2'
-	_print('out_file: '+out_file)
+    global _implicit_globals
+    _print('in_file: '+in_file)
+    assert(os.path.isfile(in_file))
+    checksum = util._md5(in_file)
+    if out_file is None:
+        out_file = in_file+'2'
+    _print('out_file: '+out_file)
 
-	with open(in_file, stub_open_mode) as module_file:
-		module_name = os.path.basename(in_file)
-		stub_module = imp.load_module(
-				module_name, module_file, in_file, stub_descr)
-		if module_name in sys.modules:
-			_implicit_globals.add(sys.modules[module_name])
-		module_basename = module_name.rsplit('.')[0]
-		if module_basename in sys.modules:
-			_implicit_globals.add(sys.modules[module_basename])
+    with open(in_file, stub_open_mode) as module_file:
+        module_name = os.path.basename(in_file)
+        stub_module = imp.load_module(
+                module_name, module_file, in_file, stub_descr)
+        if module_name in sys.modules:
+            _implicit_globals.add(sys.modules[module_name])
+        module_basename = module_name.rsplit('.')[0]
+        if module_basename in sys.modules:
+            _implicit_globals.add(sys.modules[module_basename])
 
-	funcs = [func[1] for func in inspect.getmembers(stub_module, inspect.isfunction)]
-	cls = [cl[1] for cl in inspect.getmembers(stub_module, inspect.isclass)]
-	tpvs = set()
-	i = 0
-	if _tpvar_is_class:
-		while i < len(cls):
-			if isinstance(cls[i], TypeVar):
-				tpvs.add(cls[i])
-				del cls[i]
-			else:
-				i += 1
-	else:
-		# Python 3.6
-		for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, TypeVar)):
-			tpvs.add(tpv[1])
+    funcs = [func[1] for func in inspect.getmembers(stub_module, inspect.isfunction)]
+    cls = [cl[1] for cl in inspect.getmembers(stub_module, inspect.isclass)]
+    tpvs = set()
+    i = 0
+    if _tpvar_is_class:
+        while i < len(cls):
+            if isinstance(cls[i], TypeVar):
+                tpvs.add(cls[i])
+                del cls[i]
+            else:
+                i += 1
+    else:
+        # Python 3.6
+        for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, TypeVar)):
+            tpvs.add(tpv[1])
 
-	funcs.sort(key=_func_get_line)
-	cls.sort(key=_class_get_line)
+    funcs.sort(key=_func_get_line)
+    cls.sort(key=_class_get_line)
 
-	directory = os.path.dirname(out_file)
-	if not os.path.exists(directory):
-		os.makedirs(directory)
-	assumed_glbls = set()
-	assumed_typevars = set()
-	nw = datetime.datetime.now()
-	with open(out_file, 'w') as out_file_handle:
-		lines = ['"""',
-				'Python 2.7-compliant stubfile of ',
-				in_file,
-				'MD5-Checksum: '+checksum,
-				'\nThis file was generated by pytypes.stubfile_2_converter v'+version,
-				'at '+nw.isoformat(),
-				'running on '+util._python_version_string()+'.\n',
-				'WARNING:',
-				'If you edit this file, be aware that it was automatically generated.',
-				'Save your customized version to a distinct place;',
-				'this file might be overwritten without notice.',
-				'"""',
-				'',
-				''] # import section later goes here; don't forget to track in imp_index
-		imp_index = 13
-		any_tpv = False
-		for tpv in tpvs:
-			if util.search_class_module(tpv) is stub_module:
-				if not any_tpv:
-					lines.append('')
-				_write_TypeVar(tpv, lines)
-				any_tpv = True
+    directory = os.path.dirname(out_file)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    assumed_glbls = set()
+    assumed_typevars = set()
+    nw = datetime.datetime.now()
+    with open(out_file, 'w') as out_file_handle:
+        lines = ['"""',
+                'Python 2.7-compliant stubfile of ',
+                in_file,
+                'MD5-Checksum: '+checksum,
+                '\nThis file was generated by pytypes.stubfile_2_converter v'+version,
+                'at '+nw.isoformat(),
+                'running on '+util._python_version_string()+'.\n',
+                'WARNING:',
+                'If you edit this file, be aware that it was automatically generated.',
+                'Save your customized version to a distinct place;',
+                'this file might be overwritten without notice.',
+                '"""',
+                '',
+                ''] # import section later goes here; don't forget to track in imp_index
+        imp_index = 13
+        any_tpv = False
+        for tpv in tpvs:
+            if util.search_class_module(tpv) is stub_module:
+                if not any_tpv:
+                    lines.append('')
+                _write_TypeVar(tpv, lines)
+                any_tpv = True
 
-		for func in funcs:
-			lines.append('')
-			_write_func(func, lines, assumed_globals=assumed_glbls)
+        for func in funcs:
+            lines.append('')
+            _write_func(func, lines, assumed_globals=assumed_glbls)
 
-		for cl in cls:
-			if sys.modules[cl.__module__] in _implicit_globals:
-				lines.append('\n')
-				_write_class(cl, lines, assumed_globals=assumed_glbls,
-						implicit_globals=_implicit_globals,
-						assumed_typevars=assumed_typevars)
+        for cl in cls:
+            if sys.modules[cl.__module__] in _implicit_globals:
+                lines.append('\n')
+                _write_class(cl, lines, assumed_globals=assumed_glbls,
+                        implicit_globals=_implicit_globals,
+                        assumed_typevars=assumed_typevars)
 
-		for el in tpvs:
-			assumed_typevars.add(el)
+        for el in tpvs:
+            assumed_typevars.add(el)
 
-		imp_lines = typelogger._make_import_section(assumed_glbls, assumed_typevars,
-				_implicit_globals)
-		lines.insert(imp_index, '\n'.join(imp_lines))
-		for i in range(len(lines)):
-			_print(lines[i])
-			lines[i] = lines[i]+'\n'
-		lines.append('\n')
-		out_file_handle.writelines(lines)
+        imp_lines = typelogger._make_import_section(assumed_glbls, assumed_typevars,
+                _implicit_globals)
+        lines.insert(imp_index, '\n'.join(imp_lines))
+        for i in range(len(lines)):
+            _print(lines[i])
+            lines[i] = lines[i]+'\n'
+        lines.append('\n')
+        out_file_handle.writelines(lines)
 
 
 def err_no_in_file():
-	print("Error: No in_file given! Use -h for help.")
-	sys.exit(os.EX_USAGE)
+    print("Error: No in_file given! Use -h for help.")
+    sys.exit(os.EX_USAGE)
 
 
 def print_usage():
-	print("stubfile_2_converter usage:")
-	print("python3 -m pytypes.stubfile_2_converter.py [options/flags] [in_file]")
-	print("Supported options/flags:")
-	print("-o [out_file] : custom output-file")
-	print("-s            : silent mode")
-	print("-h            : usage")
+    print("stubfile_2_converter usage:")
+    print("python3 -m pytypes.stubfile_2_converter.py [options/flags] [in_file]")
+    print("Supported options/flags:")
+    print("-o [out_file] : custom output-file")
+    print("-s            : silent mode")
+    print("-h            : usage")
 
 
 if __name__ == '__main__':
-	if '-h' in sys.argv:
-		print_usage()
-		sys.exit(0)
-	in_file = sys.argv[-1]
-	if len(sys.argv) < 2 or in_file.startswith('-'):
-		err_no_in_file()
-	out_file = None
-	if '-s' in sys.argv:
-		silent = True
-	try:
-		index_o = sys.argv.index('-o')
-		if index_o == len(sys.argv)-2:
-			err_no_in_file()
-		out_file = sys.argv[index_o+1]
-	except ValueError:
-		pass
-	convert(in_file, out_file)
+    if '-h' in sys.argv:
+        print_usage()
+        sys.exit(0)
+    in_file = sys.argv[-1]
+    if len(sys.argv) < 2 or in_file.startswith('-'):
+        err_no_in_file()
+    out_file = None
+    if '-s' in sys.argv:
+        silent = True
+    try:
+        index_o = sys.argv.index('-o')
+        if index_o == len(sys.argv)-2:
+            err_no_in_file()
+        out_file = sys.argv[index_o+1]
+    except ValueError:
+        pass
+    convert(in_file, out_file)

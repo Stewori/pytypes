@@ -22,69 +22,69 @@ Designed to cause an OverrideError on import.
 from pytypes import override
 
 class TestClass():
-	def test_meth0(self, a):
-		# type: (int) -> str
-		pass
+    def test_meth0(self, a):
+        # type: (int) -> str
+        pass
 
-	def test_meth1(self, a):
-		# type: (TestArg1) -> str
-		pass
+    def test_meth1(self, a):
+        # type: (TestArg1) -> str
+        pass
 
-	def test_meth2(self, a):
-		# type: (int) -> TestResult1
-		pass
+    def test_meth2(self, a):
+        # type: (int) -> TestResult1
+        pass
 
 class TestClass2(TestClass):
-	@override
-	def test_meth0(self, a):
-		# type: (int) -> str
-		pass
+    @override
+    def test_meth0(self, a):
+        # type: (int) -> str
+        pass
 
-	@override
-	def test_meth1(self, a):
-		# type: (TestArg2) -> str
-		pass
+    @override
+    def test_meth1(self, a):
+        # type: (TestArg2) -> str
+        pass
 
-	@override
-	def test_meth2(self, a):
-		# type: (int) -> TestResult2
-		pass
+    @override
+    def test_meth2(self, a):
+        # type: (int) -> TestResult2
+        pass
 
 class TestClass3(TestClass):
-	@override
-	def test_meth1(self, a):
-		# type: (TestArg1) -> str
-		pass
+    @override
+    def test_meth1(self, a):
+        # type: (TestArg1) -> str
+        pass
 
-	@override
-	def test_meth2(self, a):
-		# type: (int) -> TestResult2
-		pass
+    @override
+    def test_meth2(self, a):
+        # type: (int) -> TestResult2
+        pass
 
 class TestArg1():
-	pass
+    pass
 
 class TestResult1():
-	pass
+    pass
 
 class TestClass3(TestClass):
-	@override
-	def test_meth1(self,
-				a # type: TestArg1
-				):
-		# type: (...) -> str
-		pass
+    @override
+    def test_meth1(self,
+                a # type: TestArg1
+                ):
+        # type: (...) -> str
+        pass
 
-	@override
-	def test_meth2(self,
-				a # type: int
-				):
-		# type: (...) -> TestResult2
-		pass
+    @override
+    def test_meth2(self,
+                a # type: int
+                ):
+        # type: (...) -> TestResult2
+        pass
 
 class TestArg2(TestArg1):
-	pass
+    pass
 
 class TestResult2(TestResult1):
-	pass
+    pass
 
