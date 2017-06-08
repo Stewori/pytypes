@@ -80,11 +80,6 @@ Next steps
 - support overloading
   (python.org/dev/peps/pep-0484/#function-method-overloading)
 - support named tuple
-- improve type logging
-  * improve creation of import section
-- improve converter for Python 3.5/3.6 stubfiles to Python 2.7
-  * support Type-vars
-  * improve creation of import section
 - support async-related constructs from typing
 - support notation for Positional-only arguments
   (python.org/dev/peps/pep-0484/#positional-only-arguments)

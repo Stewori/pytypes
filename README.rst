@@ -557,11 +557,6 @@ Next steps
 - support `PEP 526 <https://www.python.org/dev/peps/pep-0526>`__
 - support `overloading <https://www.python.org/dev/peps/pep-0484/#function-method-overloading>`__
 - support named tuple
-- improve type logging
-- improve creation of import section
-- improve converter for Python 3.5/3.6 stubfiles to Python 2.7
-- support Type-vars
-- improve creation of import section
 - support async-related constructs from typing
 - support notation for `Positional-only arguments <https://www.python.org/dev/peps/pep-0484/#positional-only-arguments>`__
 - runtime independent parser for stubfiles
@@ -573,6 +568,7 @@ License
 pytypes is released under Apache 2.0 license.
 A copy is provided in the file LICENSE.
 
+| 
 | Copyright 2017 Stefan Richthofer
 | 
 | Licensed under the Apache License, Version 2.0 (the "License");
