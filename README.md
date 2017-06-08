@@ -579,8 +579,9 @@ A runtime independent parser for stubfiles is a desired future feature, but is n
 conventional PEP 484 stubfiles would not work on Python 2.7. To resolve this gap, pytypes features a converter script
 that can convert conventional stubfiles into Python 2.7 compliant form.
 More specifically it converts parameter annotations into type comments and converts `...` syntax into `pass`.
-As of this writing it does not deal with type variables and does not convert import section reliably.
-Thus, it is in experimental state and resulting stubfiles often require some manual adjustment.
+As of this writing it does not yet support stubfiles containing the `@overload` decorator.
+Also, it does not yet convert type annotations of attributes and variables.
+
 
 
 ### 'pyi2' suffix
