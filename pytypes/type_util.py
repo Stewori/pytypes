@@ -19,7 +19,7 @@ import sys
 import types
 import threading
 import typing
-from inspect import isfunction, ismethod, ismethoddescriptor, isclass, ismodule
+from inspect import isfunction, ismethod, isclass, ismodule
 from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
 		GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
 from warnings import warn, warn_explicit
@@ -404,7 +404,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
 	This mode is there to have a less involved default behavior.
 	"""
 	if tp_name is None:
-		tp_name = tp.__name__
+		tp_name = util.get_class_qualname(tp) if not tp is Any else 'Any'
 	if implicit_globals is None:
 		implicit_globals = _implicit_globals
 	else:
@@ -525,7 +525,9 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
 		tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
 				implicit_globals)
 		if tp.__args__ is None:
-			if hasattr(tp, '__parameters__') and not tp.__parameters__ is None:
+			if hasattr(tp, '__parameters__') and \
+					hasattr(tp, '__origin__') and tp.__origin__ is Generic and \
+					not tp.__parameters__ is None and len(tp.__parameters__) > 0:
 				args = tp.__parameters__
 			else:
 				return tp_name
@@ -543,7 +545,10 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
 					implicit_globals))
 		else:
 			return '%s[%s]'%(tp_name, ', '.join(params))
-	elif hasattr(tp, '__name__'):
+	elif hasattr(tp, '__name__') or tp is Any:
+		result = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
+				implicit_globals)
+	elif tp is Any:
 		result = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
 				implicit_globals)
 	else:

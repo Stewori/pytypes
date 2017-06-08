@@ -31,9 +31,7 @@ it as override of the pyi-file when running on Python 2.7.
 import sys
 import imp
 import inspect
-import numbers
 import os
-import typing
 import datetime
 from typing import Any, TypeVar
 from pytypes import util, typelogger, type_util, version
@@ -120,11 +118,12 @@ def _write_TypeVar(tpv, lines, inc=0):
 	lines.append("%s%s = TypeVar('%s')"%(inc*indent, tpv.__name__, ', '.join(args)))
 
 
-def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=None):
+def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=None,
+			assumed_typevars=None):
 	_print("write class: "+str(clss))
 	anyElement = False
 	lines.append(inc*indent+typelogger._signature_class(clss,
-			assumed_globals, implicit_globals))
+			assumed_globals, implicit_globals, assumed_typevars))
 	mb = inspect.getmembers(clss, lambda t: inspect.isclass(t) or type_util._check_as_func(t))
 	# todo: Care for overload-decorator
 	for elem in mb:
@@ -140,7 +139,8 @@ def _write_class(clss, lines, inc = 0, assumed_globals=None, implicit_globals=No
 				if isinstance(el, TypeVar):
 					_write_TypeVar(el, lines, inc+1)
 				else:
-					_write_class(el, lines, inc+1, assumed_globals, implicit_globals)
+					_write_class(el, lines, inc+1, assumed_globals, implicit_globals,
+							assumed_typevars)
 				anyElement = True
 			elif inspect.ismethoddescriptor(el) and type(el) is staticmethod:
 				lines.append('')
@@ -202,18 +202,19 @@ def convert(in_file, out_file = None):
 
 	funcs = [func[1] for func in inspect.getmembers(stub_module, inspect.isfunction)]
 	cls = [cl[1] for cl in inspect.getmembers(stub_module, inspect.isclass)]
-	tpvs = []
+	tpvs = set()
 	i = 0
 	if _tpvar_is_class:
 		while i < len(cls):
 			if isinstance(cls[i], TypeVar):
-				tpvs.append(cls[i])
+				tpvs.add(cls[i])
 				del cls[i]
 			else:
 				i += 1
 	else:
 		# Python 3.6
-		tpvs = [tpv[1] for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, TypeVar))]
+		for tpv in inspect.getmembers(stub_module, lambda t: isinstance(t, TypeVar)):
+			tpvs.add(tpv[1])
 
 	funcs.sort(key=_func_get_line)
 	cls.sort(key=_class_get_line)
@@ -222,6 +223,7 @@ def convert(in_file, out_file = None):
 	if not os.path.exists(directory):
 		os.makedirs(directory)
 	assumed_glbls = set()
+	assumed_typevars = set()
 	nw = datetime.datetime.now()
 	with open(out_file, 'w') as out_file_handle:
 		lines = ['"""',
@@ -237,12 +239,15 @@ def convert(in_file, out_file = None):
 				'this file might be overwritten without notice.',
 				'"""',
 				'',
-				'', # import section later goes here; don't forget to track in imp_index
-				'']
+				''] # import section later goes here; don't forget to track in imp_index
 		imp_index = 13
-
+		any_tpv = False
 		for tpv in tpvs:
-			_write_TypeVar(tpv, lines)
+			if util.search_class_module(tpv) is stub_module:
+				if not any_tpv:
+					lines.append('')
+				_write_TypeVar(tpv, lines)
+				any_tpv = True
 
 		for func in funcs:
 			lines.append('')
@@ -252,9 +257,14 @@ def convert(in_file, out_file = None):
 			if sys.modules[cl.__module__] in _implicit_globals:
 				lines.append('\n')
 				_write_class(cl, lines, assumed_globals=assumed_glbls,
-						implicit_globals=_implicit_globals)
+						implicit_globals=_implicit_globals,
+						assumed_typevars=assumed_typevars)
 
-		imp_lines = typelogger._make_import_section(assumed_glbls, tpvs, _implicit_globals)
+		for el in tpvs:
+			assumed_typevars.add(el)
+
+		imp_lines = typelogger._make_import_section(assumed_glbls, assumed_typevars,
+				_implicit_globals)
 		lines.insert(imp_index, '\n'.join(imp_lines))
 		for i in range(len(lines)):
 			_print(lines[i])

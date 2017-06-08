@@ -128,13 +128,18 @@ def _print_cache():
 		print (node)
 
 
-def _name(obj):
+def _imp_name(obj):
 	try:
+		nlst = util._get_class_nesting_list(obj, sys.modules[obj.__module__])
+		if len(nlst) > 0:
+			return nlst[0].__name__
 		return obj.__name__
 	except:
-		# For some reason, Union does not have __name__.
+		# For some reason, Any and Union don't have __name__.
 		if is_Union(obj):
 			return 'Union'
+		elif obj is Any:
+			return 'Any'
 	return str(obj)
 
 
@@ -149,9 +154,9 @@ def _make_import_section(required_globals, typevars, implicit_globals):
 	mdict = {}
 	for obj in required_globals:
 		if obj.__module__ in mdict:
-			mdict[obj.__module__].append(_name(obj))
+			mdict[obj.__module__].append(_imp_name(obj))
 		else:
-			mdict[obj.__module__] = [_name(obj)]
+			mdict[obj.__module__] = [_imp_name(obj)]
 	if len(typevars) > 0:
 		for tpv in typevars:
 			tpvmd = util.search_class_module(tpv)
@@ -387,7 +392,10 @@ def _signature_class(clss, assumed_globals=None, implicit_globals=None,
 		implicit_globals.update(_implicit_globals)
 	for bs in clss.__bases__:
 		if not sys.modules[bs.__module__] in implicit_globals:
-			assumed_globals.add(bs)
+			if hasattr(bs, '__origin__') and not bs.__origin__ is None:
+				assumed_globals.add(bs.__origin__)
+			else:
+				assumed_globals.add(bs)
 	try:
 		bases = clss.__orig_bases__
 	except AttributeError:
@@ -654,6 +662,7 @@ class _module_node(_base_node):
 			for clsn in self.classes.values():
 				if clsn.clss in assumed_globals:
 					assumed_globals.remove(clsn.clss)
+				clsn.clean_assumed_globals(assumed_globals)
 
 	def append(self, typed_member):
 		if typed_member.clss is None and not typed_member.stat:
@@ -711,6 +720,13 @@ class _class_node(_base_node):
 			if elm.is_property():
 				props.add(elm.member)
 			elm.dump(dest, indents+1, python2, props, assumed_globals, implicit_globals)
+
+	def clean_assumed_globals(self, assumed_globals):
+		if not assumed_globals is None:
+			for clsn in self.classes.values():
+				if clsn.clss in assumed_globals:
+					assumed_globals.remove(clsn.clss)
+				clsn.clean_assumed_globals(assumed_globals)
 
 	def append(self, member):
 		member._idn = self._indent()
