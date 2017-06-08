@@ -6,43 +6,65 @@
 Welcome to the pytypes project
 ==============================
 
-pytypes is a typing toolbox w.r.t. PEP 484 (python.org/dev/peps/pep-0484/) (PEP 526 (python.org/dev/peps/pep-0526/) on the road map, later also 544 (python.org/dev/peps/pep-0544/) if it gets accepted).
+pytypes is a typing toolbox w.r.t. PEP 484 (python.org/dev/peps/pep-0484/)
+(PEP 526 (python.org/dev/peps/pep-0526/) on the road map, later also 544
+(python.org/dev/peps/pep-0544/) if it gets accepted).
 
 It's main features are currently
 
-* @typechecked decorator for runtime typechecking with support for stubfiles (python.org/dev/peps/pep-0484/#stub-files) and type comments (python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code)
+* @typechecked decorator for runtime typechecking with support for stubfiles
+  (python.org/dev/peps/pep-0484/#stub-files) and type comments
+  (python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code)
 * @override decorator that asserts existence of a type-compatible parent method
-* @annotations decorator to turn type info from stubfiles or from type comments into __annotations__
-* @typelogged decorator that observes function and method calls at runtime and generates stubfiles from acquired type info
-* service functions to apply these decorators module wide or even globally, i.e. runtime wide
-* typechecking can alternatively be done in decorator-free manner (friendlier for debuggers)
-* all the above decorators work smoothly with OOP, i.e. with methods, static methods, class methods and properties, even if classes are nested
+* @annotations decorator to turn type info from stubfiles or from type comments
+  into __annotations__
+* @typelogged decorator observes function and method calls at runtime and
+  generates stubfiles from acquired type info
+* service functions to apply these decorators module wide or even globally,
+  i.e. runtime wide
+* typechecking can alternatively be done in decorator-free manner
+  (friendlier for debuggers)
+* all the above decorators work smoothly with OOP, i.e. with methods,
+  static methods, class methods and properties, even if classes are nested
 * converter for stubfiles to Python 2.7 compliant form
-* lots of utility functions regarding types, e.g. a Python 2.7 compliant and actually functional implementation of get_type_hints
+* lots of utility functions regarding types, e.g. a Python 2.7 compliant and
+  actually functional implementation of get_type_hints
 * full Python 2.7 support for all these features
 
-An additional future goal will be integration with the Java typing system when running on Jython. Along with this, some generator utilities to produce type-safe Java bindings for Python frameworks are planned.
-In wider sense, PEP 484-style type annotations can be used to build type safe interfaces to allow also other programming languages to call into Python code (kind of reverse FFI). In this sense the project name refers to 'ctypes', which provides Python-bindings of C.
+An additional future goal will be integration with the Java typing system when
+running on Jython. Along with this, some generator utilities to produce
+type-safe Java bindings for Python frameworks are planned.
+In wider sense, PEP 484-style type annotations can be used to build type safe
+interfaces to allow also other programming languages to call into Python code
+(kind of reverse FFI).
+In this sense the project name refers to 'ctypes', which provides Python-bindings of C.
 
 
 
 Python 2.7, 3.5, 3.6
 --------------------
 
-All described features of pytypes were carefully implemented such that they are equally workable on CPython 3.5, 3.6, 2.7 and on Jython 2.7.1 (other interpreters might work as well, but were not yet tested).
-For Python 2.7, pytypes fully supports type-annotations via type comments (python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code).
-It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development.
+All described features of pytypes were carefully implemented such that they are
+equally workable on CPython 3.5, 3.6, 2.7 and on Jython 2.7.1
+(other interpreters might work as well, but were not yet tested).
+For Python 2.7, pytypes fully supports type-annotations via type comments
+(python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code).
+It also supports Python 2.7-style type annotations in Python 3.5-code to allow
+easier 2.7/3.5 multi-version development.
 
 
 
 Why write another runtime typecheck decorator?
 ----------------------------------------------
 
-There have been earlier approaches for runtime-typechecking. However, most of them predate PEP 484 or lack some crucial
-features like support of Python 2.7 or support of stubfiles. Also, none of them features a typechecking override
-decorator. There were separate approaches for override decorators, but these usually don't consider PEP 484 at all.
-So we decided that it's time for a new runtime typechecking framework, designed to support PEP 484 from the roots,
-including its extensive features like (Python 2.7-style-)type comments and stub files.
+There have been earlier approaches for runtime-typechecking. However, most of
+them predate PEP 484 or lack some crucial features like support of Python 2.7
+or support of stubfiles. Also, none of them features a typechecking override
+decorator. There were separate approaches for override decorators, but these
+usually don't consider PEP 484 at all.
+So we decided that it's time for a new runtime typechecking framework, designed
+to support PEP 484 from the roots, including its extensive features like
+(Python 2.7-style-)type comments and stub files.
 
 
 Quick manual
@@ -55,7 +77,8 @@ Next steps
 ==========
 
 - support PEP 526 (python.org/dev/peps/pep-0526)
-- support overloading (python.org/dev/peps/pep-0484/#function-method-overloading)
+- support overloading
+  (python.org/dev/peps/pep-0484/#function-method-overloading)
 - support named tuple
 - improve type logging
   * improve creation of import section
@@ -63,7 +86,8 @@ Next steps
   * support Type-vars
   * improve creation of import section
 - support async-related constructs from typing
-- support notation for Positional-only arguments (python.org/dev/peps/pep-0484/#positional-only-arguments)
+- support notation for Positional-only arguments
+  (python.org/dev/peps/pep-0484/#positional-only-arguments)
 - runtime independent parser for stubfiles
 
 

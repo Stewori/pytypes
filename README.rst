@@ -46,9 +46,7 @@ Python 2.7, 3.5, 3.6
 --------------------
 
 All described features of pytypes were carefully implemented such that they are equally workable on CPython 3.5, 3.6, 2.7 and on Jython 2.7.1 (other interpreters might work as well, but were not yet tested).
-
 For Python 2.7, pytypes fully supports type-annotations via `type comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__.
-
 It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development.
 
 
@@ -168,7 +166,7 @@ Usage Example
 -------------------------
 
 Decorator applicable to methods and classes.
-Works like override decorator on type annotated methods that actually have a type annotated parent method. Has no effect on methods that do not override anything.
+Works like ``override`` decorator on type annotated methods that actually have a type annotated parent method. Has no effect on methods that do not override anything.
 In contrast to plain ``override`` decorator, ``auto_override`` can be applied easily on every method in a class or module.
 In contrast to explicit ``override`` decorator, ``auto_override`` is not suitable to detect typos in spelling of a child method's name. It is only useful to assert compatibility of type information (note that return type is contravariant).
 Use ``pytypes.check_override_at_runtime`` and ``pytypes.check_override_at_class_definition_time`` to control whether checks happen at class definition time or at "actual runtime".
@@ -179,8 +177,8 @@ The following rules apply, if a parent method exists:
 - arg types of parent method must be more or equal specific than arg types of child
 - return type behaves contravariant - parent method must have less or equal specific return type than child
 
-Compared to ordinary ``override`` decorator the rule 'a parent method must exist' is not applied here.
-If no parent method exists, auto-override silently passes.
+Compared to ordinary ``override`` decorator, the rule “a parent method must exist” is not applied here.
+If no parent method exists, ``auto_override`` silently passes.
 
 
 @annotations decorator
@@ -386,7 +384,7 @@ Alternatively you can apply them in a ``with``-context:
         agnt_test(12)
 
 
-One glitch is to consider in case you want to catch ``TypeCheckError`` (i.e. ``ReturnTypeError`` or ``InputTypeError`` as well) and continue execution afterwards. The TypeChecker would be suspended unless you call ``restore_profiler``, e.g.:
+One glitch is to consider in case you want to catch ``TypeCheckError`` (i.e. ``ReturnTypeError`` or ``InputTypeError`` as well) and continue execution afterwards. The ``TypeChecker`` would be suspended unless you call ``restore_profiler``, e.g.:
 
 .. code:: python
 
@@ -437,7 +435,7 @@ Make sure to apply decorators from pytypes *on top of* ``@staticmethod``, ``@cla
 No @override on ``__init__``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For now ``@override`` cannot be applied to ``__init__``, because ``__init__`` typically extends the list of initialization parameters and usually uses ``super`` to explicitly serve a parent's signature.
+For now, ``@override`` cannot be applied to ``__init__``, because ``__init__`` typically extends the list of initialization parameters and usually uses ``super`` to explicitly serve a parent's signature.
 The purpose of ``@override`` is to avoid typos and to guarantee that the child method can always be used as a fill in for the parent in terms of signature and type information. Both aspects are hardly relevant for ``__init__``:
 
 - a typo is unlikely and would show up quickly for various reasons
@@ -452,47 +450,47 @@ Utilities
 Utility functions described in this section can be directly imported from the pytypes module. Only the most important utility functions are listed here.
 
 
-get\_type\_hints(func)
-~~~~~~~~~~~~~~~~~~~~~~
+get_type_hints(func)
+~~~~~~~~~~~~~~~~~~~~
 
 Resembles ``typing.get_type_hints``, but is also workable on Python 2.7 and searches stubfiles for type information. Also on Python 3, this takes `type comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__ into account if present.
 
 
-get\_types(func)
-~~~~~~~~~~~~~~~~
+get_types(func)
+~~~~~~~~~~~~~~~
 
 Works like ``get_type_hints``, but returns types as a sequence rather than a dictionary. Types are returned in the same order as the corresponding arguments have in the signature of func.
 
 
-check\_argument\_types(cllable=None, call\_args=None, clss=None, caller\_level=0)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+check_argument_types(cllable=None, call_args=None, clss=None, caller_level=0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This function mimics `typeguard <https://github.com/agronholm/typeguard>`__ syntax and semantics. It can be applied within a function or method to check argument values to comply with type annotations.
 It behaves similar to ``@typechecked`` except that it is not a decorator and does not check the return type.
 A decorator less way for argument checking yields less interference with some debuggers.
 
 
-check\_return\_type(value, cllable=None, clss=None, caller\_level=0)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+check_return_type(value, cllable=None, clss=None, caller_level=0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This function works like ``check_argument_types``, but applies to the return value.
 Because it is impossible for pytypes to automatically figure out the value to be returned in a function, it must be explicitly provided as the ``value``-parameter.
 
 
-is\_of\_type(obj, cls)
-~~~~~~~~~~~~~~~~~~~~~~
+is_of_type(obj, cls)
+~~~~~~~~~~~~~~~~~~~~
 
 Works like ``isinstance``, but supports PEP 484 style types from typing module.
 
 
-is\_subtype(subclass, superclass)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+is_subtype(subclass, superclass)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Works like ``issubclass``, but supports PEP 484 style types from typing module.
 
 
-deep\_type(obj, depth=None, max\_sample=None)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+deep_type(obj, depth=None, max_sample=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Tries to construct a type for a given value. In contrast to ``type(...)``, ``deep_type`` does its best to fit structured types from ``typing`` as close as possible to the given value.
 E.g. ``deep_type((1, 2, 'a'))`` will return ``Tuple[int, int, str]`` rather than just ``tuple``.
@@ -501,22 +499,22 @@ Also detects nesting up to given depth (uses ``pytypes.default_typecheck_depth``
 If a value for ``max_sample`` is given, this number of elements is probed from lists, sets and dictionaries to determine the element type. By default, all elements are probed. If there are fewer elements than ``max_sample``, all existing elements are probed.
 
 
-type\_str(tp)
-~~~~~~~~~~~~~
+type_str(tp)
+~~~~~~~~~~~~
 
 Generates a nicely readable string representation of the given type.
 The returned representation is workable as a source code string and would reconstruct the given type if handed to eval, provided that globals/locals are configured appropriately (e.g. assumes that various types from ``typing`` have been imported).
 Used as type-formatting backend of ptypes' code generator abilities in modules ``typelogger`` and ``stubfile_2_converter``.
 
 
-no\_type\_check
-~~~~~~~~~~~~~~~
+no_type_check
+~~~~~~~~~~~~~
 
-Works like typing.no\_type\_check, but also supports cases where typing.no\_type\_check fails due to AttributeError. This can happen, because ``typing.no_type_check`` wants to access ``__no_type_check__``, which might fail if e.g. a class is using slots or an object does not support custom attributes.
+Works like ``typing.no_type_check``, but also supports cases where ``typing.no_type_check`` fails due to ``AttributeError``. This can happen, because ``typing.no_type_check`` wants to access ``__no_type_check__``, which might fail if e.g. a class is using slots or an object does not support custom attributes.
 
 
-dump\_cache(path=default\_typelogger\_path, python2=False, suffix=None)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dump_cache(path=default_typelogger_path, python2=False, suffix=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Writes cached observations by ``@typelogged`` into stubfiles.
 
@@ -575,20 +573,19 @@ License
 pytypes is released under Apache 2.0 license.
 A copy is provided in the file LICENSE.
 
-Copyright 2017 Stefan Richthofer
+| Copyright 2017 Stefan Richthofer
 
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+|     `http://www.apache.org/licenses/LICENSE-2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__
 
-`http://www.apache.org/licenses/LICENSE-2.0 <http://www.apache.org/licenses/LICENSE-2.0>`__
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
 
 
 Contact
