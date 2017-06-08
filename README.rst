@@ -653,7 +653,7 @@ Python 2.7 compliant stubfiles
   form.
 | More specifically it converts parameter annotations into type comments
   and converts ``...`` syntax into ``pass``.
-| As of this writing it does not yet support stubfiles containing the `@overload` decorator.
+| As of this writing it does not yet support stubfiles containing the ``@overload`` decorator.
   Also, it does not yet convert type annotations of attributes and variables.
 
 'pyi2' suffix
