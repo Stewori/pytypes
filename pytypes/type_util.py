@@ -404,7 +404,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
 	This mode is there to have a less involved default behavior.
 	"""
 	if tp_name is None:
-		tp_name = util.get_class_qualname(tp) if not tp is Any else 'Any'
+		tp_name = util.get_class_qualname(tp)
 	if implicit_globals is None:
 		implicit_globals = _implicit_globals
 	else:
@@ -545,11 +545,12 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
 					implicit_globals))
 		else:
 			return '%s[%s]'%(tp_name, ', '.join(params))
-	elif hasattr(tp, '__name__') or tp is Any:
+	elif hasattr(tp, '__name__'):
 		result = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
 				implicit_globals)
 	elif tp is Any:
-		result = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
+		# In Python 3.6 Any does not have __name__.
+		result = _tp_relfq_name(tp, 'Any', assumed_globals, update_assumed_globals,
 				implicit_globals)
 	else:
 		# Todo: Care for other special types from typing where necessary.
