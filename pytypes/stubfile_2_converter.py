@@ -287,7 +287,7 @@ def print_usage():
     print("-h            : usage")
 
 
-if __name__ == '__main__':
+def main():
     if '-h' in sys.argv:
         print_usage()
         sys.exit(0)
@@ -305,3 +305,7 @@ if __name__ == '__main__':
     except ValueError:
         pass
     convert(in_file, out_file)
+
+
+if __name__ == '__main__':
+    main()

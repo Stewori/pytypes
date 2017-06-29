@@ -22,5 +22,10 @@ setup(
     ],
     extras_require={
         ':python_version == "2.7"': 'typing'
+    },
+    entry_points={
+        'console_scripts': [
+            'typestubs = pytypes.stubfile_2_converter:main'
+        ]
     }
 )
