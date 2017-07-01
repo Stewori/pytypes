@@ -1,9 +1,16 @@
+import os.path
+
 from setuptools import setup
+
+here = os.path.dirname(__file__)
+readme_path = os.path.join(here, 'README.rst')
+readme = open(readme_path).read()
 
 setup(
     name='pytypes',
     version='1.0b1',
     description='Typing toolbox for Python 3 _and_ 2.',
+    long_description=readme,
     url='https://github.com/Stewori/pytypes',
     author='Stefan Richthofer',
     author_email='stefan.richthofer@jyni.org',
