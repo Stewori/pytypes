@@ -15,8 +15,12 @@
 # Created on 29.01.2017
 
 from pytypes import override
-from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
-        Iterable, Iterator, Sequence, Callable, List, Any
+try:
+    from backports.typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
+            Iterable, Iterator, Sequence, Callable, List, Any
+except ImportError:
+    from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
+            Iterable, Iterator, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
 from numbers import Real
 

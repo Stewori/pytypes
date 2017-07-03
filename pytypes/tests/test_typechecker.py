@@ -24,8 +24,13 @@ pytypes.always_check_parent_types = False
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
         get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
         TypeSyntaxError, check_argument_types, annotations, get_member_types, typelogged
-import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-        Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
+try:
+    from backports import typing; from backports.typing import Tuple, List, Union, Any, \
+            Dict, Generator, TypeVar, Generic, Iterable, Iterator, Sequence, Callable, \
+            Mapping, Set
+except ImportError:
+    import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
+            Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
 from numbers import Real
 import abc; from abc import abstractmethod
 

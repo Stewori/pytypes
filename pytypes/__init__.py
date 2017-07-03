@@ -253,7 +253,10 @@ default_typelogger_path : str
     Default: 'typelogger_output'
 """
 
-import typing
+try:
+    from backports import typing
+except ImportError:
+    import typing
 
 version = '1.0b1'
 

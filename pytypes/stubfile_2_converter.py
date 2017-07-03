@@ -33,7 +33,10 @@ import imp
 import inspect
 import os
 import datetime
-from typing import Any, TypeVar
+try:
+    from backports.typing import Any, TypeVar
+except ImportError:
+    from typing import Any, TypeVar
 from pytypes import util, typelogger, type_util, version
 
 if __name__ == '__main__':

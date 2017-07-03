@@ -15,7 +15,11 @@
 # Created on 08.11.2016
 
 from pytypes import typechecked, check_argument_types, annotations, override
-from typing import Generic, TypeVar
+
+try:
+    from backports.typing import Generic, TypeVar
+except ImportError:
+    from typing import Generic, TypeVar
 
 @typechecked
 def testfunc1_py2(a, b):

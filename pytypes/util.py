@@ -15,6 +15,9 @@
 # Created on 12.12.2016
 
 """
+Contains utility functions that are not strictly related to typing.
+This scopes e.g. inspection, OOP, etc.
+
 Todo: Some functions in this module can be simplified or replaced
       by more consequent use of inspect module.
 """

@@ -15,10 +15,13 @@
 # Created on 13.12.2016
 
 import inspect
-from typing import Any, Tuple
-
 import pytypes
 from pytypes import TypeSyntaxError
+
+try:
+    from backports.typing import Any, Tuple
+except ImportError:
+    from typing import Any, Tuple
 
 
 def _striptrailingcomment(s):

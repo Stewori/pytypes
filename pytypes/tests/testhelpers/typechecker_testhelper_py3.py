@@ -16,10 +16,16 @@
 
 import pytypes
 from pytypes import typechecked, override, check_argument_types, auto_override
-from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
-        Iterable, Iterator, Sequence, Callable, List, Any
 import abc; from abc import abstractmethod
 from numbers import Real
+
+try:
+    from backports.typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
+            Iterable, Iterator, Sequence, Callable, List, Any
+except ImportError:
+    from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
+            Iterable, Iterator, Sequence, Callable, List, Any
+
 
 class testClass(str):
     @typechecked

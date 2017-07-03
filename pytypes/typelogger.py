@@ -25,8 +25,12 @@ import sys
 import os
 import abc
 import datetime
-from typing import Union, Any, Tuple, TupleMeta
 from inspect import isclass, ismodule, getsourcelines, findsource
+
+try:
+    from backports.typing import Union, Any, Tuple, TupleMeta
+except ImportError:
+    from typing import Union, Any, Tuple, TupleMeta
 
 import pytypes
 from .type_util import deep_type, type_str, get_Tuple_params, \

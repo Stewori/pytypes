@@ -20,7 +20,11 @@ import types
 import threading
 import typing
 from inspect import isfunction, ismethod, isclass, ismodule
-from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
+try:
+    from backports.typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
+        GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
+except ImportError:
+    from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
         GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
 from warnings import warn, warn_explicit
 

@@ -23,7 +23,10 @@ import sys
 import tempfile
 import warnings
 from inspect import isclass, ismodule, ismethod
-from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
+try:
+    from backports.typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
+except ImportError:
+    from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
 
 import pytypes
 from pytypes import util
