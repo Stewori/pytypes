@@ -380,6 +380,8 @@ def override(func, auto = False):
             base_classes = _re.search(r'class.+\((.+)\)\s*\:', stack[2][4][0]).group(1)
         except IndexError:
             raise _function_instead_of_method_error(func)
+        except AttributeError:
+            base_classes = 'object'
         meth_cls_name = stack[1][3]
         if func.__name__ == '__init__':
             raise OverrideError(
@@ -399,15 +401,25 @@ def override(func, auto = False):
             if '.' not in base_class:
                 if base_class in derived_class_locals:
                     base_classes[i] = derived_class_locals[base_class]
-                else:
+                elif base_class in derived_class_globals:
                     base_classes[i] = derived_class_globals[base_class]
+                elif base_class in types.__builtins__:
+                    base_classes[i] = types.__builtins__[base_class]
+                else:
+                    raise TypeError("Could not lookup type: "+base_class)
             else:
                 components = base_class.split('.')
                 # obj is either a module or a class
                 if components[0] in derived_class_locals:
                     obj = derived_class_locals[components[0]]
-                else:
+                elif components[0] in derived_class_globals:
                     obj = derived_class_globals[components[0]]
+                elif components[0] in types.__builtins__:
+                    obj = types.__builtins__[components[0]]
+                elif components[0] in sys.modules:
+                    obj = sys.modules[components[0]]
+                else:
+                    raise TypeError("Could not lookup type or module: "+base_class)
                 for c in components[1:]:
                     assert(ismodule(obj) or isclass(obj))
                     obj = getattr(obj, c)

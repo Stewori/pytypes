@@ -732,6 +732,26 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
             globs = sys.modules[func.__module__].__dict__
     argNames = util.getargnames(argSpecs)
     if slf:
+        if not tpHints is None and tpHints and not func_class is None and \
+                argNames[0] in tpHints:
+            # cls or self was type-annotated
+            if not util.is_classmethod(func) and not _issubclass(tpHints[argNames[0]], func_class):
+                # todo: What about classmethods?
+                str_args = (func.__module__, func_class.__name__, func.__name__,
+                        'self' if argNames[0] == 'self' else "self-arg '"+argNames[0]+"'",
+                        type_str(func_class), type_str(tpHints[argNames[0]]),
+                        "\nCalling the self-arg '"+
+                        argNames[0]+"' is not recommended." if argNames[0] != 'self' else '')
+                msg = ('%s.%s.%s declares invalid type for %s:\n'+
+                        'Expected: %s\nDeclared: %s'+
+                        "\nAnnotating the self-arg with a type is not recommended.%s") % str_args
+                if pytypes.checking_enabled and not pytypes.warning_mode:
+                    raise TypeError(msg)
+                else:
+                    import traceback
+                    tb = traceback.extract_stack()
+                    off = util._calc_traceback_list_offset(tb)
+                    warn_explicit(msg, pytypes.TypeWarning, tb[off][0], tb[off][1])
         argNames = argNames[1:]
     if not tpHints is None and tpHints:
         if hints_from_annotations:
@@ -925,7 +945,7 @@ def _issubclass_Generic(subclass, superclass):
         #   return False (?) (or NotImplemented? Or let a flag decide behavior?)
         if origin is None:
             if not pytypes.check_unbound_types:
-                raise TypeError("Attempted to check unbound type(supeclass: "+str(superclass))
+                raise TypeError("Attempted to check unbound type(superclass: "+str(superclass))
             if not subclass.__origin__ is None:
                 if not type.__subclasscheck__(superclass, subclass.__origin__):
                     return False

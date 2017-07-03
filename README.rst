@@ -127,34 +127,23 @@ Usage Example
     from pytypes import override
 
     class some_baseclass():
-        def some_method1(a: int) -> None:
-            pass
+        def some_method1(self, a: int) -> None: ...
+        def some_method2(self, a: int) -> None: ...
+        def some_method3(self, a: int) -> None: ...
+        def some_method4(self) -> int: ...
 
-        def some_method2(a: int) -> None:
-            pass
-
-        def some_method3(a: int) -> None:
-            pass
-
-        def some_method4() -> int:
-            pass
-
-    class some_subclass():
+    class some_subclass(some_baseclass):
         @override
-        def some_method1(a: float) -> None:
-            pass
+        def some_method1(self, a: float) -> None: ...
 
         @override
-        def some_method2(a: str) -> None:
-            pass
+        def some_method2(self, a: str) -> None: ...
 
         @override
-        def some_metd3(a: int) -> None:
-            pass
+        def some_metd3(self, a: int) -> None: ...
 
         @override
-        def some_method4() -> float:
-            pass
+        def some_method4(self) -> float: ...
 
 - ``some_method1``: override check passes
 - ``some_method2``: override check fails because type is not compatible
