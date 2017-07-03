@@ -622,7 +622,10 @@ def _checkinstance(obj, cls, is_args, func, force = False):
                         wrgen = type_util.generator_checker_py2(obj, cls)
                     else:
                         wrgen = type_util.generator_checker_py3(obj, cls)
-                        wrgen.__qualname__ = obj.__qualname__
+                        try:
+                            wrgen.__qualname__ = obj.__qualname__
+                        except:
+                            pass
                     return True, wrgen
                 else:
                     return True, obj
