@@ -1,0 +1,27 @@
+sudo: false
+
+language: python
+
+python:
+  - "2.7"
+  - "3.5.2"
+  - "3.5.3"
+  - "3.6"
+
+install: pip install tox-travis coveralls
+
+script: tox
+
+after_success: coveralls
+
+deploy:
+  provider: pypi
+  user: stefan.richthofer
+  password:
+    secure: g3MmFBjhaVdDWeJ5OUx02dNU3l37k6Ytxm5fpgCXjK7ybDd8RRZmAjuvjX2ZzjTozMeJG3AsYowd0jvQlNWqP0v0fpnSdCgWo0ucIPyd9mErBvwJPC98KJl6CFrQ6JgOSa7RK5Zibnncgpwrsbgww4Hz7+8m1XDZPOP0BrjxWU1nj4VpRyP2Gf0Jd1ecJYNTLJckzMfFJd4Bizw++8nqmxejF/sXc3bg9YEqIxGBzlGtQSyGUjx22pSReCgQawBjVsd2DaVkl7EmzMYNZqV8JTN5L8Wt5aH3B86BNBjaXQy5MnK3ZcuEUEBMs/8qbXgmrKZAZgtyfQ7wZuNvpbSuheeSO8CTnZTD1PjkTfS9iXlcJlVijdzKqd6ymcV8cAj+VDVB9bd0JJ0hV8vs9gbs29UC+mgnZopv+vByhFOW3xwfg4RBuEIoaXFqdP5JL61n0ZbFnoM53etEjcJfo14iKmGC3WW5KjDrOCnVXAYqoDIaPyqqrjJUERWCglkFfEhRiYH8RCzqv36KRqf/jqOwQgRA3+nuO5/ttSkP1uZktem1Jv9ZH2moZbWV9H5iY6mJMY9jYWPjv+lkflUG1ZTduJUMAJzsUMaSnFsJzZuFn46/unEPmN0ob2s7oX0mgkPpWJAAw1drMzWoGX/CpneqGE1DSW5AhibMkhf/tAZBfJ8=
+  skip_cleanup: true
+  distributions: sdist bdist_wheel
+  on:
+    tags: true
+    python: "3.6"
+    repo: Stewori/pytypes
