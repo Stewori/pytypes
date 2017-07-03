@@ -1,3 +1,20 @@
 pytypes
 Copyright 2017 Stefan Richthofer.
 
+
+This software contains code derived from CPython's typing module 3.5.2.2
+https://github.com/python/typing
+by Guido van Rossum, Jukka Lehtosalo and Łukasz Langa,
+licensed under PSF license 2.
+In compliance with paragraph 3 of PSF license 2, pytypes source
+marks code pieces derived from typing with comments like
+"this function is partly based on code from typing module 3.5.2.2".
+In particular, pytypes contains code snippets from typing 3.5.2.2 that
+partly implement subtype checking w.r.t. PEP 484 style types.
+
+
+This software contains code derived from typeguard
+https://github.com/agronholm/typeguard
+by Alex Grönholm,
+licensed under MIT license.
+
