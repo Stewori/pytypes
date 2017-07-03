@@ -24,11 +24,15 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
     ],
     extras_require={
-        ':python_version == "2.7"': 'typing'
+        ':python_version == "2.7"': 'typing',
+        ':python_version == "3.3"': 'typing >= 3.5',
+        ':python_version == "3.4"': 'typing >= 3.5'
     },
     entry_points={
         'console_scripts': [
