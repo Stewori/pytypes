@@ -8,7 +8,10 @@ readme = open(readme_path).read()
 
 setup(
     name='pytypes',
-    version='1.0b1',
+    use_scm_version={
+        'version_scheme': 'post-release',
+        'local_scheme': 'dirty-tag'
+    },
     description='Typing toolbox for Python 3 _and_ 2.',
     long_description=readme,
     url='https://github.com/Stewori/pytypes',
@@ -29,6 +32,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
     ],
+    setup_requires=['setuptools_scm >= 1.7.0'],
     extras_require={
         ':python_version == "2.7"': 'typing',
         ':python_version == "3.3"': 'typing >= 3.5',
