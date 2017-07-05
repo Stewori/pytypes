@@ -27,6 +27,8 @@ import abc
 import datetime
 from inspect import isclass, ismodule, getsourcelines, findsource
 
+import pkg_resources
+
 try:
     from backports.typing import Union, Any, Tuple, TupleMeta
 except ImportError:
@@ -40,7 +42,7 @@ from .type_util import deep_type, type_str, get_Tuple_params, \
         _check_as_func
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
-from . import version, util
+from . import util
 
 _member_cache = {}
 _fully_typelogged_modules = {}
@@ -219,6 +221,7 @@ def _dump_module(module_node, path=None, python2=False, suffix=None):
     except:
         exec_info = 'unknown call'
     with open(stubpath, 'w') as stub_handle:
+        version = pkg_resources.get_distribution('pytypes').version
         lines = ['"""',
                 'Automatically generated Python 2.7-compliant stubfile of ' if python2 
                         else 'Automatically generated stubfile of \n',

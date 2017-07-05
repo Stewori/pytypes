@@ -258,8 +258,6 @@ try:
 except ImportError:
     import typing
 
-version = '1.0b1'
-
 checking_enabled = False # Will be enabled by default, unless -o is set
 # Note that you cannot change this flag later on. You must specify
 # this right after first import of pytypes.
