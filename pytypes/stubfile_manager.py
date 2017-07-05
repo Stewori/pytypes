@@ -166,7 +166,13 @@ def get_stub_module(func):
     if m_key in _stub_modules_loading:
         _re_match_module(m_name)
         return _stub_modules_loading[m_key]
-    mdfile = module.__file__
+
+    # Built-in modules have no __file__ attribute
+    try:
+        mdfile = module.__file__
+    except AttributeError:
+        return None
+
     # Jython-specific:
     # This is currently just a crutch; todo: resolve __pyclasspath__ properly!
     mdfile = mdfile.replace('__pyclasspath__', os.path.realpath(''))
