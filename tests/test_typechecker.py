@@ -14,25 +14,31 @@
 
 # Created on 25.08.2016
 
-import unittest, sys, os, warnings
-if __name__ == '__main__':
-    sys.path.append(sys.path[0]+os.sep+'..'+os.sep+'..')
+import abc
+import sys
+import unittest
+import warnings
+from abc import abstractmethod
+from numbers import Real
+
 import pytypes
+from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
+    get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
+    TypeSyntaxError, check_argument_types, annotations, get_member_types \
+
+try:
+    from backports import typing
+    from backports.typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, \
+        Iterable, Iterator, Sequence, Callable, Mapping, Set
+except ImportError:
+    import typing
+    from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, Iterable, \
+        Iterator, Sequence, Callable, Mapping, Set
+
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 pytypes.always_check_parent_types = False
-from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
-        get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
-        TypeSyntaxError, check_argument_types, annotations, get_member_types, typelogged
-try:
-    from backports import typing; from backports.typing import Tuple, List, Union, Any, \
-            Dict, Generator, TypeVar, Generic, Iterable, Iterator, Sequence, Callable, \
-            Mapping, Set
-except ImportError:
-    import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-            Generic, Iterable, Iterator, Sequence, Callable, Mapping, Set
-from numbers import Real
-import abc; from abc import abstractmethod
+
 
 class testClass(str):
     @typechecked
@@ -2257,7 +2263,7 @@ class TestTypecheck_class(unittest.TestCase):
 
 class TestTypecheck_module(unittest.TestCase):
     def test_function_py2(self):
-        from pytypes.tests.testhelpers import modulewide_typecheck_testhelper_py2 as mth
+        from testhelpers import modulewide_typecheck_testhelper_py2 as mth
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
         self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
         pytypes.typechecked_module(mth)
@@ -2267,7 +2273,7 @@ class TestTypecheck_module(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
         'Only applicable in Python >= 3.5.')
     def test_function_py3(self):
-        from pytypes.tests.testhelpers import modulewide_typecheck_testhelper as mth
+        from testhelpers import modulewide_typecheck_testhelper as mth
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
         self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
         pytypes.typechecked_module(mth)
@@ -2411,11 +2417,11 @@ class TestOverride(unittest.TestCase):
         # we import helper-modules during this test.
         tmp = pytypes.check_override_at_class_definition_time
         pytypes.check_override_at_class_definition_time = True
-        from pytypes.tests.testhelpers import override_testhelper # shall not raise error
+        from testhelpers import override_testhelper # shall not raise error
         def _test_err():
-            from pytypes.tests.testhelpers import override_testhelper_err
+            from testhelpers import override_testhelper_err
         def _test_err2():
-            from pytypes.tests.testhelpers import override_testhelper_err2
+            from testhelpers import override_testhelper_err2
 
         self.assertRaises(OverrideError, _test_err)
         self.assertRaises(NameError, _test_err2)
@@ -2446,7 +2452,7 @@ class TestStubfile(unittest.TestCase):
     """
 
     def test_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
 
         # Test function:
         self.assertEqual(stub_py2.testfunc1_py2(1, 7), 'testfunc1_1 -- 7')
@@ -2519,7 +2525,7 @@ class TestStubfile(unittest.TestCase):
         hints = get_type_hints(cl2.meth2b_py2)
         self.assertEqual(hints['b'], stub_py2.class1_py2)
         self.assertTrue(cl2.meth2b_py2(cl1).startswith(
-                '<pytypes.tests.testhelpers.stub_testhelper_py2.class1_py2'))
+                '<testhelpers.stub_testhelper_py2.class1_py2'))
         self.assertRaises(InputTypeError, lambda: cl2.meth2b_py2('cl1'))
 
         self.assertIsNone(stub_py2.testfunc_None_ret_py2(2, 3.0))
@@ -2533,7 +2539,7 @@ class TestStubfile(unittest.TestCase):
 
 # Todo: Add some of these tests for stubfile
 # 	def test_get_types_plain_2_7_stub(self):
-# 		from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+# 		from testhelpers import stub_testhelper_py2 as stub_py2
 # 		tc = testClass('mnop')
 # 		tc2 = testClass2('qrst')
 # 		tc3 = testClass3()
@@ -2552,7 +2558,7 @@ class TestStubfile(unittest.TestCase):
 # 		self.assertEqual(get_types(testfunc), (Tuple[int, Real, str], Tuple[int, Real]))
 
     def test_sequence_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_Seq_arg_py2(((3, 'ab'), (8, 'qvw'))), 2)
         self.assertEqual(
                 stub_py2.testfunc_Seq_arg_py2([(3, 'ab'), (8, 'qvw'), (4, 'cd')]), 3)
@@ -2568,7 +2574,7 @@ class TestStubfile(unittest.TestCase):
                 stub_py2.testfunc_Seq_ret_err_py2(29, 'def'))
 
     def test_iterable_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_Iter_arg_py2((9, 8, 7, 6), 'vwxy'),
                 [9, 8, 7, 6])
         self.assertEqual(stub_py2.testfunc_Iter_str_arg_py2('defg'),
@@ -2597,7 +2603,7 @@ class TestStubfile(unittest.TestCase):
         # self.assertEqual(stub_py2.testfunc_Iter_arg_py2(tia, 'vwxy'), [3, 6, 9])
 
     def test_dict_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertIsNone(stub_py2.testfunc_Dict_arg_py2(5, {'5': 4, 'c': '8'}))
         self.assertIsNone(stub_py2.testfunc_Dict_arg_py2(5, {'5': 'A', 'c': '8'}))
         self.assertIsNone(stub_py2.testfunc_Mapping_arg_py2(7, {'7': 4, 'c': '8'}))
@@ -2612,7 +2618,7 @@ class TestStubfile(unittest.TestCase):
                 stub_py2.testfunc_Dict_ret_err_py2(6))
 
     def test_callable_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         def clb(s, i):
             # type: (str, int) -> str
             return '_'+s+'*'*i
@@ -2649,7 +2655,7 @@ class TestStubfile(unittest.TestCase):
                 stub_py2.testfunc_Callable_ret_err_py2())
 
     def test_generator_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         test_gen = stub_py2.testfunc_Generator_py2()
         self.assertIsNone(test_gen.send(None))
         self.assertEqual(test_gen.send('abc'), 3)
@@ -2666,7 +2672,7 @@ class TestStubfile(unittest.TestCase):
                 stub_py2.testfunc_Generator_ret_py2())
 
     def test_custom_generic_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_Generic_arg_py2(
                 stub_py2.Custom_Generic_py2[str]('abc')), 'abc')
         self.assertEqual(stub_py2.testfunc_Generic_ret_py2(5).v(), 5)
@@ -2678,7 +2684,7 @@ class TestStubfile(unittest.TestCase):
                 stub_py2.testfunc_Generic_ret_err_py2(8))
 
     def test_property_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         tcp = stub_py2.testClass_property_py2()
         tcp.testprop_py2 = 7
         self.assertEqual(tcp.testprop_py2, 7)
@@ -2715,7 +2721,7 @@ class TestStubfile(unittest.TestCase):
 
 
     def test_varargs_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_varargs1_py2(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(stub_py2.testfunc_varargs1_py2(), (0, 1.0))
         self.assertRaises(InputTypeError, lambda:
@@ -2808,7 +2814,7 @@ class TestStubfile(unittest.TestCase):
         self.assertRaises(ReturnTypeError, lambda: tcv.prop1_py2)
 
     def test_varargs_check_argument_types_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_varargs_ca1_py2(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(stub_py2.testfunc_varargs_ca1_py2(), (0, 1.0))
         self.assertRaises(InputTypeError, lambda:
@@ -2905,7 +2911,7 @@ class TestStubfile(unittest.TestCase):
         tmp = pytypes.infer_default_value_types
         pytypes.infer_default_value_types = True
 
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(get_types(stub_py2.func_defaults_typecheck_py2),
                 (Tuple[str, Any, int, float], str))
         self.assertEqual(pytypes.get_type_hints(stub_py2.func_defaults_typecheck_py2),
@@ -2968,14 +2974,14 @@ class TestStubfile(unittest.TestCase):
         pytypes.infer_default_value_types = tmp
 
     def test_annotations_from_stubfile_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.func_defaults_annotations_py2.__annotations__,
                 {'a': str, 'return': str})
         self.assertEqual(stub_py2.testfunc_annotations_from_stubfile_by_decorator_py2.
                 __annotations__, {'a': str, 'b': int, 'return': int})
 
     def test_typecheck_parent_type_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         always_check_parent_types_tmp = pytypes.always_check_parent_types
         pytypes.always_check_parent_types = False
 
@@ -3004,7 +3010,7 @@ class TestStubfile(unittest.TestCase):
         pytypes.always_check_parent_types = always_check_parent_types_tmp
 
     def test_override_diamond_plain_2_7_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper_py2 as stub_py2
+        from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.D_diamond_override_py2().meth1_py2((12.4, 17.7)), 12)
         self.assertRaises(OverrideError, lambda:
                 stub_py2.D_diamond_override_err1_py2().meth1_py2((12, 17)))
@@ -3017,7 +3023,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
 
         # Test function:
         self.assertEqual(stub_py3.testfunc1(1, 7), 'testfunc1_1 -- 7')
@@ -3084,7 +3090,7 @@ class TestStubfile(unittest.TestCase):
         hints = get_type_hints(cl2.meth2b)
         self.assertEqual(hints['b'], stub_py3.class1)
         self.assertTrue(cl2.meth2b(cl1).startswith(
-                '<pytypes.tests.testhelpers.stub_testhelper.class1 object at '))
+                '<testhelpers.stub_testhelper.class1 object at '))
         self.assertRaises(InputTypeError, lambda: cl2.meth2b('cl1'))
         
         self.assertEqual(stub_py3.testfunc_class_in_list([cl1]), 1)
@@ -3094,7 +3100,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_property_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         tcp = stub_py3.testClass_property()
         tcp.testprop = 7
         self.assertEqual(tcp.testprop, 7)
@@ -3132,7 +3138,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_varargs_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         self.assertEqual(stub_py3.testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(stub_py3.testfunc_varargs1(), (0, 1.0))
         self.assertRaises(InputTypeError, lambda:
@@ -3264,7 +3270,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_varargs_check_argument_types_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         self.assertEqual(stub_py3.testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(stub_py3.testfunc_varargs_ca1(), (0, 1.0))
         self.assertRaises(InputTypeError, lambda:
@@ -3409,7 +3415,7 @@ class TestStubfile(unittest.TestCase):
         tmp = pytypes.infer_default_value_types
         pytypes.infer_default_value_types = True
 
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         self.assertEqual(get_types(stub_py3.func_defaults_typecheck),
                 (Tuple[str, Any, int, float], str))
         self.assertEqual(pytypes.get_type_hints(stub_py3.func_defaults_typecheck),
@@ -3474,7 +3480,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_annotations_from_stubfile_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         self.assertEqual(stub_py3.func_defaults_annotations.__annotations__,
                 {'a': str, 'return': str})
         self.assertEqual(stub_py3.testfunc_annotations_from_stubfile_by_decorator.
@@ -3483,7 +3489,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_typecheck_parent_type_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         always_check_parent_types_tmp = pytypes.always_check_parent_types
         pytypes.always_check_parent_types = False
 
@@ -3514,7 +3520,7 @@ class TestStubfile(unittest.TestCase):
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_override_diamond_plain_3_5_stub(self):
-        from pytypes.tests.testhelpers import stub_testhelper as stub_py3
+        from testhelpers import stub_testhelper as stub_py3
         self.assertEqual(stub_py3.D_diamond_override().meth1((12.4, 17.7)), 12)
         self.assertRaises(OverrideError, lambda:
                 stub_py3.D_diamond_override_err1().meth1((12, 17)))
@@ -3530,7 +3536,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         global py3
-        from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
+        from testhelpers import typechecker_testhelper_py3 as py3
 
     def test_function_py3(self):
         self.assertEqual(py3.testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -3548,10 +3554,10 @@ class TestTypecheck_Python3_5(unittest.TestCase):
     def test_classmethod_py3(self):
         tc = py3.testClass('efgh')
         self.assertEqual(tc.testmeth_class(23, 1.1),
-                "23-1.1-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass'>")
+                "23-1.1-<class 'testhelpers.typechecker_testhelper_py3.testClass'>")
         self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
         self.assertEqual(tc.testmeth_class2(23, 1.1),
-                "23-1.1-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass'>")
+                "23-1.1-<class 'testhelpers.typechecker_testhelper_py3.testClass'>")
         self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
         self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
 
@@ -3618,7 +3624,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
     def test_abstract_override_py3(self):
         tc3 = py3.testClass3()
         self.assertEqual(tc3.testmeth(1, 2.5),
-                "1-2.5-<class 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass3'>")
+                "1-2.5-<class 'testhelpers.typechecker_testhelper_py3.testClass3'>")
 
     def test_get_types_py3(self):
         tc = py3.testClass('mnop')
@@ -4138,7 +4144,7 @@ class TestOverride_Python3_5(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         global py3
-        from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
+        from testhelpers import typechecker_testhelper_py3 as py3
 
     def test_override_py3(self):
         tc2 = py3.testClass2('uvwx')
@@ -4264,11 +4270,11 @@ class TestOverride_Python3_5(unittest.TestCase):
     def test_override_at_definition_time_with_forward_decl(self):
         tmp = pytypes.check_override_at_class_definition_time
         pytypes.check_override_at_class_definition_time = True
-        from pytypes.tests.testhelpers import override_testhelper_py3 # shall not raise error
+        from testhelpers import override_testhelper_py3 # shall not raise error
         def _test_err_py3():
-            from pytypes.tests.testhelpers import override_testhelper_err_py3
+            from testhelpers import override_testhelper_err_py3
         def _test_err2_py3():
-            from pytypes.tests.testhelpers import override_testhelper_err2_py3
+            from testhelpers import override_testhelper_err2_py3
 
         self.assertRaises(OverrideError, _test_err_py3)
         self.assertRaises(NameError, _test_err2_py3)
@@ -4282,7 +4288,7 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         global py3
-        from pytypes.tests.testhelpers import typechecker_testhelper_py3 as py3
+        from testhelpers import typechecker_testhelper_py3 as py3
 
     def test_function(self):
         self.assertIsNone(py3.testfunc_check_argument_types(2, 3.0, 'qvwx'))

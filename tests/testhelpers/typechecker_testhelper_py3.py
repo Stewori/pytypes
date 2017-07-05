@@ -14,17 +14,20 @@
 
 # Created on 12.09.2016
 
-import pytypes
-from pytypes import typechecked, override, check_argument_types, auto_override
-import abc; from abc import abstractmethod
+import abc
+from abc import abstractmethod
 from numbers import Real
+
+import pytypes
+import testhelpers
+from pytypes import typechecked, override, check_argument_types, auto_override
 
 try:
     from backports.typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
-            Iterable, Iterator, Sequence, Callable, List, Any
+        Iterable, Iterator, Sequence, Callable, List, Any
 except ImportError:
-    from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
-            Iterable, Iterator, Sequence, Callable, List, Any
+    from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, Iterable, \
+        Iterator, Sequence, Callable, List, Any
 
 
 class testClass(str):
@@ -76,7 +79,7 @@ class testClass(str):
     # under certain circumstances.
     # Todo: Investigate! pytypes.get_type_hints seems to be robust.
     @typechecked
-    def testmeth_forward(self, a: int, b: 'pytypes.tests.testhelpers.typechecker_testhelper_py3.testClass2') -> int:
+    def testmeth_forward(self, a: int, b: 'testhelpers.typechecker_testhelper_py3.testClass2') -> int:
         assert b.__class__ is testClass2
         return len(str(a)+str(b)+str(self))
 
