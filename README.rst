@@ -206,148 +206,63 @@ Assume you run a file ./script.py like this:
     from pytypes import typelogged
 
     @typelogged
-    def logtest(a, b, c=7, *var, **kw):
-        return 7, a, b
-
-    @typelogged
-    def logtest2(a, b, c=7, *vars):
-        return 7, a, b
+    def logtest(a, b, c=7, *var, **kw): return 7, a, b
 
     @typelogged
     class logtest_class(object):
-        def logmeth1(self, a):
-            pass
-
-        def logmeth2(self, b):
-            return 2*b
-
-        def logmeth3(self, c):
-            return len(c)
+        def logmeth(self, b): return 2*b
 
         @classmethod
-        def logmeth_cls(cls, c):
-            return len(c)
+        def logmeth_cls(cls, c): return len(c)
 
         @staticmethod
-        def logmeth_static(c):
-            return len(c)
+        def logmeth_static(c): return len(c)
 
         @property
-        def log_prop(self):
-            return (self._log_prop, len(self._log_prop))
+        def log_prop(self): return self._log_prop
 
         @log_prop.setter
-        def log_prop(self, val):
-            self._log_prop = val
-
-        class logtest_inner_class(object):
-            def logmeth1_inner(self, a):
-                pass
+        def log_prop(self, val): self._log_prop = val
 
     logtest(3, 2, 5, 6, 7, 3.1, y=3.2, x=9)
     logtest(3.5, 7.3, 5, 6, 7, 3.1, y=3.2, x=9)
-    logtest('3.5', 7.3, 5, 6, 7, 3.1, y=2, x=9)
-    logtest2(3, 'abc', 5, 6, 7, 3.1)
+    logtest('abc', 7.3, 5, 6, 7, 3.1, y=2, x=9)
     lcs = logtest_class()
     lcs.log_prop = (7.8, 'log')
     lcs.log_prop
-
-    lcs.logmeth1(7.8)
-    lcs.logmeth1(9)
-    lcs.logmeth1('19')
     lcs.logmeth2(8)
     lcs.logmeth3('abcd')
     logtest_class.logmeth_cls('hijk')
     logtest_class.logmeth_static(range(3))
-    logtest_class.logtest_inner_class().logmeth1_inner(['qvw', 3.5])
 
     pytypes.dump_cache()
-    pytypes.dump_cache(python2=True)
 
-This will create two files in ./typelogger\_output:
+This will create the following file in ./typelogger\_output:
 
 script.pyi:
 
 .. code:: python
 
-    from typing import Any, Tuple, List, Union, Generic, Optional, \
-            TypeVar, Set, FrozenSet, Dict, Generator
+    from typing import Tuple, Union
 
-    def logtest(a: Union[float, str], b: float, c: int, *var: Union[int, float], **kw: Union[float, int]) -> Union[Tuple[int, float, float], Tuple[int, str, float]]: ...
-    def logtest2(a: int, b: str, c: int, *vars: Union[int, float]) -> Tuple[int, int, str]: ...
+    def logtest(a: Union[float, str], b: float, c: int, *var: float, **kw: Union[float, int]) -> Union[Tuple[int, float, float], Tuple[int, str, float]]: ...
 
-    class logtest_class():
-        def logmeth1(self, a: Union[float, str]) -> None: ...
-        def logmeth2(self, b: int) -> int: ...
-        def logmeth3(self, c: str) -> int: ...
+    class logtest_class(object):
+        def logmeth(self, b: int) -> int: ...
+
         @classmethod
         def logmeth_cls(cls, c: str) -> int: ...
+
         @staticmethod
-        def logmeth_static(c: List[int]) -> int: ...
+        def logmeth_static(c: range) -> int: ...
+
         @property
-        def log_prop(self) -> Tuple[Tuple[float, str], int]: ...
+        def log_prop(self) -> Tuple[float, str]: ...
+
         @log_prop.setter
         def log_prop(self, val: Tuple[float, str]) -> None: ...
 
-        class logtest_inner_class():
-            def logmeth1_inner(self, a: List[Union[str, float]]) -> None: ...
-
-and
-
-script.pyi2:
-
-.. code:: python
-
-    from typing import Any, Tuple, List, Union, Generic, Optional, \
-            TypeVar, Set, FrozenSet, Dict, Generator
-
-    def logtest(a, b, c, *var, **kw):
-        # type: (Union[float, str], float, int, *Union[int, float], **Union[float, int]) -> Union[Tuple[int, float, float], Tuple[int, str, float]]
-        pass
-
-    def logtest2(a, b, c, *vars):
-        # type: (int, str, int, *Union[int, float]) -> Tuple[int, int, str]
-        pass
-
-
-    class logtest_class(object):
-        def logmeth1(self, a):
-            # type: (Union[float, str]) -> None
-            pass
-
-        def logmeth2(self, b):
-            # type: (int) -> int
-            pass
-
-        def logmeth3(self, c):
-            # type: (str) -> int
-            pass
-
-        @classmethod
-        def logmeth_cls(cls, c):
-            # type: (str) -> int
-            pass
-
-        @staticmethod
-        def logmeth_static(c):
-            # type: (List[int]) -> int
-            pass
-
-        @property
-        def log_prop(self):
-            # type: () -> Tuple[Tuple[float, str], int]
-            pass
-
-        @log_prop.setter
-        def log_prop(self, val):
-            # type: (Tuple[float, str]) -> None
-            pass
-
-
-        class logtest_inner_class(object):
-            def logmeth1_inner(self, a):
-                # type: (List[Union[str, float]]) -> None
-                pass
+Use `pytypes.dump_cache(python2=True)` to produce a Python 2.7 compliant stubfile.
 
 
 Global mode and module wide mode
@@ -451,7 +366,7 @@ Resembles ``typing.get_type_hints``, but is also workable on Python 2.7 and sear
 get_types(func)
 ~~~~~~~~~~~~~~~
 
-Works like ``get_type_hints``, but returns types as a sequence rather than a dictionary. Types are returned in the same order as the corresponding arguments have in the signature of func.
+Works like ``get_type_hints``, but returns types as a sequence rather than a dictionary. Types are returned in declaration order of the corresponding arguments.
 
 
 check_argument_types(cllable=None, call_args=None, clss=None, caller_level=0)
@@ -475,7 +390,7 @@ is_of_type(obj, cls)
 Works like ``isinstance``, but supports PEP 484 style types from typing module.
 
 
-is_subtype(subclass, superclass)
+is_subtype(subtype, supertype)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Works like ``issubclass``, but supports PEP 484 style types from typing module.
@@ -497,12 +412,6 @@ type_str(tp)
 Generates a nicely readable string representation of the given type.
 The returned representation is workable as a source code string and would reconstruct the given type if handed to eval, provided that globals/locals are configured appropriately (e.g. assumes that various types from ``typing`` have been imported).
 Used as type-formatting backend of ptypes' code generator abilities in modules ``typelogger`` and ``stubfile_2_converter``.
-
-
-no_type_check
-~~~~~~~~~~~~~
-
-Works like ``typing.no_type_check``, but also supports cases where ``typing.no_type_check`` fails due to ``AttributeError``. This can happen, because ``typing.no_type_check`` wants to access ``__no_type_check__``, which might fail if e.g. a class is using slots or an object does not support custom attributes.
 
 
 dump_cache(path=default_typelogger_path, python2=False, suffix=None)
@@ -542,7 +451,6 @@ Use ``python3 -m pytypes.stubfile_2_converter.py -h`` to see detailed usage.
 By default the out file will be created in the same folder as the in file, but with 'pyi2' suffix.
 
 
-
 Next steps
 ==========
 
@@ -552,6 +460,14 @@ Next steps
 - support async-related constructs from typing
 - support notation for `Positional-only arguments <https://www.python.org/dev/peps/pep-0484/#positional-only-arguments>`__
 - runtime independent parser for stubfiles
+
+
+Authors
+=======
+
+`Stefan Richthofer <https://github.com/Stewori>`__ – founder, initial work, logo
+
+`Alex Grönholm <https://github.com/agronholm>`__ – deployment, migration to pytest
 
 
 License

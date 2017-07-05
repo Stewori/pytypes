@@ -566,9 +566,8 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
 
 
 def get_types(func):
-    """Works like get_type_hints, but returns types as a sequence rather than
-    a dictionary. Types are returned the order of the corresponding arguments
-    in the signature of func.
+    """Works like get_type_hints, but returns types as a sequence rather than a
+    dictionary. Types are returned in declaration order of the corresponding arguments.
     """
     return _get_types(func, util.is_classmethod(func), util.is_method(func))
 
