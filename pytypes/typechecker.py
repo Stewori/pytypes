@@ -27,13 +27,14 @@ from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from warnings import warn
 
 import pytypes
+from .exceptions import InputTypeError, ReturnTypeError, OverrideError
 from .stubfile_manager import _match_stub_type, _re_match_module
 from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
         deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
         _preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent, \
         _check_as_func
-from . import util, type_util, InputTypeError, ReturnTypeError, OverrideError
+from . import util, type_util
 
 try:
     from backports import typing
