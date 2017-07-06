@@ -33,14 +33,15 @@ import imp
 import inspect
 import os
 import datetime
+
+import pkg_resources
+
+from pytypes import util, typelogger, type_util
+
 try:
     from backports.typing import Any, TypeVar
 except ImportError:
     from typing import Any, TypeVar
-from pytypes import util, typelogger, type_util, version
-
-if __name__ == '__main__':
-    sys.path.append(sys.path[0]+os.sep+'..')
 
 
 silent = False
@@ -229,6 +230,7 @@ def convert(in_file, out_file = None):
     assumed_typevars = set()
     nw = datetime.datetime.now()
     with open(out_file, 'w') as out_file_handle:
+        version = pkg_resources.get_distribution('pytypes').version
         lines = ['"""',
                 'Python 2.7-compliant stubfile of ',
                 in_file,
