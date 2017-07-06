@@ -1057,8 +1057,8 @@ def auto_override(memb):
     if isclass(memb):
         return auto_override_class(memb)
     if ismodule(memb):
-        if memb is util.get_current_module(1):
-            warn(memb+" called auto_override on itself. This will only target members that were defined before this call.")
+        return auto_override_module(memb, True)
+    if memb in sys.modules or memb in _pending_modules:
         return auto_override_module(memb, True)
     return memb
 

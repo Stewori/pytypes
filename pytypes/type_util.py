@@ -1328,8 +1328,8 @@ def annotations(memb):
     if isclass(memb):
         return annotations_class(memb)
     if ismodule(memb):
-        if memb is util.get_current_module(1):
-            warn(memb+" called annotations on itself. This will only target members that were defined before this call.")
+        return annotations_module(memb)
+    if memb in sys.modules or memb in pytypes.typechecker._pending_modules:
         return annotations_module(memb)
     return memb
 

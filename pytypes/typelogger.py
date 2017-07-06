@@ -836,10 +836,9 @@ def typelogged(memb):
     if isclass(memb):
         return typelogged_class(memb)
     if ismodule(memb):
-        if memb is util.get_current_module(1):
-            from warnings import warn
-            warn(memb+" called typelogged on itself. This will only target members that were defined before this call.")
-        return typelogged_module(memb, True)
+        return typelogged_module(memb)
+    if memb in sys.modules or memb in pytypes.typechecker._pending_modules:
+        return typelogged_module(memb)
     return memb
 
 
