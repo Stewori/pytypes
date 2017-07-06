@@ -15,8 +15,9 @@
 # Created on 13.12.2016
 
 import inspect
+
 import pytypes
-from pytypes import TypeSyntaxError
+from .exceptions import TypeSyntaxError
 
 try:
     from backports.typing import Any, Tuple

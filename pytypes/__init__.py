@@ -491,76 +491,24 @@ if not hasattr(typing, '_generic_new'):
     typing.Generic.__new__ = __Generic__new__
 
 
-class TypeCheckError(TypeError):
-    """Error type to indicate all errors regarding runtime typechecking.
-    """
-    pass
-
-
-class InputTypeError(TypeCheckError):
-    """Error type to indicate errors regarding failing typechecks of
-    function or method parameters.
-    """
-    pass
-
-
-class ReturnTypeError(TypeCheckError):
-    """Error type to indicate errors regarding failing typechecks of
-    function or method return values.
-    """
-    pass
-
-
-class TypeWarning(RuntimeWarning):
-    """Warning type to indicate errors regarding failing typechecks.
-    """
-    pass
-
-
-class InputTypeWarning(TypeWarning):
-    """Warning type to indicate errors regarding failing typechecks of
-    function or method parameters.
-    """
-    pass
-
-
-class ReturnTypeWarning(TypeWarning):
-    """Warning type to indicate errors regarding failing typechecks of
-    function or method return values.
-    """
-    pass
-
-
-class OverrideError(TypeError):
-    """Error type to indicate errors regarding failing checks of
-    method's override consistency.
-    """
-    pass
-
-
-class TypeSyntaxError(TypeError):
-    """Error type to indicate errors regarding ill-formated typestrings.
-    """
-    pass
-
 # We import some public API for central access:
+from .exceptions import TypeCheckError, InputTypeError, ReturnTypeError, TypeWarning, \
+    InputTypeWarning, ReturnTypeWarning, OverrideError, TypeSyntaxError
 from .type_util import deep_type, is_builtin_type, has_type_hints, \
-        type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, \
-        get_generator_type, get_generator_yield_type, \
-        is_Union, get_Union_params, get_Tuple_params, \
-        get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, \
-        annotations, get_member_types, Empty, _catch_up_global_annotations_decorator, \
-        TypeAgent, restore_profiler
+    type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, get_generator_type, \
+    get_generator_yield_type, is_Union, get_Union_params, get_Tuple_params, \
+    get_Callable_args_res, _issubclass as is_subtype, _isinstance as is_of_type, annotations, \
+    get_member_types, Empty, _catch_up_global_annotations_decorator, TypeAgent, restore_profiler
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
-        get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook, \
-        _install_excepthook
+    get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook, \
+    _install_excepthook
 from .stubfile_manager import get_stub_module, as_stub_func_if_any
 from .typechecker import typechecked, typechecked_module, no_type_check, \
-        is_no_type_check, override, check_argument_types, auto_override, \
-        _catch_up_global_auto_override_decorator, _catch_up_global_typechecked_decorator, \
-        TypeChecker, _checkfunctype, _checkfuncresult
+    is_no_type_check, override, check_argument_types, auto_override, \
+    _catch_up_global_auto_override_decorator, _catch_up_global_typechecked_decorator, \
+    TypeChecker, _checkfunctype, _checkfuncresult
 from .typelogger import dump_cache, log_type, typelogged, typelogged_module, \
-        _catch_up_global_typelogged_decorator, _register_logged_func, TypeLogger
+    _catch_up_global_typelogged_decorator, _register_logged_func, TypeLogger
 
 enable_clean_traceback()
 
