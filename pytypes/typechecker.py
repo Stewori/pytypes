@@ -49,6 +49,7 @@ _not_type_checked = set()
 _fully_typechecked_modules = {}
 _auto_override_modules = {}
 
+_pending_modules = {}
 _delayed_checks = []
 
 # Monkeypatch import to
@@ -56,7 +57,15 @@ _delayed_checks = []
 # and eventually apply global typechecking:
 _python___import__ = builtins.__import__
 def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
-    res = _python___import__(name, globls, locls, fromlist, level)
+    if not name in _pending_modules:
+        _pending_modules[name] = []
+        res = _python___import__(name, globls, locls, fromlist, level)
+        pending_decorators = _pending_modules[name]
+        del _pending_modules[name]
+        for decorator in pending_decorators:
+            decorator.__call__(res)
+    else:
+        res = _python___import__(name, globls, locls, fromlist, level)
     if sys.version_info.major >= 3:
         if fromlist is None:
             _re_match_module(name, True)
@@ -912,7 +921,16 @@ def typechecked_module(md, force_recursive = False):
             md = sys.modules[md]
             if md is None:
                 return md
+        elif md in _pending_modules:
+            # if import is pending, we just store this call for later
+            _pending_modules[md].append(lambda t: typechecked_module(t, True))
+            return md
     assert(ismodule(md))
+    if md.__name__ in _pending_modules:
+            # if import is pending, we just store this call for later
+            _pending_modules[md.__name__].append(lambda t: typechecked_module(t, True))
+            # we already process the module now as far as possible for its internal use
+            # todo: Issue warning here that not the whole module might be covered yet
     if md.__name__ in _fully_typechecked_modules and \
             _fully_typechecked_modules[md.__name__] == len(md.__dict__):
         return md
@@ -923,13 +941,14 @@ def typechecked_module(md, force_recursive = False):
     keys = [key for key in md.__dict__]
     for key in keys:
         memb = md.__dict__[key]
-        if force_recursive or not is_no_type_check(memb):
+        if force_recursive or not is_no_type_check(memb) and hasattr(memb, '__module__'):
             if _check_as_func(memb) and memb.__module__ == md.__name__ and \
                     has_type_hints(memb):
                 setattr(md, key, typechecked_func(memb, force_recursive))
             elif isclass(memb) and memb.__module__ == md.__name__:
                 typechecked_class(memb, force_recursive, force_recursive)
-    _fully_typechecked_modules[md.__name__] = len(md.__dict__)
+    if not md.__name__ in _pending_modules:
+        _fully_typechecked_modules[md.__name__] = len(md.__dict__)
     return md
 
 
@@ -950,6 +969,8 @@ def typechecked(memb):
     if isclass(memb):
         return typechecked_class(memb)
     if ismodule(memb):
+        return typechecked_module(memb, True)
+    if memb in sys.modules or memb in _pending_modules:
         return typechecked_module(memb, True)
     return memb
 
@@ -989,7 +1010,16 @@ def auto_override_module(md, force_recursive = False):
             md = sys.modules[md]
             if md is None:
                 return md
+        elif md in _pending_modules:
+            # if import is pending, we just store this call for later
+            _pending_modules[md].append(lambda t: auto_override_module(t, True))
+            return md
     assert(ismodule(md))
+    if md.__name__ in _pending_modules:
+            # if import is pending, we just store this call for later
+            _pending_modules[md.__name__].append(lambda t: auto_override_module(t, True))
+            # we already process the module now as far as possible for its internal use
+            # todo: Issue warning here that not the whole module might be covered yet
     if md.__name__ in _auto_override_modules and \
             _auto_override_modules[md.__name__] == len(md.__dict__):
         return md
@@ -1003,7 +1033,8 @@ def auto_override_module(md, force_recursive = False):
         if force_recursive or not is_no_type_check(memb):
             if isclass(memb) and memb.__module__ == md.__name__:
                 auto_override_class(memb, force_recursive, force_recursive)
-    _auto_override_modules[md.__name__] = len(md.__dict__)
+    if not md.__name__ in _pending_modules:
+        _auto_override_modules[md.__name__] = len(md.__dict__)
     return md
 
 
@@ -1026,12 +1057,21 @@ def auto_override(memb):
     if isclass(memb):
         return auto_override_class(memb)
     if ismodule(memb):
+        if memb is util.get_current_module(1):
+            warn(memb+" called auto_override on itself. This will only target members that were defined before this call.")
         return auto_override_module(memb, True)
     return memb
 
 
 def _catch_up_global_typechecked_decorator():
-    for mod_name in sys.modules:
+    mod_names = None
+    while mod_names is None:
+        try:
+            mod_names = [mn for mn in sys.modules]
+        except RuntimeError: # dictionary changed size during iteration
+            pass
+        
+    for mod_name in mod_names:
         if not mod_name in _fully_typechecked_modules:
             try:
                 md = sys.modules[mod_name]

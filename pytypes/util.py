@@ -531,6 +531,11 @@ def get_current_args(caller_level = 0, func = None, argNames = None):
     return tuple([lcs[t] for t in argNames])
 
 
+def get_current_module(caller_level = 0):
+    stck = inspect.stack()
+    return getmodule(stck[1+caller_level][0].f_code)
+
+
 def getmodule(code):
     """More robust variant of inspect.getmodule.
     E.g. has less issues on Jython.
@@ -697,7 +702,8 @@ def _calc_traceback_limit(tb):
     limit = 1
     tb2 = tb
     while not tb2.tb_next is None:
-        if tb2.tb_next.tb_frame.f_code.co_filename.split(os.sep)[-2] == 'pytypes':
+        if tb2.tb_next.tb_frame.f_code.co_filename.split(os.sep)[-2] == 'pytypes' and not \
+                tb2.tb_next.tb_frame.f_code == pytypes.typechecker._pytypes___import__.__code__:
             break
         else:
             limit += 1
@@ -708,7 +714,7 @@ def _calc_traceback_limit(tb):
 def _calc_traceback_list_offset(tb_list):
     for off in range(len(tb_list)):
         if tb_list[off][0].split(os.sep)[-2] == 'pytypes':
-            return off-2
+            return off-2 if off >= 2 else 0
     return -1
 
 

@@ -270,6 +270,8 @@ Global mode and module wide mode
 
 The pytypes decorators ``@typechecked``, ``@auto_override``, ``@annotations`` and ``@typelogged`` can be applied module wide by explicitly calling them on a module object or a module name contained in ``sys.modules``. In such a case, the decorator is applied to all functions and classes in that module and recursively to all methods, properties and inner classes too.
 
+Warning: If A decorator is applied to a partly imported module, only functions and classes that were already defined are affected. After the module imported completely, the decorator is applied to the remaining functions and classes. In the meantime, internal code of that module can circumvent the decorator, e.g. can make module-internal calls that are not typechecked.
+
 
 Global mode via profilers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -326,6 +328,8 @@ Use this feature with care as it is still experimental and can notably slow down
 - To apply ``@auto_override`` globally, use ``pytypes.set_global_auto_override_decorator``
 - To apply ``@annotations`` globally, use ``pytypes.set_global_annotations_decorator``
 - To apply ``@typelogged`` globally, use ``pytypes.set_global_typelogged_decorator``
+
+Warning: If the module that performs the ``pytypes.set_global_xy_decorator``-call is not yet fully imported, the warning regarding module-wide decorators (see above) applies to that module in the same sense. I.e. functions and classes that were not yet defined, will be covered only once the module-import has fully completed.
 
 
 OOP support

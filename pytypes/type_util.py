@@ -24,7 +24,7 @@ try:
     from backports.typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
         GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
 except ImportError:
-    from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
+    from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, Optional, \
         GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
 from warnings import warn, warn_explicit
 
@@ -392,7 +392,7 @@ except:
     _implicit_globals.add(sys.modules['builtins'])
 def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_globals=None,
             implicit_globals=None):
-    # type: (type, Optional[Union[Set[Union[type, types.ModuleType]], Mapping[Union[type, types.ModuleType], str]]], Optional[bool]) -> str
+    # _type: (type, Optional[Union[Set[Union[type, types.ModuleType]], Mapping[Union[type, types.ModuleType], str]]], Optional[bool]) -> str
     """Provides the fully qualified name of a type relative to a set of
     modules and types that is assumed as globally available.
     If assumed_globals is None this always returns the fully qualified name.
@@ -1280,7 +1280,16 @@ def annotations_module(md):
             md = sys.modules[md]
             if md is None:
                 return md
+        elif md in pytypes.typechecker._pending_modules:
+            # if import is pending, we just store this call for later
+            pytypes.typechecker._pending_modules[md].append(annotations_module)
+            return md
     assert(ismodule(md))
+    if md.__name__ in pytypes.typechecker._pending_modules:
+            # if import is pending, we just store this call for later
+            pytypes.typechecker._pending_modules[md.__name__].append(annotations_module)
+            # we already process the module now as far as possible for its internal use
+            # todo: Issue warning here that not the whole module might be covered yet
     if md.__name__ in _annotated_modules and \
             _annotated_modules[md.__name__] == len(md.__dict__):
         return md
@@ -1295,7 +1304,8 @@ def annotations_module(md):
             annotations_func(memb)
         elif isclass(memb) and memb.__module__ == md.__name__:
             annotations_class(memb)
-    _annotated_modules[md.__name__] = len(md.__dict__)
+    if not md.__name__ in pytypes.typechecker._pending_modules:
+        _annotated_modules[md.__name__] = len(md.__dict__)
     return md
 
 
@@ -1318,6 +1328,8 @@ def annotations(memb):
     if isclass(memb):
         return annotations_class(memb)
     if ismodule(memb):
+        if memb is util.get_current_module(1):
+            warn(memb+" called annotations on itself. This will only target members that were defined before this call.")
         return annotations_module(memb)
     return memb
 

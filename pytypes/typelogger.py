@@ -790,6 +790,16 @@ def typelogged_module(md):
             md = sys.modules[md]
             if md is None:
                 return md
+        elif md in pytypes.typechecker._pending_modules:
+            # if import is pending, we just store this call for later
+            pytypes.typechecker._pending_modules[md].append(typelogged_module)
+            return md
+    assert(ismodule(md))
+    if md.__name__ in pytypes.typechecker._pending_modules:
+            # if import is pending, we just store this call for later
+            pytypes.typechecker._pending_modules[md.__name__].append(typelogged_module)
+            # we already process the module now as far as possible for its internal use
+            # todo: Issue warning here that not the whole module might be covered yet
     assert(ismodule(md))
     if md.__name__ in _fully_typelogged_modules and \
             _fully_typelogged_modules[md.__name__] == len(md.__dict__):
@@ -805,7 +815,8 @@ def typelogged_module(md):
             setattr(md, key, typelogged_func(memb))
         elif isclass(memb) and memb.__module__ == md.__name__:
             typelogged_class(memb)
-    _fully_typelogged_modules[md.__name__] = len(md.__dict__)
+    if not md.__name__ in pytypes.typechecker._pending_modules:
+        _fully_typelogged_modules[md.__name__] = len(md.__dict__)
     return md
 
 
@@ -825,6 +836,9 @@ def typelogged(memb):
     if isclass(memb):
         return typelogged_class(memb)
     if ismodule(memb):
+        if memb is util.get_current_module(1):
+            from warnings import warn
+            warn(memb+" called typelogged on itself. This will only target members that were defined before this call.")
         return typelogged_module(memb, True)
     return memb
 

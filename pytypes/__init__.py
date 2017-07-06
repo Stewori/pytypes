@@ -480,6 +480,8 @@ default_typelogger_path = 'typelogger_output'
 # typelogger_indent = None # currently uses default_indent always
 
 # Monkeypatch Generic to circumvent type erasure:
+# (Only applies to legacy versions of typing.
+#  Existance of '_generic_new' is suitable to detect whether this monkeypatch is required.)
 if not hasattr(typing, '_generic_new'):
     _Generic__new__ = typing.Generic.__new__
     def __Generic__new__(cls, *args, **kwds):
