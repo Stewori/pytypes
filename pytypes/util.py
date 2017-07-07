@@ -556,6 +556,17 @@ def getmodule(code):
     return md
 
 
+def getmodule_for_member(func, prop_getter=False):
+    if isinstance(func, property):
+        md = func.fget.__module__ if prop_getter else func.fset.__module__
+        return sys.modules[md]
+    else:
+        func0 = func
+        while hasattr(func0, '__func__'):
+            func0 = func0.__func__
+        return sys.modules[func0.__module__]
+
+
 def get_callable_fq_for_code(code, locals_dict = None):
     """Determines the function belonging to a given code object in a fully qualified fashion.
     Returns a tuple consisting of

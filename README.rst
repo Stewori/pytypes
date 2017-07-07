@@ -265,6 +265,14 @@ script.pyi:
 Use `pytypes.dump_cache(python2=True)` to produce a Python 2.7 compliant stubfile.
 
 
+Write typelog at exit
+~~~~~~~~~~~~~~~~~~~~~
+
+By default, pytypes performs `pytypes.dump_cache()` at exit, i.e. writes typelog as a Python 3 style stubfile.
+Use `pytypes.dump_typelog_at_exit` to control this behavior.
+Use `pytypes.dump_typelog_at_exit_python2` to write typelog as a Python 2 style stubfile.
+
+
 Global mode and module wide mode
 --------------------------------
 

@@ -25,6 +25,7 @@ import sys
 import os
 import abc
 import datetime
+import atexit
 from inspect import isclass, ismodule, getsourcelines, findsource
 
 import pkg_resources
@@ -49,6 +50,9 @@ _fully_typelogged_modules = {}
 silent = True
 use_NoneType = False
 simplify = True
+_module_file_map = {} # cache module filenames for use atexit
+_member_line_map = {} # cache line numbers for use atexit
+# (for some reason, module.__file__ does not exist any more when atexit performs)
 
 
 def _print(line):
@@ -69,6 +73,18 @@ def log_type(args_kw, ret, func, slf=False, prop_getter=False, clss=None, argspe
         argspecs = getargspecs(func)
     node = _register_logged_func(func, slf, prop_getter, clss, argspecs)
     node.add_observation(args_kw_type, ret_type)
+    
+    md = util.getmodule_for_member(func, prop_getter)
+    if not md.__name__ in _module_file_map:
+        _module_file_map[md.__name__] = md.__file__
+
+    if clss is None:
+        try:
+            clss = util.get_class_that_defined_method(func)
+        except ValueError:
+            pass
+    if not clss is None and not clss in _member_line_map:
+        _member_line_map[clss] = findsource(clss)[1]
 
 
 def _register_logged_func(func, slf, prop_getter, clss, argspecs):
@@ -150,6 +166,8 @@ def _imp_name(obj):
 
 
 def _module_name(md):
+    if md.__name__ in _module_file_map:
+        return _module_file_map[md.__name__].rsplit(os.sep, 1)[-1].split('.', 1)[0]
     if md.__name__ == '__main__':
         return md.__file__.rsplit(os.sep, 1)[-1].split('.', 1)[0]
     else:
@@ -197,7 +215,10 @@ def _dump_module(module_node, path=None, python2=False, suffix=None):
     if path is None:
         path = pytypes.default_typelogger_path
     basic_name = module_node.get_basic_filename()
-    src_fname = module_node.module.__file__
+    if module_node.module.__name__ in _module_file_map:
+        src_fname = _module_file_map[module_node.module.__name__]
+    else:
+        src_fname = module_node.module.__file__
     if src_fname is None:
         src_fname = 'unknown file'
     pck_path = module_node.get_pck_path()
@@ -281,6 +302,16 @@ def dump_cache(path=None, python2=False, suffix=None):
         mnode.append(node)
     for module in modules:
         _dump_module(modules[module], path, python2, suffix)
+
+
+def _dump_at_exit():
+    if len(_member_cache) > 0:
+        if pytypes.dump_typelog_at_exit:
+            dump_cache()
+        if pytypes.dump_typelog_at_exit_python2:
+            dump_cache(python2=True)
+        _print('dumped at exit: '+str(len(_member_cache)))
+atexit.register(_dump_at_exit)
 
 
 def _prepare_arg_types(arg_Tuple, argspecs, slf_or_clsm = False, names = None):
@@ -640,10 +671,17 @@ class _module_node(_base_node):
         self.classes = {}
         self.others = {}
         self._idn = None
-        
+
     def get_basic_filename(self):
         if self.name == '__main__':
-            return self.module.__file__.rsplit(os.sep, 1)[-1].split('.', 1)[0]
+            try:
+                if self.module.__name__ in _module_file_map:
+                    return _module_file_map[
+                            self.module.__name__].rsplit(os.sep, 1)[-1].split('.', 1)[0]
+                else:
+                    return self.module.__file__.rsplit(os.sep, 1)[-1].split('.', 1)[0]
+            except:
+                return self.name
         else:
             return self.name
 
@@ -740,7 +778,10 @@ class _class_node(_base_node):
         self.others[member.get_key()] = member
 
     def get_line(self):
-        return findsource(self.clss)[1]
+        if self.clss in _member_line_map:
+            return _member_line_map[self.clss]
+        else:
+            return findsource(self.clss)[1]
 
 
 def typelogged_func(func):

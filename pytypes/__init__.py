@@ -217,6 +217,16 @@ deep_type_samplesize : int
     -1 lets pytypes always evaluate the whole list, set or dict, while other
     positive values let it only check a somewhat random sample of that size.
 
+dump_typelog_at_exit : bool
+    Lets typelogger dump typelog at exit.
+    Default: True
+
+dump_typelog_at_exit_python2 : bool
+    Lets typelogger dump Python 2 style typelog at exit.
+    If used in combination with dump_typelog_at_exit, two logs are dumped -
+    one in Python 2 style, one in Python 3 style.
+    Default: False
+
 clean_traceback : bool
     If true, hides pytypes' internal part of exception traceback output.
     Default: True
@@ -310,6 +320,9 @@ strict_annotation_collision_check = False
 default_typecheck_depth = 10
 # -1 lets pytypes always evaluate the whole list, set or dict
 deep_type_samplesize = -1
+
+dump_typelog_at_exit = True
+dump_typelog_at_exit_python2 = False
 
 clean_traceback = True
 
