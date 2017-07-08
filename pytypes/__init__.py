@@ -264,7 +264,13 @@ default_typelogger_path : str
 """
 
 # Needs to be imported before touching the Python import machinery
-import pkg_resources
+_version = '1.0a1' # Only used as fallback for jython-standalone.jar
+try:
+    import pkg_resources
+    # This assert ensures that we never forget to update the fallback _version:
+    assert _version == pkg_resources.get_distribution('pytypes').version
+except ImportError:
+    pass
 
 try:
     from backports import typing

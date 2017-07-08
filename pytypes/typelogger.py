@@ -28,7 +28,10 @@ import datetime
 import atexit
 from inspect import isclass, ismodule, getsourcelines, findsource
 
-import pkg_resources
+try:
+    import pkg_resources
+except ImportError:
+    pass
 
 try:
     from backports.typing import Union, Any, Tuple, TupleMeta
@@ -242,7 +245,10 @@ def _dump_module(module_node, path=None, python2=False, suffix=None):
     except:
         exec_info = 'unknown call'
     with open(stubpath, 'w') as stub_handle:
-        version = pkg_resources.get_distribution('pytypes').version
+        try:
+            version = pkg_resources.get_distribution('pytypes').version
+        except NameError:
+            version = pytypes._version
         lines = ['"""',
                 'Automatically generated Python 2.7-compliant stubfile of ' if python2 
                         else 'Automatically generated stubfile of \n',

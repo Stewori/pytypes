@@ -262,15 +262,15 @@ script.pyi:
         @log_prop.setter
         def log_prop(self, val: Tuple[float, str]) -> None: ...
 
-Use `pytypes.dump_cache(python2=True)` to produce a Python 2.7 compliant stubfile.
+Use ``pytypes.dump_cache(python2=True)`` to produce a Python 2.7 compliant stubfile.
 
 
-Write typelog at exit
-~~~~~~~~~~~~~~~~~~~~~
+Writing typelog at exit
+~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, pytypes performs `pytypes.dump_cache()` at exit, i.e. writes typelog as a Python 3 style stubfile.
-Use `pytypes.dump_typelog_at_exit` to control this behavior.
-Use `pytypes.dump_typelog_at_exit_python2` to write typelog as a Python 2 style stubfile.
+By default, pytypes performs ``pytypes.dump_cache()`` at exit, i.e. writes typelog as a Python 3 style stubfile.
+Use ``pytypes.dump_typelog_at_exit`` to control this behavior.
+Use ``pytypes.dump_typelog_at_exit_python2`` to write typelog as a Python 2 style stubfile.
 
 
 Global mode and module wide mode
@@ -278,7 +278,7 @@ Global mode and module wide mode
 
 The pytypes decorators ``@typechecked``, ``@auto_override``, ``@annotations`` and ``@typelogged`` can be applied module wide by explicitly calling them on a module object or a module name contained in ``sys.modules``. In such a case, the decorator is applied to all functions and classes in that module and recursively to all methods, properties and inner classes too.
 
-Warning: If A decorator is applied to a partly imported module, only functions and classes that were already defined are affected. After the module imported completely, the decorator is applied to the remaining functions and classes. In the meantime, internal code of that module can circumvent the decorator, e.g. can make module-internal calls that are not typechecked.
+*Warning: If A decorator is applied to a partly imported module, only functions and classes that were already defined are affected. After the module imported completely, the decorator is applied to the remaining functions and classes. In the meantime, internal code of that module can circumvent the decorator, e.g. can make module-internal calls that are not typechecked.*
 
 
 Global mode via profilers
@@ -337,7 +337,7 @@ Use this feature with care as it is still experimental and can notably slow down
 - To apply ``@annotations`` globally, use ``pytypes.set_global_annotations_decorator``
 - To apply ``@typelogged`` globally, use ``pytypes.set_global_typelogged_decorator``
 
-Warning: If the module that performs the ``pytypes.set_global_xy_decorator``-call is not yet fully imported, the warning regarding module-wide decorators (see above) applies to that module in the same sense. I.e. functions and classes that were not yet defined, will be covered only once the module-import has fully completed.
+*Warning: If the module that performs the ``pytypes.set_global_xy_decorator``-call is not yet fully imported, the warning regarding module-wide decorators (see above) applies to that module in the same sense. I.e. functions and classes that were not yet defined, will be covered only once the module-import has fully completed.*
 
 
 OOP support
