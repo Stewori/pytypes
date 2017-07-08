@@ -263,6 +263,9 @@ default_typelogger_path : str
     Default: 'typelogger_output'
 """
 
+# Needs to be imported before touching the Python import machinery
+import pkg_resources
+
 try:
     from backports import typing
 except ImportError:
