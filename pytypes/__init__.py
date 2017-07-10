@@ -233,6 +233,14 @@ clean_traceback : bool
     Use this variable only for reading. Use enable_clean_traceback function to
     modify it. Disable clean_traceback, if you want to trace a bug in pytypes.
 
+import_hook_enabled : bool
+    Required for some edgy situations with stubfiles and forward declarations.
+    Default: True
+    This lets pytypes hook into import.
+    In case this is not desired, use this flag to disable it.
+    Setting this flag only has effect right after first import of pytypes.
+    Note that with this flag disabled, global decorator mode won't work.
+
 python3_5_executable : str
     Python command used to parse Python 3.5 style stubfiles.
     Default: 'python3'
@@ -274,6 +282,8 @@ try:
     from backports import typing
 except ImportError:
     import typing
+
+from .typechecker import _install_import_hook
 
 checking_enabled = False # Will be enabled by default, unless -o is set
 # Note that you cannot change this flag later on. You must specify
@@ -333,6 +343,8 @@ dump_typelog_at_exit_python2 = False
 
 clean_traceback = True
 
+import_hook_enabled = True
+
 python3_5_executable = 'python3' # Must be >= 3.5.0
 
 
@@ -357,6 +369,8 @@ def enable_global_typechecked_decorator(flag = True, retrospective = True):
     """
     global global_typechecked_decorator
     global_typechecked_decorator = flag
+    if import_hook_enabled:
+        _install_import_hook()
     if global_typechecked_decorator and retrospective:
         _catch_up_global_typechecked_decorator()
     return global_typechecked_decorator
@@ -371,6 +385,8 @@ def enable_global_auto_override_decorator(flag = True, retrospective = True):
     """
     global global_auto_override_decorator
     global_auto_override_decorator = flag
+    if import_hook_enabled:
+        _install_import_hook()
     if global_auto_override_decorator and retrospective:
         _catch_up_global_auto_override_decorator()
     return global_auto_override_decorator
@@ -385,6 +401,8 @@ def enable_global_annotations_decorator(flag = True, retrospective = True):
     """
     global global_annotations_decorator
     global_annotations_decorator = flag
+    if import_hook_enabled:
+        _install_import_hook()
     if global_annotations_decorator and retrospective:
         _catch_up_global_annotations_decorator()
     return global_annotations_decorator
@@ -399,6 +417,8 @@ def enable_global_typelogged_decorator(flag = True, retrospective = True):
     """
     global global_typelogged_decorator
     global_typelogged_decorator = flag
+    if import_hook_enabled:
+        _install_import_hook()
     if global_typelogged_decorator and retrospective:
         _catch_up_global_typelogged_decorator()
     return global_typelogged_decorator

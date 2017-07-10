@@ -53,10 +53,13 @@ _auto_override_modules = {}
 _pending_modules = {}
 _delayed_checks = []
 
+_import_hook_installed = False
+
 # Monkeypatch import to
 # process forward-declarations after module loading finished
 # and eventually apply global typechecking:
 _python___import__ = builtins.__import__
+# Todo: We will turn this monkeypatch into an import hook.
 def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
     if not name in _pending_modules:
         _pending_modules[name] = []
@@ -99,13 +102,21 @@ def _pytypes___import__(name, globls=None, locls=None, fromlist=(), level=0):
                     if pytypes.global_annotations_decorator:
                         type_util.annotations_module(mod_name_full)
     return res
-builtins.__import__ = _pytypes___import__
+
+def _install_import_hook():
+    global _import_hook_installed
+    if not _import_hook_installed:
+        builtins.__import__ = _pytypes___import__
+        _import_hook_installed = True
 
 class _DelayedCheck():
     """Delayed checks are needed for definition time typechecks that involve
     forward declarations.
     """
     def __init__(self, func, method, class_name, base_method, base_class, exc_info):
+        # lazily install import hook (Todo: Maybe move this to a better place)
+        if pytypes.import_hook_enabled and not _import_hook_installed:
+            _install_import_hook()
         self.func = func
         self.method = method
         self.class_name = class_name
