@@ -73,7 +73,7 @@ This supports `stubfiles <https://www.python.org/dev/peps/pep-0484/#stub-files>`
 Disabling typechecking
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Running Python with the '-o' flag, which also disables ``assert`` statements, turns off typechecking completely.
+Running Python with the '-O' flag, which also disables ``assert`` statements, turns off typechecking completely.
 Alternatively, one can modify the flag ``pytypes.checking_enabled``.
 
 Note that this must be done right after import of pytypes, because it affects the way how ``@typechecked`` decorator works. For modules that were imported with this flag disabled, typechecking cannot be turned on later on within the same runtime.
