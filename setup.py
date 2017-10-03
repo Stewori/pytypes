@@ -4,7 +4,7 @@ from setuptools import setup
 
 here = os.path.dirname(__file__)
 readme_path = os.path.join(here, 'README.rst')
-readme = open(readme_path).read()
+readme = open(readme_path, 'rb').read().decode('utf-8')
 
 setup(
     name='pytypes',
