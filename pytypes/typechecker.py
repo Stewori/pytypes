@@ -887,15 +887,16 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
 def typechecked_class(cls, force = False, force_recursive = False):
     """Works like typechecked, but is only applicable to classes.
     """
-    return _typechecked_class(cls, force, force_recursive)
+    return _typechecked_class(cls, set(), force, force_recursive)
 
 
-def _typechecked_class(cls, force = False, force_recursive = False, nesting = None):
+def _typechecked_class(cls, cache, force = False, force_recursive = False, nesting = None):
     if not pytypes.checking_enabled:
         return cls
     assert(isclass(cls))
     if not force and is_no_type_check(cls):
         return cls
+    cache.add(cls)
     # To play it safe we avoid to modify the dict while iterating over it,
     # so we previously cache keys.
     # For this we don't use keys() because of Python 3.
@@ -911,14 +912,14 @@ def _typechecked_class(cls, force = False, force_recursive = False, nesting = No
                     setattr(cls, key, typechecked_func(memb, force_recursive))
 # 				else:
 # 					print ("wouldn't check", key, cls, memb, getattr(cls, key))
-            elif isclass(memb):
+            elif isclass(memb) and not memb in cache:
                 if not nesting is None:
                     nst2 = []
                     nst2.extend(nesting)
                 else:
                     nst2 = [cls]
                 nst2.append(memb)
-                _typechecked_class(memb, force_recursive, force_recursive, nst2)
+                _typechecked_class(memb, cache, force_recursive, force_recursive, nst2)
     return cls
 
 # Todo: Extend tests for this

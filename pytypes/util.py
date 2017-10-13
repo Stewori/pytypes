@@ -581,7 +581,7 @@ def get_callable_fq_for_code(code, locals_dict = None):
     md = getmodule(code)
     if not md is None:
         nesting = []
-        res, slf = _get_callable_fq_for_code(code, md, md, False, nesting)
+        res, slf = _get_callable_fq_for_code(code, md, md, False, nesting, set())
         if res is None and not locals_dict is None:
             nesting = []
             res, slf = _get_callable_from_locals(code, locals_dict, md, False, nesting)
@@ -610,7 +610,7 @@ def _get_callable_from_locals(code, locals_dict, module, slf, nesting):
                     pass
         elif inspect.isclass(obj) and obj.__module__ == module.__name__:
             nesting.append(obj)
-            res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting)
+            res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting, set())
             if not res is None:
                 return res, slf2
             else:
@@ -618,8 +618,9 @@ def _get_callable_from_locals(code, locals_dict, module, slf, nesting):
     return None, False
 
 
-def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
+def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting, cache):
     keys = [key for key in module_or_class.__dict__]
+    cache.add(module_or_class)
     for key in keys:
         slf2 = slf
         obj = module_or_class.__dict__[key]
@@ -652,9 +653,9 @@ def _get_callable_fq_for_code(code, module_or_class, module, slf, nesting):
                         return getattr(module_or_class, key), slf2
                 except AttributeError:
                     pass
-        elif inspect.isclass(obj) and obj.__module__ == module.__name__:
+        elif inspect.isclass(obj) and obj.__module__ == module.__name__ and not obj in cache:
             nesting.append(obj)
-            res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting)
+            res, slf2 = _get_callable_fq_for_code(code, obj, module, True, nesting, cache)
             if not res is None:
                 return res, slf2
             else:
