@@ -904,8 +904,19 @@ def _issubclass_Generic(subclass, superclass):
         # For a class C(Generic[T]) where T is co-variant,
         # C[X] is a subclass of C[Y] iff X is a subclass of Y.
         origin = superclass.__origin__
+        if subclass.__origin__ is None:
+            try:
+                orig_bases = subclass.__orig_bases__
+            except AttributeError:
+                # Before typing 3.5.3.0 __bases__ used to contain all info that later
+                # became reserved for __orig_bases__. So we can use it as a fallback:
+                orig_bases = subclass.__bases__
+            for scls in orig_bases:
+                if isinstance(scls, GenericMeta):
+                    if _issubclass_Generic(scls, superclass):
+                        return True
         #Formerly: if origin is not None and origin is subclass.__origin__:
-        if origin is not None and _issubclass(subclass.__origin__, origin):
+        elif origin is not None and _issubclass(subclass.__origin__, origin):
             assert len(superclass.__args__) == len(origin.__parameters__)
             if len(subclass.__args__) == len(origin.__parameters__):
                 sub_args = subclass.__args__

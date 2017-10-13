@@ -115,7 +115,7 @@ class _DelayedCheck():
     """
     def __init__(self, func, method, class_name, base_method, base_class, exc_info):
         # lazily install import hook (Todo: Maybe move this to a better place)
-        if pytypes.import_hook_enabled and not _import_hook_installed:
+        if pytypes.import_hook_enabled:
             _install_import_hook()
         self.func = func
         self.method = method

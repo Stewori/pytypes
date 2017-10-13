@@ -1378,11 +1378,11 @@ class TestTypecheck(unittest.TestCase):
     def test_classmethod(self):
         tc = testClass('efgh')
         self.assertEqual(tc.testmeth_class(23, 1.1),
-                "23-1.1-<class '__main__.testClass'>")
+                "23-1.1-<class '%s.testClass'>"%self.__module__)
         self.assertRaises(InputTypeError, lambda:
                 tc.testmeth_class(23, '1.1'))
         self.assertEqual(tc.testmeth_class2(23, 1.1),
-                "23-1.1-<class '__main__.testClass'>")
+                "23-1.1-<class '%s.testClass'>"%self.__module__)
         self.assertRaises(InputTypeError, lambda:
                 tc.testmeth_class2(23, '1.1'))
         self.assertRaises(ReturnTypeError, lambda:
@@ -1451,7 +1451,7 @@ class TestTypecheck(unittest.TestCase):
     def test_abstract_override(self):
         tc3 = testClass3()
         self.assertEqual(tc3.testmeth(1, 2.5),
-                "1-2.5-<class '__main__.testClass3'>")
+                "1-2.5-<class '%s.testClass3'>"%self.__module__)
 
     def test_get_types(self):
         tc = testClass('mnop')
@@ -1801,6 +1801,35 @@ class TestTypecheck(unittest.TestCase):
 
         pytypes.apply_numeric_tower = num_tow_tmp
 
+    def test_subtype_class_extends_generic(self):
+        class Lint(List[int]):
+            pass
+
+        class Lint2(Lint):
+            pass
+
+        class Lfloat(List[float]):
+            pass
+
+        self.assertTrue(pytypes.is_subtype(List[int], Sequence[int]))
+        self.assertFalse(pytypes.is_subtype(Iterable[int], Sequence[int]))
+
+        self.assertTrue(pytypes.is_subtype(Lint, Sequence[float]))
+        self.assertFalse(pytypes.is_subtype(Lint, List[float])) # False because mutable list is invariant
+        self.assertTrue(pytypes.is_subtype(Lint, List[int]))
+
+        self.assertTrue(pytypes.is_subtype(Lint2, Sequence[float]))
+        self.assertFalse(pytypes.is_subtype(Lint2, List[float])) # False because mutable list is invariant
+        self.assertTrue(pytypes.is_subtype(Lint2, List[int]))
+        self.assertTrue(pytypes.is_subtype(Lint2, Lint))
+
+        self.assertTrue(pytypes.is_subtype(Lfloat, Sequence[float]))
+        self.assertTrue(pytypes.is_subtype(Lfloat, List[float]))
+        self.assertFalse(pytypes.is_subtype(Lfloat, Sequence[int]))
+        self.assertFalse(pytypes.is_subtype(Lfloat, List[int]))
+        self.assertFalse(pytypes.is_subtype(Lfloat, Lint))
+        self.assertFalse(pytypes.is_subtype(Lint, Lfloat))
+
     def test_property(self):
         tcp = testClass_property()
         tcp.testprop = 7
@@ -2113,7 +2142,6 @@ class TestTypecheck(unittest.TestCase):
                 testclass_vararg_ca.testmeth_varargs_class_ca2(
                 0, 'cx', 1.2, -9.2, cx=2, xt=.7))
         tcv.prop_ca1 = 'test_prop1'
-        #print tcv.prop_ca1
         self.assertEqual(tcv.prop_ca1, 'test_prop1')
         def _set_prop1(): tcv.prop_ca1 = 8
         self.assertRaises(InputTypeError, _set_prop1)
@@ -2231,13 +2259,13 @@ class TestTypecheck_class(unittest.TestCase):
     def test_classmethod(self):
         tc = testClass4('efghi')
         self.assertEqual(tc.testmeth_class(23, 1.1),
-                "23-1.1-<class '__main__.testClass4'>")
+                "23-1.1-<class '%s.testClass4'>"%self.__module__)
         self.assertRaises(InputTypeError, lambda: tc.testmeth_class(23, '1.1'))
         # Tests @no_type_check:
         self.assertEqual(tc.testmeth_class_raw('23', 1.1),
-                "23-1.1-<class '__main__.testClass4'>")
+                "23-1.1-<class '%s.testClass4'>"%self.__module__)
         self.assertEqual(tc.testmeth_class2(23, 1.1),
-                "23-1.1-<class '__main__.testClass4'>")
+                "23-1.1-<class '%s.testClass4'>"%self.__module__)
         self.assertRaises(InputTypeError, lambda: tc.testmeth_class2(23, '1.1'))
         self.assertRaises(ReturnTypeError, lambda: tc.testmeth_class2_err(23, 1.1))
 
@@ -4045,7 +4073,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
                 testclass_vararg_ca.testmeth_varargs_class_ca2(
                 0, 'cx', 1.2, -9.2, cx=2, xt=.7))
         tcv.prop_ca1 = 'test_prop1'
-        #print tcv.prop_ca1
         self.assertEqual(tcv.prop_ca1, 'test_prop1')
         def _set_prop1(): tcv.prop_ca1 = 8
         self.assertRaises(InputTypeError, _set_prop1)
