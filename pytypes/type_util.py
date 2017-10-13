@@ -777,7 +777,7 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
                 for t in argNames)], retTp if not retTp is None else type(None))
         if infer_defaults:
             resType = _handle_defaults(resType, argSpecs, unspecIndices)
-        if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None):
+        if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None or tpStr[0] == 'ignore'):
             if pytypes.strict_annotation_collision_check:
                 raise TypeError('%s.%s has multiple type declarations.'
                         % (func.__module__, func.__name__))
