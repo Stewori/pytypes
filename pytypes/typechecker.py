@@ -740,7 +740,8 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
         if len(argNames) > 0:
             if clsm:
                 if argNames[0] != 'cls':
-                    warn('classmethod using non-idiomatic cls argname '+func0.__name__)
+                    util._warn_argname('classmethod using non-idiomatic cls argname',
+                            func0, slf, clsm)
                 check_args = args_kw[1:] # omit self
             elif argNames[0] == 'self':
                 if prop or prop_getter or (hasattr(args_kw[0].__class__, func0.__name__) and
@@ -748,13 +749,14 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                     check_args = args_kw[1:] # omit self
                     slf = True
                 else:
-                    warn('non-method declaring self '+func0.__name__)
+                    util._warn_argname('non-method declaring self', func0, slf, clsm)
                     check_args = args_kw
             else:
                 if prop or prop_getter:
-                    warn('property using non-idiomatic self argname '+func0.__name__)
-                    check_args = args_kw[1:] # omit self
                     slf = True
+                    util._warn_argname('property using non-idiomatic self argname',
+                            func0, slf, clsm)
+                    check_args = args_kw[1:] # omit self
                 check_args = args_kw
         else:
             # Todo: Fill in fully qualified names

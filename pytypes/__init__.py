@@ -101,6 +101,12 @@ warning_mode : bool
     Flag indicating that typecheck errors shall be raised as warnings.
     Default: False
 
+warn_argnames : bool
+    Flag indicating that warnings for non-idiomatic names of first
+    argument of methods and classmethods shall be raised.
+    Idiomatic names would be slf and cls respectively.
+    Default: True
+
 check_override_at_runtime : bool
     Flag indicating override consistency is checked at runtime.
     Default: False
@@ -309,6 +315,7 @@ _global_type_agent = None
 # Some behavior flags:
 
 warning_mode = False
+warn_argnames = True
 
 check_override_at_runtime = False
 check_override_at_class_definition_time = True

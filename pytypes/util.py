@@ -28,6 +28,8 @@ import hashlib
 import sys
 import os
 import inspect
+import traceback
+from warnings import warn_explicit
 
 _code_callable_dict = {}
 _sys_excepthook = sys.__excepthook__
@@ -442,7 +444,8 @@ def is_method(func):
                 # if first arg is called 'self' 
                 return True
             else:
-                print('Warning (is_method): non-method declaring self '+func0.__name__)
+                _warn_argname('is_method encountered non-method declaring self',
+                        func0, False, False, None)
         else:
             return inspect.ismethod(func)
     return False
@@ -728,6 +731,28 @@ def _calc_traceback_list_offset(tb_list):
         if tb_list[off][0].split(os.sep)[-2] == 'pytypes':
             return off-2 if off >= 2 else 0
     return -1
+
+
+def _warn_argname(msg, func, slf, clsm, cls=None, warn_tp=pytypes.exceptions.TypeWarning):
+    if not pytypes.warn_argnames:
+        return
+    if cls is None:
+        if slf or clsm:
+            try:
+                cls_name = get_class_that_defined_method(func).__name__
+            except:
+                cls_name = '<unknown class>'
+        else:
+            cls_name = None
+    else:
+        cls_name = cls.__name__
+    tb = traceback.extract_stack()
+    off = _calc_traceback_list_offset(tb)
+    if cls_name is None:
+        _msg = '%s: %s.%s'%(msg, func.__module__, func.__name__)
+    else:
+        _msg = '%s: %s.%s.%s'%(msg, func.__module__, cls_name, func.__name__)
+    warn_explicit(_msg, warn_tp, tb[off][0], tb[off][1])
 
 
 def _install_excepthook():

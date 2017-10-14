@@ -594,7 +594,8 @@ def _get_types(func, clsm, slf, clss = None, prop_getter = False,
         if len(argNames) > 0:
             if clsm:
                 if argNames[0] != 'cls':
-                    print('Warning: classmethod using non-idiomatic argname '+func0.__name__)
+                    util._warn_argname('classmethod using non-idiomatic cls argname',
+                            func0, slf, clsm, clss)
     if clss is None and (slf or clsm):
         if slf:
             assert util.is_method(func) or isinstance(func, property)
