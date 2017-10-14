@@ -27,7 +27,7 @@ try:
         Iterable, Iterator, Sequence, Callable, List, Any
 except ImportError:
     from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, Iterable, \
-        Iterator, Sequence, Callable, List, Any
+        Iterator, Sequence, Callable, List, Any, Optional
 
 
 class testClass(str):
@@ -760,6 +760,13 @@ class testclass_vararg_ca():
 def func_defaults_typecheck(a: str, b, c=4, d=2.5) -> str:
     try:
         return a+b*c
+    except TypeError:
+        return 'invalid'
+
+@typechecked
+def func_defaults_typecheck2(a: str, b: float, c: Optional[int]=1, d: bool=False) -> str:
+    try:
+        return a+str(b*c)+str(d)
     except TypeError:
         return 'invalid'
 

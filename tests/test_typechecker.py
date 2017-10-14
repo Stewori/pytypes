@@ -32,7 +32,7 @@ try:
 except ImportError:
     import typing
     from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, Iterable, \
-        Iterator, Sequence, Callable, Mapping, Set
+        Iterator, Sequence, Callable, Mapping, Set, Optional
 
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -1007,6 +1007,14 @@ def func_defaults_typecheck(a, b, c=4, d=2.5):
     # type: (str) -> str
     try:
         return a+b*c
+    except TypeError:
+        return 'invalid'
+
+@typechecked
+def func_defaults_typecheck2(a, b, c=1, d=False):
+    # type: (str, float, Optional[int], bool) -> str
+    try:
+        return a+str(b*c)+str(d)
     except TypeError:
         return 'invalid'
 
@@ -2159,8 +2167,9 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(func_defaults_typecheck('qvw', 'abc', 2, 1.5), 'qvwabcabc')
         self.assertRaises(InputTypeError, lambda:
                 func_defaults_typecheck('qvw', 'abc', 3.5))
-        # Todo: Error msg is faulty:
-        # Received: Tuple[str, str, float, int], should be Received: Tuple[str, str, float, float]
+        self.assertEqual(func_defaults_typecheck2('test', 12.2, 123), 'test1500.6False')
+        self.assertRaises(InputTypeError, lambda:
+                func_defaults_typecheck2('test', 12.2, 123, 3.5))
 
         self.assertRaises(InputTypeError, lambda:
                 func_defaults_typecheck('qvw', 'abc', 3.5, 4.1))
@@ -4090,8 +4099,9 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(py3.func_defaults_typecheck('qvw', 'abc', 2, 1.5), 'qvwabcabc')
         self.assertRaises(InputTypeError, lambda:
                 py3.func_defaults_typecheck('qvw', 'abc', 3.5))
-        # Todo: Error msg is faulty:
-        # Received: Tuple[str, str, float, int], should be Received: Tuple[str, str, float, float]
+        self.assertEqual(py3.func_defaults_typecheck2('test', 12.2, 323), 'test3940.6False')
+        self.assertRaises(InputTypeError, lambda:
+                py3.func_defaults_typecheck2('test', 12.2, 323, 3.5))
 
         self.assertRaises(InputTypeError, lambda:
                 py3.func_defaults_typecheck('qvw', 'abc', 3.5, 4.1))

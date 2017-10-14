@@ -180,7 +180,7 @@ def _getargskw(args, kw, argspecs):
     elif len(args) < len(argspecs.args):
         res.extend(args)
         # we'll try to get the remaining args from kw or defaults
-        ipos = -len(args)+len(res)
+        ipos = -len(argspecs.args)+len(res)
         for name in argspecs.args[len(args):]:
             if name in kw:
                 res.append(kw[name])
