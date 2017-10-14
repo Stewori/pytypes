@@ -104,7 +104,7 @@ warning_mode : bool
 warn_argnames : bool
     Flag indicating that warnings for non-idiomatic names of first
     argument of methods and classmethods shall be raised.
-    Idiomatic names would be slf and cls respectively.
+    Idiomatic names would be 'self' and 'cls' respectively.
     Default: True
 
 check_override_at_runtime : bool
