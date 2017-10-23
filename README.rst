@@ -434,6 +434,24 @@ Writes cached observations by ``@typelogged`` into stubfiles.
 Files will be created in the directory provided as 'path'; overwrites existing files without notice. Uses 'pyi2' suffix if 'python2' flag is given else 'pyi'. Resulting files will be Python 2.7 compliant accordingly.
 
 
+get_Generic_itemtype(sq, simplify=True)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Retrieves the item type from a PEP 484 generic or subclass of such.
+sq must be a ``typing.Tuple`` or (subclass of) ``typing.Iterable`` or ``typing.Container``.
+Consequently this also works with ``typing.List``, ``typing.Set`` and ``typing.Dict``.
+Note that for ``typing.Dict`` and mapping types in general, the key type is regarded as item type.
+For ``typing.Tuple`` all contained types are returned as a ``typing.Union``.
+If ``simplify == True`` some effort is taken to eliminate redundancies in such a union.
+
+
+get_Mapping_key_value(mp)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Retrieves the key and value types from a PEP 484 mapping or subclass of such.
+mp must be a (subclass of) ``typing.Mapping``.
+
+
 Python 2.7 compliant stubfiles
 ------------------------------
 

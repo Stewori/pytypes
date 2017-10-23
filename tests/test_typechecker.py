@@ -1838,6 +1838,89 @@ class TestTypecheck(unittest.TestCase):
         self.assertFalse(pytypes.is_subtype(Lfloat, Lint))
         self.assertFalse(pytypes.is_subtype(Lint, Lfloat))
 
+    def test_get_generic_parameters(self):
+        class sub_List(List[str]): pass
+        class sub_List2(List[float], Generic[T_1]): pass
+        class sub_List3(Generic[T_1], List[int]): pass
+        class sub_List4(sub_List, Generic[T_1]): pass
+        class sub_List5(Generic[T_1], sub_List): pass
+        class sub_List6(List[T_1]): pass
+        class sub_List7(Generic[T_1], List[T_1]): pass
+
+        class sub_Dict(Dict[str, int]): pass
+        class sub_Dict2(Dict[float, str], Generic[T_1]): pass
+        class sub_Dict3(Generic[T_1], Dict[int, complex]): pass
+        class sub_Dict4(sub_Dict, Generic[T_1]): pass
+        class sub_Dict5(Generic[T_1], sub_Dict): pass
+        class sub_Dict6(Dict[T_1, int]): pass
+        class sub_Dict7(Dict[int, T_1]): pass
+        class sub_Dict8(Generic[T_1], Dict[float, T_1]): pass
+
+        self.assertEqual(pytypes.get_Generic_itemtype(Tuple[int, float, str]),
+                Union[str, float])
+        self.assertEqual(pytypes.get_Generic_itemtype(Dict[float, str]), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(Set[str]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(List[complex]), complex)
+        self.assertRaises(TypeError, lambda:
+                pytypes.get_Generic_itemtype(Callable[[str, int], str]))
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List2), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List3), int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List4), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5), str)
+        self.assertRaises(TypeError, lambda:
+                pytypes.get_Generic_itemtype(sub_List6))
+        self.assertRaises(TypeError, lambda:
+                pytypes.get_Generic_itemtype(sub_List7))
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List2[str]), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List3[complex]), int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List4[float]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5[complex]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List6[Union[int, str]]),
+                Union[int, str])
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List7[Union[complex, str]]),
+                Union[complex, str])
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict2), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict3), int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict4), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5), str)
+        self.assertRaises(TypeError, lambda: pytypes.get_Generic_itemtype(sub_Dict6))
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict7), int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict8), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict2[str]), float)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict3[complex]), int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict4[float]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5[complex]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict6[Union[int, str]]),
+                Union[int, str])
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict7[Union[complex, str]]),
+                int)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict8[Union[float, str]]),
+                float)
+        self.assertEqual(pytypes.get_Mapping_key_value(Dict[complex, int]),
+                (complex, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(typing.MutableMapping[str, int]),
+                (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(typing.Mapping[float, str]),
+                (float, str))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict2), (float, str))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict3), (int, complex))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict4), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5), (str, int))
+        self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict6))
+        self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict7))
+        self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict8))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict2[str]), (float, str))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict3[int]), (int, complex))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict4[float]), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5[complex]), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict6[str]), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict7[str]), (int, str))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict8[Union[complex, str]]),
+                (float, Union[complex, str]))
+
     def test_property(self):
         tcp = testClass_property()
         tcp.testprop = 7

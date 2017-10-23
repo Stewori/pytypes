@@ -699,6 +699,22 @@ def mro(clss):
         return _mro(clss)
 
 
+def _orig_mro(clss, dest = []):
+    if not clss in dest:
+        dest.append(clss)
+        if hasattr(clss, '__orig_bases__'):
+            for clss2 in clss.__orig_bases__:
+                _orig_mro(clss2, dest)
+        else:
+            for clss2 in clss.__bases__:
+                _orig_mro(clss2, dest)
+    return dest
+
+
+def orig_mro(clss):
+    return _orig_mro(clss)
+
+
 def _has_base_method(meth, cls):
     meth0 = _actualfunc(meth)
     for cls1 in mro(cls)[1:]:
@@ -773,7 +789,6 @@ def _pytypes_excepthook(exctype, value, tb):
     The latter automatically installs this hook in sys.excepthook.
     """
     if pytypes.clean_traceback and issubclass(exctype, TypeError):
-        import traceback
         traceback.print_exception(exctype, value, tb, _calc_traceback_limit(tb))
     else:
         if _sys_excepthook is None:

@@ -125,8 +125,13 @@ def get_iterable_itemtype(obj):
         raise TypeError('Not an iterable: '+str(type(obj)))
 
 
-def get_Generic_itemtype(sq, simplify = True):
-    """sq must be a typing.Tuple or subclass of typing.Iterable or typing.Container.
+def get_Generic_itemtype(sq, simplify=True):
+    """Retrieves the item type from a PEP 484 generic or subclass of such.
+    sq must be a typing.Tuple or (subclass of) typing.Iterable or typing.Container.
+    Consequently this also works with typing.List, typing.Set and typing.Dict.
+    Note that for typing.Dict and mapping types in general, the key type is regarded as item type.
+    For typing.Tuple all contained types are returned as a typing.Union.
+    If simplify == True some effort is taken to eliminate redundancies in such a union.
     """
     if isinstance(sq, TupleMeta):
         if simplify:
@@ -137,12 +142,55 @@ def get_Generic_itemtype(sq, simplify = True):
             return Union[get_Tuple_params(sq)]
     else:
         try:
-            return _select_Generic_superclass_parameters(sq, typing.Container)[0]
+            res = _select_Generic_superclass_parameters(sq, typing.Container)
         except TypeError:
+            res = None
+        if res is None:
             try:
-                return _select_Generic_superclass_parameters(sq, typing.Iterable)[0]
+                res = _select_Generic_superclass_parameters(sq, typing.Iterable)
             except TypeError:
-                raise TypeError("Has no itemtype: "+str(sq))
+                pass
+        if res is None:
+            raise TypeError("Has no itemtype: "+type_str(sq))
+        else:
+            return res[0]
+
+
+def get_Mapping_key_value(mp):
+    """Retrieves the key and value types from a PEP 484 mapping or subclass of such.
+    mp must be a (subclass of) typing.Mapping.
+    """
+    try:
+        res = _select_Generic_superclass_parameters(mp, typing.Mapping)
+    except TypeError:
+        res = None
+    if res is None:
+        raise TypeError("Has no key/value types: "+type_str(mp))
+    else:
+        return tuple(res)
+
+
+def get_Generic_parameters(tp, generic_supertype):
+    """tp must be a subclass of generic_supertype.
+    Retrieves the type values from tp that correspond to parameters
+    defined by generic_supertype.
+
+    E.g. get_Generic_parameters(tp, typing.Mapping) is equivalent
+    to get_Mapping_key_value(tp) except for the error message.
+
+    Note that get_Generic_itemtype(tp) is not exactly equal to
+    get_Generic_parameters(tp, typing.Container), as that method
+    additionally contains treatment for typing.Tuple and typing.Iterable.
+    """
+    try:
+        res = _select_Generic_superclass_parameters(tp, generic_supertype)
+    except TypeError:
+        res = None
+    if res is None:
+        raise TypeError("%s has no proper parameters defined by %s."%
+                (type_str(tp), type_str(generic_supertype)))
+    else:
+        return tuple(res)
 
 
 def get_Tuple_params(tpl):
@@ -862,10 +910,10 @@ def _find_Generic_super_origin(subclass, superclass_origin):
                         prms[i] = param_map[prms[i]]
                 return prms
             if not bs.__origin__ is None and len(bs.__origin__.__parameters__) > 0:
-                for i in range(len(bs.__parameters__)):
+                for i in range(len(bs.__args__)):
                     ors = bs.__origin__.__parameters__[i]
-                    if bs.__parameters__[i] != ors:
-                        param_map[ors] = bs.__parameters__[i]
+                    if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
+                        param_map[ors] = bs.__args__[i]
             try:
                 stack.extend(bs.__orig_bases__)
             except AttributeError:
@@ -873,14 +921,52 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     return None
 
 
+def _find_base_with_origin(subclass, superclass_origin):
+    try:
+        if not subclass.__origin__ is None and issubclass(subclass.__origin__, superclass_origin):
+            return subclass
+    except AttributeError:
+        return None
+    try:
+        orig_bases = subclass.__orig_bases__
+    except AttributeError:
+        orig_bases = subclass.__bases__
+    for bs in orig_bases:
+        try:
+            if not bs.__origin__ is None and issubclass(bs.__origin__, superclass_origin):
+                return bs
+        except AttributeError:
+            return None
+    for bs in orig_bases:
+        res = _find_base_with_origin(bs, superclass_origin)
+        if not res is None:
+            return res
+
+
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
     """Helper for _issubclass_Generic.
     """
+    subclass = _find_base_with_origin(subclass, superclass_origin)
+    if subclass is None:
+        return None
     if subclass.__origin__ is superclass_origin:
         return subclass.__args__
     prms = _find_Generic_super_origin(subclass, superclass_origin)
-    return [subclass.__args__[subclass.__origin__.__parameters__.index(prm)] \
-            for prm in prms]
+    res = []
+    for prm in prms:
+        sub_search = subclass
+        while not sub_search is None:
+            try:
+                res.append(sub_search.__args__[
+                        sub_search.__origin__.__parameters__.index(prm)])
+                break
+            except ValueError:
+                # We search the closest base that actually contains the parameter
+                sub_search = _find_base_with_origin(
+                        sub_search.__origin__, superclass_origin)
+        else:
+            return None
+    return res
 
 
 def _issubclass_Generic(subclass, superclass):
