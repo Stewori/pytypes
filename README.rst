@@ -438,7 +438,7 @@ get_Generic_itemtype(sq, simplify=True)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Retrieves the item type from a PEP 484 generic or subclass of such.
-sq must be a ``typing.Tuple`` or (subclass of) ``typing.Iterable`` or ``typing.Container``.
+``sq`` must be a ``typing.Tuple`` or (subclass of) ``typing.Iterable`` or ``typing.Container``.
 Consequently this also works with ``typing.List``, ``typing.Set`` and ``typing.Dict``.
 Note that for ``typing.Dict`` and mapping types in general, the key type is regarded as item type.
 For ``typing.Tuple`` all contained types are returned as a ``typing.Union``.
@@ -449,7 +449,7 @@ get_Mapping_key_value(mp)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Retrieves the key and value types from a PEP 484 mapping or subclass of such.
-mp must be a (subclass of) ``typing.Mapping``.
+``mp`` must be a (subclass of) ``typing.Mapping``.
 
 
 Python 2.7 compliant stubfiles

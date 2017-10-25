@@ -901,19 +901,25 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     while len(stack) > 0:
         bs = stack.pop()
         if isinstance(bs, GenericMeta):
-            if (bs.__origin__ is superclass_origin or \
-                    (bs.__origin__ is None and bs is superclass_origin)):
-                prms = []
-                prms.extend(bs.__parameters__)
-                for i in range(len(prms)):
-                    while prms[i] in param_map:
-                        prms[i] = param_map[prms[i]]
-                return prms
             if not bs.__origin__ is None and len(bs.__origin__.__parameters__) > 0:
                 for i in range(len(bs.__args__)):
                     ors = bs.__origin__.__parameters__[i]
                     if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
                         param_map[ors] = bs.__args__[i]
+            if (bs.__origin__ is superclass_origin or \
+                    (bs.__origin__ is None and bs is superclass_origin)):
+                prms = []
+                try:
+                    if len(bs.__origin__.__parameters__) > len(bs.__parameters__):
+                        prms.extend(bs.__origin__.__parameters__)
+                    else:
+                        prms.extend(bs.__parameters__)
+                except:
+                    prms.extend(bs.__parameters__)
+                for i in range(len(prms)):
+                    while prms[i] in param_map:
+                        prms[i] = param_map[prms[i]]
+                return prms
             try:
                 stack.extend(bs.__orig_bases__)
             except AttributeError:
@@ -957,9 +963,13 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
         sub_search = subclass
         while not sub_search is None:
             try:
-                res.append(sub_search.__args__[
-                        sub_search.__origin__.__parameters__.index(prm)])
-                break
+                apd = sub_search.__args__[sub_search.__origin__.__parameters__.index(prm)]
+                if not isinstance(apd, TypeVar):
+                    res.append(apd)
+                    break
+                else:
+                    sub_search = _find_base_with_origin(
+                        sub_search.__origin__, superclass_origin)
             except ValueError:
                 # We search the closest base that actually contains the parameter
                 sub_search = _find_base_with_origin(
@@ -967,6 +977,51 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
         else:
             return None
     return res
+
+
+def get_arg_for_TypeVar(typevar, generic):
+    """Retrieves the parameter value of a given TypeVar from a Generic.
+    Returns None if the generic does not contain an appropriate value.
+    Note that the TypeVar is compared by instance and not by name.
+    E.g. using a local TypeVar T would yield different results than
+    using typing.T despite the equal name.
+    """
+    return _get_arg_for_TypeVar(typevar, generic, generic)
+    
+
+def _get_arg_for_TypeVar(typevar, generic, arg_holder):
+    try:
+        if arg_holder.__args__ is None:
+            try:
+                bases = generic.__orig_bases__
+            except AttributeError:
+                bases = generic.__bases__
+            for i in range(len(bases)):
+                res = _get_arg_for_TypeVar(typevar, generic.__bases__[i], bases[i])
+                if not res is None:
+                    return res
+    except AttributeError:
+        return None
+    try:
+        if typevar in generic.__parameters__:
+            idx = generic.__parameters__.index(typevar)
+            res = _select_Generic_superclass_parameters(arg_holder, generic)
+            return res[idx]
+    except (AttributeError, TypeError):
+        return None
+    try:
+        # typing-3.5.3.0 special treatment:
+        # It does not contain __origin__ in __bases__.
+        if not generic.__bases__[0] == generic.__origin__:
+            res = _get_arg_for_TypeVar(typevar, generic.__origin__, arg_holder)
+            if not res is None:
+                return res
+    except:
+        pass
+    for base in generic.__bases__:
+        res = _get_arg_for_TypeVar(typevar, base, arg_holder)
+        if not res is None:
+            return res
 
 
 def _issubclass_Generic(subclass, superclass):

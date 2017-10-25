@@ -545,7 +545,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, \
     type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, get_generator_type, \
     get_generator_yield_type, is_Union, get_Union_params, get_Tuple_params, \
     get_Callable_args_res, get_Generic_itemtype, get_Mapping_key_value, get_Generic_parameters,\
-    _issubclass as is_subtype, _isinstance as is_of_type, annotations, \
+    get_arg_for_TypeVar, _issubclass as is_subtype, _isinstance as is_of_type, annotations, \
     get_member_types, Empty, _catch_up_global_annotations_decorator, TypeAgent, restore_profiler
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
     get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook, \

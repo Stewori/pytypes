@@ -1920,6 +1920,93 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict7[str]), (int, str))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict8[Union[complex, str]]),
                 (float, Union[complex, str]))
+        
+        self.assertEqual(pytypes.get_Generic_parameters(sub_List, List)[0], str)
+        self.assertEqual(pytypes.get_Generic_parameters(sub_List2[str], List)[0], float)
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, List[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, List[float]), float)
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(typing.T, typing.Container[float]))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, typing.Container[float]), float)
+
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(typing.T, Dict[float, str]))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, Dict[float, str]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, Dict[float, str]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, Dict[float, str]), str)
+
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(typing.T,
+                typing.MutableMapping[float, str]))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT,
+                typing.MutableMapping[float, str]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT,
+                typing.MutableMapping[float, str]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co,
+                typing.MutableMapping[float, str]), str)
+
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(typing.T, typing.Mapping[float, str]))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT,
+                typing.Mapping[float, str]), float)
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(typing.VT, typing.Mapping[float, str]))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co,
+                typing.Mapping[float, str]), str)
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List2), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List3[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List3[str]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List3[str]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List4[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List4[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List4[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List5[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List5[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List5[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List6[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List6[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List6[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List7[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List7[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List7[complex]), complex)
+
+        self.assertIsNone(pytypes.get_arg_for_TypeVar(T_1, sub_Dict))
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict), int)
+        
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict2[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict2[complex]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict2[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict2[complex]), str)
+        
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict3[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict3[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict3[float]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict3[float]), complex)
+        
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict4[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict4[float]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict4[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict4[float]), int)
+        
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict5[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict5[float]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict5[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict5[float]), int)
+        
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict6[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict6[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict6[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict6[float]), int)
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict7[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict7[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict7[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict7[float]), float)
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict8[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict8[complex]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict8[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict8[complex]), complex)
 
     def test_property(self):
         tcp = testClass_property()
