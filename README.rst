@@ -452,6 +452,16 @@ Retrieves the key and value types from a PEP 484 mapping or subclass of such.
 ``mp`` must be a (subclass of) ``typing.Mapping``.
 
 
+get_arg_for_TypeVar(typevar, generic)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Retrieves the parameter value of a given ``TypeVar`` from a ``Generic``.
+Returns ``None`` if the generic does not contain an appropriate value.
+Note that the ``TypeVar`` is compared by instance and not by name.
+E.g. using a local ``TypeVar`` ``T`` would yield different results than
+using ``typing.T`` despite the equal name.
+
+
 Python 2.7 compliant stubfiles
 ------------------------------
 

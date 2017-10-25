@@ -963,13 +963,8 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
         sub_search = subclass
         while not sub_search is None:
             try:
-                apd = sub_search.__args__[sub_search.__origin__.__parameters__.index(prm)]
-                if not isinstance(apd, TypeVar):
-                    res.append(apd)
-                    break
-                else:
-                    sub_search = _find_base_with_origin(
-                        sub_search.__origin__, superclass_origin)
+                res.append(sub_search.__args__[sub_search.__origin__.__parameters__.index(prm)])
+                break
             except ValueError:
                 # We search the closest base that actually contains the parameter
                 sub_search = _find_base_with_origin(
@@ -987,7 +982,7 @@ def get_arg_for_TypeVar(typevar, generic):
     using typing.T despite the equal name.
     """
     return _get_arg_for_TypeVar(typevar, generic, generic)
-    
+
 
 def _get_arg_for_TypeVar(typevar, generic, arg_holder):
     try:
