@@ -1335,7 +1335,10 @@ def _isinstance(obj, cls, bound_Generic=None):
     if isinstance(cls, CallableMeta):
         return _isinstance_Callable(obj, cls, bound_Generic)
     if obj == {}:
-        return issubclass(typing.Dict, cls.__origin__)
+        try:
+            return issubclass(typing.Dict, cls.__origin__)
+        except TypeError:
+            return issubclass(typing.Dict, cls)
     return _issubclass(deep_type(obj), cls, bound_Generic)
 
 
