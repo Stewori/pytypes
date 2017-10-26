@@ -528,13 +528,28 @@ default_typelogger_path = 'typelogger_output'
 
 # Monkeypatch Generic to circumvent type erasure:
 # (Only applies to legacy versions of typing.
-#  Existance of '_generic_new' is suitable to detect whether this monkeypatch is required.)
+#  Existence of '_generic_new' is suitable to detect whether this
+#  monkeypatch is required, i.e. in typing-3.5.2.2.)
 if not hasattr(typing, '_generic_new'):
-    _Generic__new__ = typing.Generic.__new__
+
+# This former approach has issues if self.__orig_class__is needed in __init__:
+# 	_Generic__new__ = typing.Generic.__new__
+# 	def __Generic__new__(cls, *args, **kwds):
+# 		res = _Generic__new__(cls, *args, **kwds)
+# 		res.__orig_class__ = cls
+# 		return res
+
     def __Generic__new__(cls, *args, **kwds):
-        res = _Generic__new__(cls, *args, **kwds)
-        res.__orig_class__ = cls
-        return res
+        # this is based on Generic.__new__ from typing-3.5.2.2
+        if cls.__origin__ is None:
+            obj = cls.__next_in_mro__.__new__(cls)
+            obj.__orig_class__ = cls
+        else:
+            origin = typing._gorg(cls)
+            obj = cls.__next_in_mro__.__new__(origin)
+            obj.__orig_class__ = cls
+            obj.__init__(*args, **kwds)
+        return obj
     typing.Generic.__new__ = __Generic__new__
 
 

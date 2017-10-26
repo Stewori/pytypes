@@ -563,11 +563,12 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
     # Todo: Clarify if an @override-induced check caused this
     # Todo: Python3 misconcepts method as classmethod here, because it doesn't
     # detect it as bound method, because ov_checker or tp_checker obfuscate it
-    return '\n  '+fq_func_name+'\n  '+incomp_text+':\n'+_cmp_msg_format \
-            % (type_str(expected_tp), type_str(tp))
+    return '\n  '+fq_func_name+'\n  '+incomp_text+':\n'+_cmp_msg_format % ( \
+            type_str(expected_tp, bound_Generic=func_class),
+            type_str(tp, bound_Generic=func_class))
 
 
-def _checkinstance(obj, cls, is_args, func, force = False):
+def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
     if isinstance(cls, typing.TupleMeta):
         prms = pytypes.get_Tuple_params(cls)
         try:
@@ -578,7 +579,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
         lst = []
         if isinstance(obj, tuple):
             for i in range(len(obj)):
-                res, obj2 = _checkinstance(obj[i], prms[i], is_args, func)
+                res, obj2 = _checkinstance(obj[i], prms[i], bound_Generic, is_args, func)
                 if not res:
                     return False, obj
                 else:
@@ -588,7 +589,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
             return False, obj
     # This (optionally) turns some types into a checked version, e.g. generators or callables
     if isinstance(cls, typing.CallableMeta):
-        if not type_util._isinstance_Callable(obj, cls, False):
+        if not type_util._isinstance_Callable(obj, cls, bound_Generic, False):
             return False, obj
         if pytypes.check_callables:
             # Todo: Only this part shall reside in _checkInstance
@@ -601,7 +602,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
     if isinstance(cls, typing.GenericMeta):
         if cls.__origin__ is typing.Iterable:
             if not pytypes.check_iterables:
-                return _isinstance(obj, cls), obj
+                return _isinstance(obj, cls, bound_Generic), obj
             else:
                 if not type_util.is_iterable(obj):
                     return False, obj
@@ -628,7 +629,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
 # 						obj.__iter__ = types.MethodType(__iter__checked, obj)
 # 						return True, obj
                 else:
-                    return _issubclass(itp, cls.__args__[0]), obj
+                    return _issubclass(itp, cls.__args__[0], bound_Generic), obj
         elif cls.__origin__ is typing.Generator:
             if is_args or not inspect.isgeneratorfunction(func):
                 # Todo: Insert fully qualified function name
@@ -640,9 +641,9 @@ def _checkinstance(obj, cls, is_args, func, force = False):
                     if obj.__name__.startswith('generator_checker_py'):
                         return True, obj
                     if sys.version_info.major == 2:
-                        wrgen = type_util.generator_checker_py2(obj, cls)
+                        wrgen = type_util.generator_checker_py2(obj, cls, bound_Generic)
                     else:
-                        wrgen = type_util.generator_checker_py3(obj, cls)
+                        wrgen = type_util.generator_checker_py3(obj, cls, bound_Generic)
                         try:
                             wrgen.__qualname__ = obj.__qualname__
                         except:
@@ -652,7 +653,7 @@ def _checkinstance(obj, cls, is_args, func, force = False):
                     return True, obj
             else:
                 return False, obj
-    return _isinstance(obj, cls), obj
+    return _isinstance(obj, cls, bound_Generic), obj
 
 
 def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
@@ -662,9 +663,9 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
     argSig = _preprocess_typecheck(argSig, argspecs, slf) \
             if var_type is None else var_type
     if make_checked_val:
-        result, checked_val = _checkinstance(check_val, argSig, True, func)
+        result, checked_val = _checkinstance(check_val, argSig, func_class, True, func)
     else:
-        result = _isinstance(check_val, argSig)
+        result = _isinstance(check_val, argSig, func_class)
         checked_val = None
     if not result:
         tpch = deep_type(check_val)
@@ -679,9 +680,10 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \
             make_checked_val = False, prop_getter = False, force_exception = False):
     if make_checked_val:
-        result, checked_val = _checkinstance(check_val, _match_stub_type(resSig), False, func)
+        result, checked_val = _checkinstance(check_val, _match_stub_type(resSig),
+                None, False, func)
     else:
-        result = _isinstance(check_val, _match_stub_type(resSig))
+        result = _isinstance(check_val, _match_stub_type(resSig), None)
         checked_val = None
     if not result:
         # todo: constrain deep_type-depth
@@ -768,7 +770,10 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
         
         parent_class = None
         if slf:
-            parent_class = args_kw[0].__class__
+            try:
+                parent_class = args_kw[0].__orig_class__
+            except AttributeError:
+                parent_class = args_kw[0].__class__
         elif clsm:
             parent_class = args_kw[0]
 

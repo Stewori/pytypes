@@ -396,34 +396,44 @@ This function works like ``check_argument_types``, but applies to the return val
 Because it is impossible for pytypes to automatically figure out the value to be returned in a function, it must be explicitly provided as the ``value``-parameter.
 
 
-is_of_type(obj, cls)
-~~~~~~~~~~~~~~~~~~~~
+is_of_type(obj, cls, bound_Generic=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Works like ``isinstance``, but supports PEP 484 style types from typing module.
 
+If ``cls`` contains unbound ``TypeVar`s and ``bound_Generic`` is provided, this function attempts to
+retrieve corresponding values for the unbound ``TypeVar``s from ``bound_Generic``.
 
-is_subtype(subtype, supertype)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+is_subtype(subtype, supertype, bound_Generic=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Works like ``issubclass``, but supports PEP 484 style types from typing module.
+
+If ``subclass`` or ``superclass`` contains unbound ``TypeVar``s and ``bound_Generic`` is
+provided, this function attempts to retrieve corresponding values for the
+unbound ``TypeVar``s from ``bound_Generic``.
 
 
 deep_type(obj, depth=None, max_sample=None)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Tries to construct a type for a given value. In contrast to ``type(...)``, ``deep_type`` does its best to fit structured types from ``typing`` as close as possible to the given value.
+Tries to construct a type for a given value. In contrast to ``type(...)``, ``deep_type`` does its
+best to fit structured types from ``typing`` as close as possible to the given value.
 E.g. ``deep_type((1, 2, 'a'))`` will return ``Tuple[int, int, str]`` rather than just ``tuple``.
 Supports various types from ``typing``, but not yet all.
 Also detects nesting up to given depth (uses ``pytypes.default_typecheck_depth`` if no value is given).
 If a value for ``max_sample`` is given, this number of elements is probed from lists, sets and dictionaries to determine the element type. By default, all elements are probed. If there are fewer elements than ``max_sample``, all existing elements are probed.
 
 
-type_str(tp)
-~~~~~~~~~~~~
+type_str(tp, assumed_globals=None, update_assumed_globals=None, implicit_globals=None, bound_Generic=None)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Generates a nicely readable string representation of the given type.
 The returned representation is workable as a source code string and would reconstruct the given type if handed to eval, provided that globals/locals are configured appropriately (e.g. assumes that various types from ``typing`` have been imported).
 Used as type-formatting backend of ptypes' code generator abilities in modules ``typelogger`` and ``stubfile_2_converter``.
+If ``tp`` contains unbound ``TypeVar``s and ``bound_Generic`` is provided, this function attempts to
+retrieve corresponding values for the unbound ``TypeVar``s from ``bound_Generic``.
 
 
 dump_cache(path=default_typelogger_path, python2=False, suffix=None)
