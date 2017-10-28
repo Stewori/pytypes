@@ -17,9 +17,10 @@
     :alt: Build Status
 
 .. image:: https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.png
-    :scale: 70 %:
+    :scale: 70%
     :align: left
     :alt: pytypes
+
 
 Welcome to the pytypes project
 ==============================
