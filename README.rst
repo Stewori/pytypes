@@ -548,4 +548,7 @@ Contact
 stefan.richthofer@jyni.org
 
 .. |pytypes Logo| image:: https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.png
+    :scale: 70 %:
+    :align: left
+    :alt: pytypes
 
