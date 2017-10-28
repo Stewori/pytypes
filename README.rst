@@ -16,7 +16,10 @@
     :target: https://travis-ci.org/Stewori/pytypes
     :alt: Build Status
 
-|pytypes Logo|
+.. image:: https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.png
+    :scale: 70 %:
+    :align: left
+    :alt: pytypes
 
 Welcome to the pytypes project
 ==============================
@@ -546,9 +549,4 @@ Contact
 =======
 
 stefan.richthofer@jyni.org
-
-.. |pytypes Logo| image:: https://raw.githubusercontent.com/Stewori/pytypes/master/pytypes_logo_text.png
-    :scale: 70 %:
-    :align: left
-    :alt: pytypes
 
