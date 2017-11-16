@@ -38,7 +38,6 @@ pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 pytypes.always_check_parent_types = False
 
-
 class testClass(str):
     @typechecked
     def testmeth(self, a, b):
@@ -1837,6 +1836,94 @@ class TestTypecheck(unittest.TestCase):
         self.assertFalse(pytypes.is_subtype(Lfloat, List[int]))
         self.assertFalse(pytypes.is_subtype(Lfloat, Lint))
         self.assertFalse(pytypes.is_subtype(Lint, Lfloat))
+
+
+    def test_typevar_func(self):
+        T_ct = TypeVar('T_ct', contravariant=True)
+        T_cv = TypeVar('T_cv', covariant=True)
+        T_ = TypeVar('T_')
+
+        @typechecked
+        def tpvar_test1(a, b):
+            # type: (T_, T_) -> str
+            return 'hello'
+
+        @typechecked
+        def tpvar_test2(a, b):
+            # type: (T_cv, T_cv) -> str
+            return 'hello'
+
+        @typechecked
+        def tpvar_test3(a, b):
+            # type: (T_ct, T_ct) -> str
+            return 'hello'
+
+        @typechecked
+        def tpvar_test4(lst, idx):
+            # type: (List[T_], int) -> T_
+            return lst[idx]
+
+        @typechecked
+        def tpvar_test5(lst, idx):
+            # type: (List[T_], int) -> T_
+            return str(lst[idx])
+
+        self.assertEqual(tpvar_test1(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: tpvar_test1(2, '3'))
+        self.assertRaises(InputTypeError, lambda: tpvar_test1(2, 3.5))
+        self.assertRaises(InputTypeError, lambda: tpvar_test1(2.5, 3))
+
+        self.assertEqual(tpvar_test2(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: tpvar_test2(2, '3'))
+        self.assertRaises(InputTypeError, lambda: tpvar_test2(2, 3.5))
+        self.assertEqual(tpvar_test2(2.5, 3), 'hello')
+
+        self.assertEqual(tpvar_test3(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: tpvar_test3(2, '3'))
+        self.assertEqual(tpvar_test3(2, 3.5), 'hello')
+        self.assertRaises(InputTypeError, lambda: tpvar_test3(2.5, 3))
+
+        self.assertEqual(tpvar_test4([1.2, 2.6, 3.2], 1), 2.6)
+        self.assertRaises(ReturnTypeError, lambda: tpvar_test5([1.2, 2.6, 3.2], 2))
+        self.assertEqual(tpvar_test5(['a', 'b', 'c'], 1), 'b')
+
+
+    def test_typevar_class(self):
+        T2 = TypeVar('T2', covariant=True)
+
+        @typechecked
+        class A(Generic[T2]):
+            def __init__(self, obj):
+                # type: (T2) -> None
+                super(A, self).__init__()
+                self.obj = obj		
+
+        class IntA(A[int]): pass
+        class IntB(IntA): pass
+        
+        self.assertIsNotNone(IntA(5))
+        self.assertRaises(InputTypeError, lambda: IntA(4.5))
+        self.assertRaises(InputTypeError, lambda: IntA('acb'))
+        self.assertIsNotNone(A[int](5))
+        self.assertRaises(InputTypeError, lambda: A[int](4.5))
+        self.assertRaises(InputTypeError, lambda: A[int]('acb'))
+        self.assertIsNotNone(A[float](5))
+        self.assertIsNotNone(A[float](4.5))
+        self.assertRaises(InputTypeError, lambda: A[float]('acb'))
+        self.assertRaises(InputTypeError, lambda: A[str](5))
+        self.assertRaises(InputTypeError, lambda: A[str](4.5))
+        self.assertIsNotNone(A[str]('acb'))
+        
+        @typechecked
+        def test_typevar_A(x):
+            # type: (A[int]) -> None
+            pass
+        
+        self.assertIsNone(test_typevar_A(IntA(5)))
+        self.assertRaises(InputTypeError, lambda: test_typevar_A(IntA(5.7)))
+        self.assertIsNone(test_typevar_A(IntB(5)))
+        self.assertRaises(InputTypeError, lambda: test_typevar_A(IntB(5.7)))
+
 
     def test_get_generic_parameters(self):
         class sub_List(List[str]): pass
@@ -4342,6 +4429,46 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(py3.B_override_with_type_typechecked().meth1(17.7), 4)
 
         pytypes.always_check_parent_types = always_check_parent_types_tmp
+        
+        
+    def test_typevar_func(self):
+        self.assertEqual(py3.tpvar_test1(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test1(2, '3'))
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test1(2, 3.5))
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test1(2.5, 3))
+
+        self.assertEqual(py3.tpvar_test2(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test2(2, '3'))
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test2(2, 3.5))
+        self.assertEqual(py3.tpvar_test2(2.5, 3), 'hello')
+
+        self.assertEqual(py3.tpvar_test3(2, 3), 'hello')
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test3(2, '3'))
+        self.assertEqual(py3.tpvar_test3(2, 3.5), 'hello')
+        self.assertRaises(InputTypeError, lambda: py3.tpvar_test3(2.5, 3))
+
+        self.assertEqual(py3.tpvar_test4([1.2, 2.6, 3.2], 1), 2.6)
+        self.assertRaises(ReturnTypeError, lambda: py3.tpvar_test5([1.2, 2.6, 3.2], 2))
+        self.assertEqual(py3.tpvar_test5(['a', 'b', 'c'], 1), 'b')
+    
+        def test_typevar_class(self):
+            self.assertIsNotNone(py3.IntA(5))
+            self.assertRaises(InputTypeError, lambda: py3.IntA(4.5))
+            self.assertRaises(InputTypeError, lambda: py3.IntA('acb'))
+            self.assertIsNotNone(py3.A[int](5))
+            self.assertRaises(InputTypeError, lambda: py3.A[int](4.5))
+            self.assertRaises(InputTypeError, lambda: py3.A[int]('acb'))
+            self.assertIsNotNone(py3.A[float](5))
+            self.assertIsNotNone(py3.A[float](4.5))
+            self.assertRaises(InputTypeError, lambda: py3.A[float]('acb'))
+            self.assertRaises(InputTypeError, lambda: py3.A[str](5))
+            self.assertRaises(InputTypeError, lambda: py3.A[str](4.5))
+            self.assertIsNotNone(A[str]('acb'))
+            
+            self.assertIsNone(py3.test_typevar_A(py3.IntA(5)))
+            self.assertRaises(InputTypeError, lambda: py3.test_typevar_A(py3.IntA(5.7)))
+            self.assertIsNone(py3.test_typevar_A(py3.IntB(5)))
+            self.assertRaises(InputTypeError, lambda: py3.test_typevar_A(py3.IntB(5.7)))
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,

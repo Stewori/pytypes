@@ -682,6 +682,24 @@ def _code_matches_func(func, code):
                     return False
 
 
+def get_function_perspective_globals(func, level=0):
+    globs = {}
+    if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
+        globs.update(sys.modules[func.__module__].__dict__)
+        try:
+            # In case of something like stubfile_2_converter a stub without module
+            # might be present, which would cause KeyError here.
+            globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
+        except KeyError:
+            pass
+    else:
+        globs.update(sys.modules[func.__module__].__dict__)
+    stck = inspect.stack()
+    for ln in stck[level:]:
+        globs.update(ln[0].f_locals)
+    return globs
+
+
 def _mro(clss, dest = []):
     if not clss in dest:
         dest.append(clss)

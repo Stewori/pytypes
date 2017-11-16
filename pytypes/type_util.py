@@ -380,10 +380,10 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
     elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
         # For old-style instances return the actual class:
         return obj.__class__
-    elif _issubclass_2(res, Container, None) and len(obj) == 0:
+    elif _issubclass_2(res, Container, None, None) and len(obj) == 0:
         return Empty[res]
     elif hasattr(res, '__origin__') and \
-            _issubclass_2(res.__origin__, Container, None) and len(obj) == 0:
+            _issubclass_2(res.__origin__, Container, None, None) and len(obj) == 0:
         return Empty[res.__origin__]
     return res
 
@@ -520,7 +520,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
 
 
 def type_str(tp, assumed_globals=None, update_assumed_globals=None,
-            implicit_globals=None, bound_Generic=None):
+            implicit_globals=None, bound_Generic=None, bound_typevars=None):
     """Generates a nicely readable string representation of the given type.
     The returned representation is workable as a source code string and would
     reconstruct the given type if handed to eval, provided that globals/locals
@@ -546,19 +546,27 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
         implicit_globals.add(sys.modules['__main__'])
     if isinstance(tp, tuple):
         return '('+', '.join([type_str(tp0, assumed_globals, update_assumed_globals,
-                implicit_globals, bound_Generic) for tp0 in tp])+')'
+                implicit_globals, bound_Generic, bound_typevars) for tp0 in tp])+')'
     try:
         return type_str(tp.__orig_class__, assumed_globals, update_assumed_globals,
-                implicit_globals, bound_Generic)
+                implicit_globals, bound_Generic, bound_typevars)
     except AttributeError:
         pass
     tp = _match_stub_type(tp)
     if isinstance(tp, TypeVar):
-        if not bound_Generic is None:
+        prm = None
+        if not bound_typevars is None:
+            try:
+                prm = bound_typevars[tp]
+            except:
+                pass
+        if prm is None and not bound_typevars is None and tp in bound_typevars:
+            prm = bound_typevars[tp]
+        if prm is None and not bound_Generic is None:
             prm = get_arg_for_TypeVar(tp, bound_Generic)
-            if not prm is None:
-                return type_str(prm, assumed_globals, update_assumed_globals,
-                        implicit_globals, bound_Generic)
+        if not prm is None:
+            return type_str(prm, assumed_globals, update_assumed_globals,
+                    implicit_globals, bound_Generic, bound_typevars)
         return tp.__name__
     elif isclass(tp) and not isinstance(tp, GenericMeta) \
             and not hasattr(typing, tp.__name__):
@@ -567,19 +575,19 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
         prm = ''
         if hasattr(tp, '__args__') and not tp.__args__ is None:
             params = [type_str(param, assumed_globals, update_assumed_globals,
-                    implicit_globals, bound_Generic) for param in tp.__args__]
+                    implicit_globals, bound_Generic, bound_typevars) for param in tp.__args__]
             prm = '[%s]'%', '.join(params)
         return tp_name+prm
     elif is_Union(tp):
         prms = get_Union_params(tp)
         params = [type_str(param, assumed_globals, update_assumed_globals,
-                implicit_globals, bound_Generic) for param in prms]
+                implicit_globals, bound_Generic, bound_typevars) for param in prms]
         return '%s[%s]'%(_tp_relfq_name(Union, 'Union', assumed_globals,
                 update_assumed_globals, implicit_globals), ', '.join(params))
     elif isinstance(tp, TupleMeta):
         prms = get_Tuple_params(tp)
         tpl_params = [type_str(param, assumed_globals, update_assumed_globals,
-                implicit_globals, bound_Generic) for param in prms]
+                implicit_globals, bound_Generic, bound_typevars) for param in prms]
         return '%s[%s]'%(_tp_relfq_name(Tuple, 'Tuple', assumed_globals,
                 update_assumed_globals, implicit_globals), ', '.join(tpl_params))
     elif hasattr(tp, '__args__'):
@@ -595,15 +603,15 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
         else:
             args = tp.__args__
         params = [type_str(param, assumed_globals, update_assumed_globals,
-                implicit_globals, bound_Generic) for param in args]
+                implicit_globals, bound_Generic, bound_typevars) for param in args]
         if hasattr(tp, '__result__'):
             return '%s[[%s], %s]'%(tp_name, ', '.join(params),
                     type_str(tp.__result__, assumed_globals, update_assumed_globals,
-                    implicit_globals, bound_Generic))
+                    implicit_globals, bound_Generic, bound_typevars))
         elif isinstance(tp, CallableMeta):
             return '%s[[%s], %s]'%(tp_name, ', '.join(params[:-1]),
                     type_str(params[-1], assumed_globals, update_assumed_globals,
-                    implicit_globals, bound_Generic))
+                    implicit_globals, bound_Generic, bound_typevars))
         else:
             return '%s[%s]'%(tp_name, ', '.join(params))
     elif hasattr(tp, '__name__'):
@@ -751,8 +759,8 @@ def _handle_defaults(sig_types, arg_specs, unspecified_indices = None):
     return sig_types
 
 
-def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = False,
-        unspecified_type = Any, infer_defaults = None):
+def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
+        unspecified_type=Any, infer_defaults=None):
     if infer_defaults is None:
         infer_defaults = pytypes.infer_default_value_types
     # Check for stubfile
@@ -779,18 +787,6 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
         numArgs = len(argSpecs.args) - 1 if slf else 0
         while len(tpStr[1]) < numArgs:
             tpStr[1].append(None)
-    if globs is None:
-        if func.__module__.endswith('.pyi') or func.__module__.endswith('.pyi2'):
-            globs = {}
-            globs.update(sys.modules[func.__module__].__dict__)
-            try:
-                # In case of something like stubfile_2_converter a stub without module
-                # might be present, which would cause KeyError here.
-                globs.update(sys.modules[func.__module__.rsplit('.', 1)[0]].__dict__)
-            except KeyError:
-                pass
-        else:
-            globs = sys.modules[func.__module__].__dict__
     argNames = util.getargnames(argSpecs)
     if slf:
         if not tpHints is None and tpHints and not func_class is None and \
@@ -823,6 +819,8 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
                 if val is None:
                     val = type(None)
                 elif isinstance(val, _basestring):
+                    if globs is None:
+                        globs = util.get_function_perspective_globals(func, 3)
                     val = eval(val, globs)
                 tpHints[key] = val
         # We're running Python 3 or have custom __annotations__ in Python 2.7
@@ -835,15 +833,18 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
                 for t in argNames)], retTp if not retTp is None else type(None))
         if infer_defaults:
             resType = _handle_defaults(resType, argSpecs, unspecIndices)
-        if not pytypes.annotations_override_typestring and not (tpStr is None or tpStr[0] is None or tpStr[0] == 'ignore'):
+        if not pytypes.annotations_override_typestring and not \
+                (tpStr is None or tpStr[0] is None or tpStr[0] == 'ignore'):
             if pytypes.strict_annotation_collision_check:
                 raise TypeError('%s.%s has multiple type declarations.'
                         % (func.__module__, func.__name__))
             else:
-                resType2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, globals = globs,
-                        argCount = len(argNames), unspecified_type = unspecified_type,
-                        defaults = argSpecs.defaults if infer_defaults else None,
-                        func = actual_func, func_class = func_class, slf = slf)
+                if globs is None:
+                    globs = util.get_function_perspective_globals(func, 3)
+                resType2 = _funcsigtypesfromstring(*tpStr, argspec=argSpecs, glbls=globs,
+                        argCount=len(argNames), unspecified_type=unspecified_type,
+                        defaults=argSpecs.defaults if infer_defaults else None,
+                        func=actual_func, func_class=func_class, slf=slf)
                 if resType != resType2:
                     raise TypeError('%s.%s declares incompatible types:\n'
                             % (func.__module__, func.__name__)
@@ -860,11 +861,13 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
             raise TypeError(_make_invalid_type_msg('return type',
                     util._fully_qualified_func_name(func, slf, func_class), resType[1]))
         return resType
-    res = _funcsigtypesfromstring(*tpStr, globals = globs, argspec = argSpecs,
-            argCount = len(argNames),
+    if globs is None:
+        globs = util.get_function_perspective_globals(func, 3)
+    res = _funcsigtypesfromstring(*tpStr, glbls=globs, argspec=argSpecs,
+            argCount=len(argNames),
             defaults = argSpecs.defaults if infer_defaults else None,
-            unspecified_type = unspecified_type, func = actual_func,
-            func_class = func_class, slf = slf)
+            unspecified_type=unspecified_type, func=actual_func,
+            func_class=func_class, slf=slf)
     try:
         typing._type_check(res[0], '') # arg types
     except TypeError:
@@ -880,14 +883,14 @@ def _funcsigtypes(func0, slf, func_class = None, globs = None, prop_getter = Fal
             if not infer_defaults:
                 func0.__annotations__ = _get_type_hints(func0, res[0], res[1])
             else:
-                res2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, globals = globs,
+                res2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, glbls = globs,
                         argCount = len(argNames), unspecified_type = unspecified_type,
                         func = actual_func, func_class = func_class, slf = slf)
                 func0.__annotations__ = _get_type_hints(func0, res2[0], res2[1])
     return res
 
 
-def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic):
+def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     # This subclass-check treats Mapping-values as covariant
@@ -895,10 +898,10 @@ def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic):
         if not issubclass(subclass.__origin__, Mapping):
             return False
         if not _issubclass(subclass.__args__[0], superclass.__args__[0],
-                bound_Generic):
+                bound_Generic, bound_typevars):
             return False
         if not _issubclass(subclass.__args__[1], superclass.__args__[1],
-                bound_Generic):
+                bound_Generic, bound_typevars):
             return False
         return True
     return issubclass(subclass, superclass)
@@ -1030,7 +1033,7 @@ def _get_arg_for_TypeVar(typevar, generic, arg_holder):
             return res
 
 
-def _issubclass_Generic(subclass, superclass, bound_Generic):
+def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     # this function is partly based on code from typing module 3.5.2.2
@@ -1061,11 +1064,11 @@ def _issubclass_Generic(subclass, superclass, bound_Generic):
                 orig_bases = subclass.__bases__
             for scls in orig_bases:
                 if isinstance(scls, GenericMeta):
-                    if _issubclass_Generic(scls, superclass, bound_Generic):
+                    if _issubclass_Generic(scls, superclass, bound_Generic, bound_typevars):
                         return True
         #Formerly: if origin is not None and origin is subclass.__origin__:
         elif origin is not None and \
-                _issubclass(subclass.__origin__, origin, bound_Generic):
+                _issubclass(subclass.__origin__, origin, bound_Generic, bound_typevars):
             assert len(superclass.__args__) == len(origin.__parameters__)
             if len(subclass.__args__) == len(origin.__parameters__):
                 sub_args = subclass.__args__
@@ -1079,21 +1082,27 @@ def _issubclass_Generic(subclass, superclass, bound_Generic):
                 if isinstance(p_origin, TypeVar):
                     if p_origin.__covariant__:
                         # Covariant -- p_cls must be a subclass of p_self.
-                        if not _issubclass(p_cls, p_self, bound_Generic):
+                        if not _issubclass(p_cls, p_self, bound_Generic, bound_typevars):
                             break
                     elif p_origin.__contravariant__:
                         # Contravariant.  I think it's the opposite. :-)
-                        if not _issubclass(p_self, p_cls, bound_Generic):
+                        if not _issubclass(p_self, p_cls, bound_Generic, bound_typevars):
                             break
                     else:
                         # Invariant -- p_cls and p_self must equal.
                         if p_self != p_cls:
-                            break
+                            if not _issubclass(p_cls, p_self, bound_Generic, bound_typevars):
+                                break
+                            if not _issubclass(p_self, p_cls, bound_Generic, bound_typevars):
+                                break
                 else:
                     # If the origin's parameter is not a typevar,
                     # insist on invariance.
                     if p_self != p_cls:
-                        break
+                        if not _issubclass(p_cls, p_self, bound_Generic, bound_typevars):
+                            break
+                        if not _issubclass(p_self, p_cls, bound_Generic, bound_typevars):
+                            break
             else:
                 return True
             # If we break out of the loop, the superclass gets a chance.
@@ -1149,10 +1158,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic):
         return True
     if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
         return False
-    return _issubclass_2(subclass, superclass.__extra__, bound_Generic)
+    return _issubclass_2(subclass, superclass.__extra__, bound_Generic, bound_typevars)
 
 
-def _issubclass_Tuple(subclass, superclass, bound_Generic):
+def _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     # this function is partly based on code from typing module 3.5.2.2
@@ -1168,7 +1177,7 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic):
             except:
                 pass
         elif is_Union(subclass):
-            return all(_issubclass_Tuple(t, superclass, bound_Generic)
+            return all(_issubclass_Tuple(t, superclass, bound_Generic, bound_typevars)
                     for t in get_Union_params(subclass))
         else:
             return False
@@ -1180,11 +1189,11 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic):
         return False  # ???
     # Covariance.
     return (len(super_args) == len(sub_args) and
-            all(_issubclass(x, p, bound_Generic)
+            all(_issubclass(x, p, bound_Generic, bound_typevars)
                 for x, p in zip(sub_args, super_args)))
 
 
-def _issubclass_Union(subclass, superclass, bound_Generic):
+def _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     # this function is partly based on code from typing module 3.5.2.2
@@ -1195,16 +1204,18 @@ def _issubclass_Union(subclass, superclass, bound_Generic):
         sub_args = get_Union_params(subclass)
         if sub_args is None:
             return False
-        return all(_issubclass(c, superclass, bound_Generic) for c in (sub_args))
+        return all(_issubclass(c, superclass, bound_Generic, bound_typevars) \
+                for c in (sub_args))
     elif isinstance(subclass, TypeVar):
         if subclass in super_args:
             return True
         if subclass.__constraints__:
             return _issubclass(Union[subclass.__constraints__],
-                    superclass, bound_Generic)
+                    superclass, bound_Generic, bound_typevars)
         return False
     else:
-        return any(_issubclass(subclass, t, bound_Generic) for t in super_args)
+        return any(_issubclass(subclass, t, bound_Generic, bound_typevars) \
+                for t in super_args)
 
 
 # This is just a crutch, because issubclass sometimes tries to be too smart.
@@ -1222,7 +1233,7 @@ def _has_base(cls, base):
     return False
 
 
-def _issubclass(subclass, superclass, bound_Generic=None):
+def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None):
     """Access this via pytypes.is_subtype.
     Works like issubclass, but supports PEP 484 style types from typing module.
     If subclass or superclass contains unbound TypeVars and bound_Generic is
@@ -1242,46 +1253,83 @@ def _issubclass(subclass, superclass, bound_Generic=None):
     if superclass in _extra_dict:
         superclass = _extra_dict[superclass]
     try:
-        if _issubclass_2(subclass, Empty, bound_Generic):
-            if _issubclass_2(superclass, Container, bound_Generic):
-                return _issubclass_2(subclass.__args__[0], superclass, bound_Generic)
+        if _issubclass_2(subclass, Empty, bound_Generic, bound_typevars):
+            if _issubclass_2(superclass, Container, bound_Generic, bound_typevars):
+                return _issubclass_2(subclass.__args__[0], superclass,
+                        bound_Generic, bound_typevars)
             try:
-                if _issubclass_2(superclass.__origin__, Container, bound_Generic):
-                    return _issubclass_2(subclass.__args__[0], superclass.__origin__, bound_Generic)
+                if _issubclass_2(superclass.__origin__, Container,
+                        bound_Generic, bound_typevars):
+                    return _issubclass_2(subclass.__args__[0], superclass.__origin__,
+                            bound_Generic, bound_typevars)
             except TypeError:
                 pass
     except TypeError:
         pass
     if isinstance(superclass, TypeVar):
+        if not superclass.__bound__ is None:
+            if not _issubclass(subclass, superclass.__bound__, bound_Generic,
+                    bound_typevars):
+                return False
+        if not bound_typevars is None:
+            try:
+                if superclass.__contravariant__:
+                    return _issubclass(bound_typevars[superclass], subclass, bound_Generic,
+                            bound_typevars)
+                elif superclass.__covariant__:
+                    return _issubclass(subclass, bound_typevars[superclass], bound_Generic,
+                            bound_typevars)
+                else:
+                    return _issubclass(bound_typevars[superclass], subclass, bound_Generic,
+                            bound_typevars) and \
+                            _issubclass(subclass, bound_typevars[superclass], bound_Generic,
+                            bound_typevars)
+            except:
+                pass
         if not bound_Generic is None:
             superclass = get_arg_for_TypeVar(superclass, bound_Generic)
             if not superclass is None:
-                return _issubclass(subclass, superclass, bound_Generic)
+                return _issubclass(subclass, superclass, bound_Generic, bound_typevars)
+        if not bound_typevars is None:
+            # bind it...
+            bound_typevars[superclass] = subclass
+            return True
         return False
     if isinstance(subclass, TypeVar):
+        if not bound_typevars is None:
+            try:
+                return _issubclass(bound_typevars[subclass], superclass, bound_Generic,
+                        bound_typevars)
+            except:
+                pass
         if not bound_Generic is None:
             subclass = get_arg_for_TypeVar(subclass, bound_Generic)
             if not subclass is None:
-                return _issubclass(subclass, superclass, bound_Generic)
+                return _issubclass(subclass, superclass, bound_Generic, bound_typevars)
+        if not subclass.__bound__ is None:
+            return _issubclass(subclass.__bound__, superclass, bound_Generic, bound_typevars)
         return False
-    return _issubclass_2(subclass, superclass, bound_Generic)
+    res = _issubclass_2(subclass, superclass, bound_Generic, bound_typevars)
+    return res
 
 
-def _issubclass_2(subclass, superclass, bound_Generic):
+def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     if isinstance(superclass, TupleMeta):
-        return _issubclass_Tuple(subclass, superclass, bound_Generic)
+        return _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars)
     if isinstance(superclass, GenericMeta):
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
         if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
-            return _issubclass_Mapping_covariant(subclass, superclass, bound_Generic)
+            return _issubclass_Mapping_covariant(subclass, superclass,
+                    bound_Generic, bound_typevars)
         else:
-            return _issubclass_Generic(subclass, superclass, bound_Generic)
+            return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars)
     if is_Union(superclass):
-        return _issubclass_Union(subclass, superclass, bound_Generic)
+        return _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars)
     if is_Union(subclass):
-        return all(_issubclass(t, superclass, bound_Generic) for t in get_Union_params(subclass))
+        return all(_issubclass(t, superclass, bound_Generic, bound_typevars) \
+                for t in get_Union_params(subclass))
     if subclass in _extra_dict:
         subclass = _extra_dict[subclass]
     try:
@@ -1291,7 +1339,7 @@ def _issubclass_2(subclass, superclass, bound_Generic):
                 (type_str(subclass), type_str(superclass)))
 
 
-def _isinstance_Callable(obj, cls, bound_Generic, check_callables = True):
+def _isinstance_Callable(obj, cls, bound_Generic, bound_typevars, check_callables = True):
     # todo: Let pytypes somehow create a Callable-scoped error message,
     # e.g. instead of
     #	Expected: Tuple[Callable[[str, int], str], str]
@@ -1308,15 +1356,15 @@ def _isinstance_Callable(obj, cls, bound_Generic, check_callables = True):
         argSig = _match_stub_type(argSig)
         resSig = _match_stub_type(resSig)
         clb_args, clb_res = get_Callable_args_res(cls)
-        if not _issubclass(Tuple[clb_args], argSig, bound_Generic):
+        if not _issubclass(Tuple[clb_args], argSig, bound_Generic, bound_typevars):
             return False
-        if not _issubclass(resSig, clb_res, bound_Generic):
+        if not _issubclass(resSig, clb_res, bound_Generic, bound_typevars):
             return False
         return True
     return not check_callables
 
 
-def _isinstance(obj, cls, bound_Generic=None):
+def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None):
     """Access this via pytypes.is_of_type.
     Works like isinstance, but supports PEP 484 style types from typing module.
     If cls contains unbound TypeVars and bound_Generic is provided, this
@@ -1331,15 +1379,15 @@ def _isinstance(obj, cls, bound_Generic=None):
         if itp is None:
             return not pytypes.check_iterables
         else:
-            return _issubclass(itp, cls.__args__[0], bound_Generic)
+            return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars)
     if isinstance(cls, CallableMeta):
-        return _isinstance_Callable(obj, cls, bound_Generic)
+        return _isinstance_Callable(obj, cls, bound_Generic, bound_typevars)
     if obj == {}:
         try:
             return issubclass(typing.Dict, cls.__origin__)
         except TypeError:
             return issubclass(typing.Dict, cls)
-    return _issubclass(deep_type(obj), cls, bound_Generic)
+    return _issubclass(deep_type(obj), cls, bound_Generic, bound_typevars)
 
 
 def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
@@ -1349,7 +1397,7 @@ def _make_generator_error_message(tp, gen, expected_tp, incomp_text):
                 % (type_str(expected_tp), type_str(tp))
 
 
-def generator_checker_py3(gen, gen_type, bound_Generic):
+def generator_checker_py3(gen, gen_type, bound_Generic, bound_typevars):
     """Builds a typechecking wrapper around a Python 3 style generator object.
     """
     initialized = False
@@ -1359,7 +1407,7 @@ def generator_checker_py3(gen, gen_type, bound_Generic):
             a = gen.send(sn)
             if initialized or not a is None:
                 if not gen_type.__args__[0] is Any and \
-                        not _isinstance(a, gen_type.__args__[0], bound_Generic):
+                        not _isinstance(a, gen_type.__args__[0], bound_Generic, bound_typevars):
                     tpa = deep_type(a)
                     msg = _make_generator_error_message(deep_type(a), gen, gen_type.__args__[0],
                             'has incompatible yield type')
@@ -1369,7 +1417,7 @@ def generator_checker_py3(gen, gen_type, bound_Generic):
             initialized = True
             sn = yield a
             if not gen_type.__args__[1] is Any and \
-                    not _isinstance(sn, gen_type.__args__[1], bound_Generic):
+                    not _isinstance(sn, gen_type.__args__[1], bound_Generic, bound_typevars):
                 tpsn = deep_type(sn)
                 msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
                         'has incompatible send type')
@@ -1380,7 +1428,7 @@ def generator_checker_py3(gen, gen_type, bound_Generic):
         # Python 3:
         # todo: Check if st.value is always defined (i.e. as None if not present)
         if not gen_type.__args__[2] is Any and \
-                not _isinstance(st.value, gen_type.__args__[2], bound_Generic):
+                not _isinstance(st.value, gen_type.__args__[2], bound_Generic, bound_typevars):
             tpst = deep_type(st.value)
             msg = _make_generator_error_message(tpst, gen, gen_type.__args__[2],
                     'has incompatible return type')
@@ -1390,7 +1438,7 @@ def generator_checker_py3(gen, gen_type, bound_Generic):
         raise st
 
 
-def generator_checker_py2(gen, gen_type, bound_Generic):
+def generator_checker_py2(gen, gen_type, bound_Generic, bound_typevars):
     """Builds a typechecking wrapper around a Python 2 style generator object.
     """
     initialized = False
@@ -1399,7 +1447,7 @@ def generator_checker_py2(gen, gen_type, bound_Generic):
         a = gen.send(sn)
         if initialized or not a is None:
             if not gen_type.__args__[0] is Any and \
-                    not _isinstance(a, gen_type.__args__[0], bound_Generic):
+                    not _isinstance(a, gen_type.__args__[0], bound_Generic, bound_typevars):
                 tpa = deep_type(a)
                 msg = _make_generator_error_message(tpa, gen, gen_type.__args__[0],
                         'has incompatible yield type')
@@ -1409,7 +1457,7 @@ def generator_checker_py2(gen, gen_type, bound_Generic):
         initialized  = True
         sn = yield a
         if not gen_type.__args__[1] is Any and \
-                not _isinstance(sn, gen_type.__args__[1], bound_Generic):
+                not _isinstance(sn, gen_type.__args__[1], bound_Generic, bound_typevars):
             tpsn = deep_type(sn)
             msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
                     'has incompatible send type')

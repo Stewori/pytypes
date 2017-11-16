@@ -1283,6 +1283,7 @@ class A_auto_override():
     def meth_1(self, a: str, b: Tuple[int, float]) -> int:
         pass
 
+
 @auto_override
 class B_auto_override(A_auto_override):
     def meth_1(self, a: str, b: Tuple[float, float]) -> int:
@@ -1291,6 +1292,7 @@ class B_auto_override(A_auto_override):
     def meth_2(self, c: str) -> int:
         return 3*len(c)
 
+
 @auto_override
 class B_auto_override_err(A_auto_override):
     def meth_1(self, a: str, b: Tuple[int, int]) -> int:
@@ -1298,3 +1300,43 @@ class B_auto_override_err(A_auto_override):
 
     def meth_2(self, c: str) -> int:
         return 3*len(c)
+
+
+T_ct = TypeVar('T_ct', contravariant=True)
+T_cv = TypeVar('T_cv', covariant=True)
+T_ = TypeVar('T_')
+
+@typechecked
+def tpvar_test1(a: T_, b: T_) -> str:
+    return 'hello'
+
+@typechecked
+def tpvar_test2(a: T_cv, b: T_cv) -> str:
+    return 'hello'
+
+@typechecked
+def tpvar_test3(a: T_ct, b: T_ct) -> str:
+    return 'hello'
+
+@typechecked
+def tpvar_test4(lst: List[T_], idx: int) -> T_:
+    return lst[idx]
+
+@typechecked
+def tpvar_test5(lst: List[T_], idx: int) -> T_:
+    return str(lst[idx])
+
+T2 = TypeVar('T2', covariant=True)
+
+@typechecked
+class A(Generic[T2]):
+    def __init__(self, obj: T2) -> None:
+        super(A, self).__init__()
+        self.obj = obj		
+
+class IntA(A[int]): pass
+class IntB(IntA): pass
+
+@typechecked
+def test_typevar_A(x: A[int]) -> None:
+    pass

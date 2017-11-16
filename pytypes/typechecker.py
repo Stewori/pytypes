@@ -549,7 +549,7 @@ def override(func, auto = False):
         return func
 
 def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
-            incomp_text, prop_getter = False):
+            incomp_text, prop_getter = False, bound_typevars=None):
     _cmp_msg_format = 'Expected: %s\nReceived: %s'
     if type(func) is property:
         assert slf is True
@@ -564,11 +564,11 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
     # Todo: Python3 misconcepts method as classmethod here, because it doesn't
     # detect it as bound method, because ov_checker or tp_checker obfuscate it
     return '\n  '+fq_func_name+'\n  '+incomp_text+':\n'+_cmp_msg_format % ( \
-            type_str(expected_tp, bound_Generic=func_class),
-            type_str(tp, bound_Generic=func_class))
+            type_str(expected_tp, bound_Generic=func_class, bound_typevars=bound_typevars),
+            type_str(tp, bound_Generic=func_class, bound_typevars=bound_typevars))
 
 
-def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
+def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force = False):
     if isinstance(cls, typing.TupleMeta):
         prms = pytypes.get_Tuple_params(cls)
         try:
@@ -579,7 +579,8 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
         lst = []
         if isinstance(obj, tuple):
             for i in range(len(obj)):
-                res, obj2 = _checkinstance(obj[i], prms[i], bound_Generic, is_args, func)
+                res, obj2 = _checkinstance(obj[i], prms[i], bound_Generic, bound_typevars,
+                        is_args, func)
                 if not res:
                     return False, obj
                 else:
@@ -589,7 +590,7 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
             return False, obj
     # This (optionally) turns some types into a checked version, e.g. generators or callables
     if isinstance(cls, typing.CallableMeta):
-        if not type_util._isinstance_Callable(obj, cls, bound_Generic, False):
+        if not type_util._isinstance_Callable(obj, cls, bound_Generic, bound_typevars, False):
             return False, obj
         if pytypes.check_callables:
             # Todo: Only this part shall reside in _checkInstance
@@ -602,7 +603,7 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
     if isinstance(cls, typing.GenericMeta):
         if cls.__origin__ is typing.Iterable:
             if not pytypes.check_iterables:
-                return _isinstance(obj, cls, bound_Generic), obj
+                return _isinstance(obj, cls, bound_Generic, bound_typevars), obj
             else:
                 if not type_util.is_iterable(obj):
                     return False, obj
@@ -629,7 +630,7 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
 # 						obj.__iter__ = types.MethodType(__iter__checked, obj)
 # 						return True, obj
                 else:
-                    return _issubclass(itp, cls.__args__[0], bound_Generic), obj
+                    return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars), obj
         elif cls.__origin__ is typing.Generator:
             if is_args or not inspect.isgeneratorfunction(func):
                 # Todo: Insert fully qualified function name
@@ -641,9 +642,11 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
                     if obj.__name__.startswith('generator_checker_py'):
                         return True, obj
                     if sys.version_info.major == 2:
-                        wrgen = type_util.generator_checker_py2(obj, cls, bound_Generic)
+                        wrgen = type_util.generator_checker_py2(obj, cls,
+                                bound_Generic, bound_typevars)
                     else:
-                        wrgen = type_util.generator_checker_py3(obj, cls, bound_Generic)
+                        wrgen = type_util.generator_checker_py3(obj, cls,
+                                bound_Generic, bound_typevars)
                         try:
                             wrgen.__qualname__ = obj.__qualname__
                         except:
@@ -653,24 +656,26 @@ def _checkinstance(obj, cls, bound_Generic, is_args, func, force = False):
                     return True, obj
             else:
                 return False, obj
-    return _isinstance(obj, cls, bound_Generic), obj
+    return _isinstance(obj, cls, bound_Generic, bound_typevars), obj
 
 
-def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = False, \
-            prop_getter = False, argspecs = None, var_type = None, force_exception = False):
+def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val=False, \
+            prop_getter=False, argspecs=None, var_type=None, force_exception=False, \
+            bound_typevars={}):
     if argspecs is None:
         argspecs = getargspecs(_actualfunc(func, prop_getter))
     argSig = _preprocess_typecheck(argSig, argspecs, slf) \
             if var_type is None else var_type
     if make_checked_val:
-        result, checked_val = _checkinstance(check_val, argSig, func_class, True, func)
+        result, checked_val = _checkinstance(check_val, argSig,
+                func_class, bound_typevars, True, func)
     else:
-        result = _isinstance(check_val, argSig, func_class)
+        result = _isinstance(check_val, argSig, func_class, bound_typevars)
         checked_val = None
     if not result:
         tpch = deep_type(check_val)
         msg = _make_type_error_message(tpch, func, slf, func_class, argSig,
-                'called with incompatible types', prop_getter)
+                'called with incompatible types', prop_getter, bound_typevars)
         _raise_typecheck_error(msg, False, check_val, tpch, argSig, func)
         if force_exception:
             raise InputTypeError(msg)
@@ -678,18 +683,20 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val = 
 
 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \
-            make_checked_val = False, prop_getter = False, force_exception = False):
+            make_checked_val=False, prop_getter=False, force_exception=False, \
+            bound_typevars={}):
     if make_checked_val:
         result, checked_val = _checkinstance(check_val, _match_stub_type(resSig),
-                None, False, func)
+                func_class, bound_typevars, False, func)
     else:
-        result = _isinstance(check_val, _match_stub_type(resSig), None)
+        result = _isinstance(check_val, _match_stub_type(resSig),
+                func_class, bound_typevars)
         checked_val = None
     if not result:
         # todo: constrain deep_type-depth
         tpch = deep_type(check_val)
         msg = _make_type_error_message(tpch, func, slf, func_class, resSig,
-                'returned incompatible type', prop_getter)
+                'returned incompatible type', prop_getter, bound_typevars)
         _raise_typecheck_error(msg, True, check_val, tpch, resSig, func)
         if force_exception:
             raise ReturnTypeError(msg)
@@ -827,9 +834,10 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                 argSig, resSig = argType, resType
             make_checked = pytypes.check_callables or \
                     pytypes.check_iterables or pytypes.check_generators
+            bound_typevars = {}
             checked_val = _checkfunctype(argSig, check_args,
                     toCheck, slf or clsm, parent_class, make_checked,
-                    prop_getter or auto_prop_getter, specs)
+                    prop_getter or auto_prop_getter, specs, bound_typevars=bound_typevars)
             if make_checked:
                 checked_args, checked_kw = util.fromargskw(checked_val, specs, slf or clsm)
             else:
@@ -854,7 +862,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                     res = func(*checked_args, **checked_kw)
     
             checked_res = _checkfuncresult(resSig, res, toCheck, \
-                    slf or clsm, parent_class, True, prop_getter)
+                    slf or clsm, parent_class, True, prop_getter, bound_typevars=bound_typevars)
             if pytypes.do_logging_in_typechecked:
                 pytypes.log_type(check_args, res, func, slf, prop_getter, parent_class, specs)
             return checked_res

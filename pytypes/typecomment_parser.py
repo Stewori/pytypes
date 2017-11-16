@@ -205,9 +205,9 @@ def _check_vararg_typestring(typestring, argString, argspec, func, slf, func_cla
     return argString
 
 
-def _funcsigtypesfromstring(typestring, argTypes = None, argspec = None, globals = globals(),
-        selfType = None, argCount = None, unspecified_type = Any, defaults = None, func = None,
-        slf = False, func_class = None):
+def _funcsigtypesfromstring(typestring, argTypes=None, argspec=None, glbls=globals(),
+        selfType=None, argCount=None, unspecified_type=Any, defaults=None, func=None,
+        slf=False, func_class=None):
     splt = typestring.find('->')
     if splt == -1:
         return None
@@ -222,7 +222,7 @@ def _funcsigtypesfromstring(typestring, argTypes = None, argspec = None, globals
 # 		useEllipsis = False
     argTypes0 = argTypes
     resString = typestring[splt+2:].strip()
-    argTp = eval(argString, globals)
+    argTp = eval(argString, glbls)
     if selfType is None:
         argTypes = []
     else:
@@ -261,5 +261,5 @@ def _funcsigtypesfromstring(typestring, argTypes = None, argspec = None, globals
     resString = resString.replace('type(None)', 'None')
     resString = resString.replace('None', 'type(None)')	
 
-    resType = eval(resString, globals)
+    resType = eval(resString, glbls)
     return tpl, resType
