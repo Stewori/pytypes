@@ -217,8 +217,8 @@ One can disable typelogging via the flag ``pytypes.typelogging_enabled``.
 Note that this must be done right after import of pytypes, because it affects the way how ``@typelogged`` decorator works. For modules that were imported with this flag disabled, typelogging cannot be turned on later on within the same runtime.
 
 
-Usage example
-~~~~~~~~~~~~~
+Usage example with decorator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Assume you run a file ./script.py like this:
 
@@ -256,32 +256,9 @@ Assume you run a file ./script.py like this:
 
     pytypes.dump_cache()
 
-This will create the following file in ./typelogger\_output:
 
-script.pyi:
-
-.. code:: python
-
-    from typing import Tuple, Union
-
-    def logtest(a: Union[float, str], b: float, c: int, *var: float, **kw: Union[float, int]) -> Union[Tuple[int, float, float], Tuple[int, str, float]]: ...
-
-    class logtest_class(object):
-        def logmeth(self, b: int) -> int: ...
-
-        @classmethod
-        def logmeth_cls(cls, c: str) -> int: ...
-
-        @staticmethod
-        def logmeth_static(c: range) -> int: ...
-
-        @property
-        def log_prop(self) -> Tuple[float, str]: ...
-
-        @log_prop.setter
-        def log_prop(self, val: Tuple[float, str]) -> None: ...
-
-Use ``pytypes.dump_cache(python2=True)`` to produce a Python 2.7 compliant stubfile.
+Usage example with profiler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Alternatively you can use the `TypeLogger` profiler:
 
@@ -318,9 +295,40 @@ Alternatively you can use the `TypeLogger` profiler:
 
 Note that this will produce more stubs, i.e. also for indirectly used modules, because
 the profiler will handle every function call. To scope a specific module at a time use
-`pytypes.typelogged` on that module or its name. Note that this should be called on a
+`pytypes.typelogged` on that module or its name. This should be called on a
 module after it is fully loaded. To use it inside the scoped module (e.g. for `__main__`)
 apply it right after all classes and functions are defined.
+
+
+Output
+~~~~~~
+
+Any of the examples above will create the following file in ./typelogger\_output:
+
+script.pyi:
+
+.. code:: python
+
+    from typing import Tuple, Union
+
+    def logtest(a: Union[float, str], b: float, c: int, *var: float, **kw: Union[float, int]) -> Union[Tuple[int, float, float], Tuple[int, str, float]]: ...
+
+    class logtest_class(object):
+        def logmeth(self, b: int) -> int: ...
+
+        @classmethod
+        def logmeth_cls(cls, c: str) -> int: ...
+
+        @staticmethod
+        def logmeth_static(c: range) -> int: ...
+
+        @property
+        def log_prop(self) -> Tuple[float, str]: ...
+
+        @log_prop.setter
+        def log_prop(self, val: Tuple[float, str]) -> None: ...
+
+Use ``pytypes.dump_cache(python2=True)`` to produce a Python 2.7 compliant stubfile.
 
 
 Writing typelog at exit
