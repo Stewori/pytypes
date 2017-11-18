@@ -70,7 +70,7 @@ Quick manual
 Typechecking
 ------------
 
-Pytypes provides a rich set of utilities for runtime typechecking.
+pytypes provides a rich set of utilities for runtime typechecking.
 
 @typechecked decorator
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -170,7 +170,7 @@ Usage Example
 
 
 @auto_override decorator
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to methods and classes.
 Works like ``override`` decorator on type annotated methods that actually have a type annotated parent method. Has no effect on methods that do not override anything.
@@ -333,6 +333,8 @@ Use ``pytypes.dump_typelog_at_exit_python2`` to write typelog as a Python 2 styl
 
 Global mode and module wide mode
 --------------------------------
+
+Note that global mode is experimental.
 
 The pytypes decorators ``@typechecked``, ``@auto_override``, ``@annotations`` and ``@typelogged`` can be applied module wide by explicitly calling them on a module object or a module name contained in ``sys.modules``. In such a case, the decorator is applied to all functions and classes in that module and recursively to all methods, properties and inner classes too.
 
