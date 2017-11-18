@@ -302,7 +302,13 @@ def _actualfunc(func, prop_getter = False):
 def _get_class_nesting_list_for_staticmethod(staticmeth, module_or_class, stack, rec_set):
     if hasattr(module_or_class, _actualfunc(staticmeth).__name__):
         val = getattr(module_or_class, _actualfunc(staticmeth).__name__)
-        if _unchecked_backend(staticmeth) is _unchecked_backend(val):
+        bck = _unchecked_backend(staticmeth)
+        try:
+            if _unchecked_backend(val) is bck.__func__:
+                return stack
+        except AttributeError:
+            pass
+        if _unchecked_backend(val) is bck:
             return stack
     classes = [cl[1] for cl in inspect.getmembers(module_or_class, inspect.isclass)]
     mod_name = module_or_class.__module__ if inspect.isclass(module_or_class) \

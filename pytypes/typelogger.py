@@ -498,14 +498,17 @@ class _base_node(object):
 
 class _typed_member(_base_node):
     def __init__(self, member, slf=False, prop_getter=False, clss=None, argspecs=None):
-        self.member = member
-        clsm = isinstance(member, classmethod)
-        stat = isinstance(member, staticmethod)
-        prop = isinstance(member, property)
+        try:
+            self.member = clss.__dict__[member.__name__]
+        except:
+            self.member = member
+        clsm = isinstance(self.member, classmethod)
+        stat = isinstance(self.member, staticmethod)
+        prop = isinstance(self.member, property)
         if prop:
-            self.name = member.fget.__name__  if prop_getter else member.fset.__name__
+            self.name = self.member.fget.__name__  if prop_getter else self.member.fset.__name__
         else:
-            self.name = member.__func__.__name__ if clsm or stat else member.__name__
+            self.name = self.member.__func__.__name__ if clsm or stat else self.member.__name__
         self.argspecs = argspecs
         self.clss = clss
         self.arg_type_observations = []

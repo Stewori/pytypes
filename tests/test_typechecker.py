@@ -38,6 +38,7 @@ pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
 pytypes.always_check_parent_types = False
 
+
 class testClass(str):
     @typechecked
     def testmeth(self, a, b):
