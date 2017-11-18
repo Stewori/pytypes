@@ -66,8 +66,14 @@ There have been earlier approaches for runtime-typechecking. However, most of th
 Quick manual
 ============
 
+
+Typechecking
+------------
+
+Pytypes provides a rich set of utilities for runtime typechecking.
+
 @typechecked decorator
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to functions, methods, properties and classes.
 Asserts compatibility of runtime argument and return values of all targeted functions and methods w.r.t. `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__-style type annotations of these functions and methods.
@@ -108,8 +114,13 @@ Usage Python 3
         return a+len(b)+len(c)
 
 
+Overriding methods in type-safe manner
+--------------------------------------
+
+The decorators in this section allow type-safe method overriding.
+
 @override decorator
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to methods only.
 For a version applicable also to classes or modules use ``auto_override``.
@@ -177,16 +188,22 @@ Compared to ordinary ``override`` decorator, the rule “a parent method must ex
 If no parent method exists, ``auto_override`` silently passes.
 
 
+Provide info from type comments and stubfiles as ``__annotations__`` for other tools
+------------------------------------------------------------------------------------
+
 @annotations decorator
-----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to functions, methods, properties and classes.
 Methods with type comment will have type hints parsed from that string and get them attached as ``__annotations__`` attribute. Methods with either a type comment or ordinary type annotations in a stubfile will get that information attached as ``__annotations__`` attribute (also a relevant use case in Python 3).
 Behavior in case of collision with previously (manually) attached ``__annotations__`` can be controlled using the flags ``pytypes.annotations_override_typestring`` and ``pytypes.annotations_from_typestring``.
 
 
+Type logging
+------------
+
 @typelogged decorator
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to functions, methods, properties and classes.
 It observes function and method calls at runtime and can generate stubfiles from acquired type info.
@@ -234,8 +251,6 @@ Assume you run a file ./script.py like this:
     lcs = logtest_class()
     lcs.log_prop = (7.8, 'log')
     lcs.log_prop
-    lcs.logmeth2(8)
-    lcs.logmeth3('abcd')
     logtest_class.logmeth_cls('hijk')
     logtest_class.logmeth_static(range(3))
 
@@ -267,6 +282,45 @@ script.pyi:
         def log_prop(self, val: Tuple[float, str]) -> None: ...
 
 Use ``pytypes.dump_cache(python2=True)`` to produce a Python 2.7 compliant stubfile.
+
+Alternatively you can use the `TypeLogger` profiler:
+
+.. code:: python
+
+    from pytypes import TypeLogger
+
+    def logtest(a, b, c=7, *var, **kw): return 7, a, b
+
+    class logtest_class(object):
+        def logmeth(self, b): return 2*b
+
+        @classmethod
+        def logmeth_cls(cls, c): return len(c)
+
+        @staticmethod
+        def logmeth_static(c): return len(c)
+
+        @property
+        def log_prop(self): return self._log_prop
+
+        @log_prop.setter
+        def log_prop(self, val): self._log_prop = val
+
+    with TypeLogger():
+    	logtest(3, 2, 5, 6, 7, 3.1, y=3.2, x=9)
+    	logtest(3.5, 7.3, 5, 6, 7, 3.1, y=3.2, x=9)
+    	logtest('abc', 7.3, 5, 6, 7, 3.1, y=2, x=9)
+    	lcs = logtest_class()
+    	lcs.log_prop = (7.8, 'log')
+    	lcs.log_prop
+    	logtest_class.logmeth_cls('hijk')
+    	logtest_class.logmeth_static(range(3))
+
+Note that this will produce more stubs, i.e. also for indirectly used modules, because
+the profiler will handle every function call. To scope a specific module at a time use
+`pytypes.typelogged` on that module or its name. Note that this should be called on a
+module after it is fully loaded. To use it inside the scoped module (e.g. for `__main__`)
+apply it right after all classes and functions are defined.
 
 
 Writing typelog at exit

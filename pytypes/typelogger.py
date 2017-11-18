@@ -292,6 +292,8 @@ def dump_cache(path=None, python2=False, suffix=None):
     Uses 'pyi2' suffix if 'python2' flag is given else 'pyi'. Resulting
     files will be Python 2.7 compilant accordingly.
     """
+    typelogging_enabled_tmp = pytypes.typelogging_enabled
+    pytypes.typelogging_enabled = False
     if suffix is None:
         suffix = 'pyi2' if python2 else 'pyi'
     if path is None:
@@ -308,9 +310,11 @@ def dump_cache(path=None, python2=False, suffix=None):
         mnode.append(node)
     for module in modules:
         _dump_module(modules[module], path, python2, suffix)
+    pytypes.typelogging_enabled = typelogging_enabled_tmp
 
 
 def _dump_at_exit():
+    pytypes.typelogging_enabled = False
     if len(_member_cache) > 0:
         if pytypes.dump_typelog_at_exit:
             dump_cache()
