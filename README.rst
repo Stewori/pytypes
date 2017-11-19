@@ -192,7 +192,7 @@ Provide info from type comments and stubfiles as ``__annotations__`` for other t
 ------------------------------------------------------------------------------------
 
 @annotations decorator
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 Decorator applicable to functions, methods, properties and classes.
 Methods with type comment will have type hints parsed from that string and get them attached as ``__annotations__`` attribute. Methods with either a type comment or ordinary type annotations in a stubfile will get that information attached as ``__annotations__`` attribute (also a relevant use case in Python 3).
