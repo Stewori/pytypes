@@ -5,7 +5,7 @@ from setuptools import setup
 here = os.path.dirname(__file__)
 readme_path = os.path.join(here, 'README.rst')
 readme = open(readme_path, 'rb').read().decode('utf-8')
-# On pypi we want to display the logo with adjusted font:
+# On PyPI we want to display the logo with adjusted font:
 readme = readme.replace('pytypes_logo_text.png', 'pytypes_logo_text_pypi.png')
 
 setup(
