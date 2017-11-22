@@ -469,8 +469,8 @@ is_of_type(obj, cls, bound_Generic=None)
 
 Works like ``isinstance``, but supports PEP 484 style types from typing module.
 
-If ``cls`` contains unbound ``TypeVar`s and ``bound_Generic`` is provided, this function attempts to
-retrieve corresponding values for the unbound ``TypeVar``s from ``bound_Generic``.
+If ``cls`` contains unbound ``TypeVar`` s and ``bound_Generic`` is provided, this function attempts to
+retrieve corresponding values for the unbound ``TypeVar`` s from ``bound_Generic``.
 
 
 is_subtype(subtype, supertype, bound_Generic=None)
@@ -478,9 +478,9 @@ is_subtype(subtype, supertype, bound_Generic=None)
 
 Works like ``issubclass``, but supports PEP 484 style types from typing module.
 
-If ``subclass`` or ``superclass`` contains unbound ``TypeVar``s and ``bound_Generic`` is
+If ``subclass`` or ``superclass`` contains unbound ``TypeVar`` s and ``bound_Generic`` is
 provided, this function attempts to retrieve corresponding values for the
-unbound ``TypeVar``s from ``bound_Generic``.
+unbound ``TypeVar`` s from ``bound_Generic``.
 
 
 deep_type(obj, depth=None, max_sample=None)
@@ -500,8 +500,8 @@ type_str(tp, assumed_globals=None, update_assumed_globals=None, implicit_globals
 Generates a nicely readable string representation of the given type.
 The returned representation is workable as a source code string and would reconstruct the given type if handed to eval, provided that globals/locals are configured appropriately (e.g. assumes that various types from ``typing`` have been imported).
 Used as type-formatting backend of ptypes' code generator abilities in modules ``typelogger`` and ``stubfile_2_converter``.
-If ``tp`` contains unbound ``TypeVar``s and ``bound_Generic`` is provided, this function attempts to
-retrieve corresponding values for the unbound ``TypeVar``s from ``bound_Generic``.
+If ``tp`` contains unbound ``TypeVar`` s and ``bound_Generic`` is provided, this function attempts to
+retrieve corresponding values for the unbound ``TypeVar`` s from ``bound_Generic``.
 
 
 dump_cache(path=default_typelogger_path, python2=False, suffix=None)
