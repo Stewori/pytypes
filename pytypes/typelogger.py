@@ -26,7 +26,8 @@ import os
 import abc
 import datetime
 import atexit
-from inspect import isclass, ismodule, getsourcelines, findsource
+from inspect import getmembers, isclass, ismodule, getsourcelines, \
+        findsource, isfunction, ismethod, ismethoddescriptor
 
 try:
     import pkg_resources
@@ -101,6 +102,42 @@ def _register_logged_func(func, slf, prop_getter, clss, argspecs):
         node = _typed_member(func, slf, prop_getter, clss, argspecs)
         _member_cache[func_key] = node
     return node
+
+
+def register_all_members_in_class(clss):
+    mb = getmembers(clss, lambda t: isclass(t) or _check_as_func(t))
+    # todo: Care for overload-decorator
+    for elem in mb:
+        if elem[0] in clss.__dict__:
+            el = clss.__dict__[elem[0]]
+            if isfunction(el) and _has_type_hints(el):
+                _register_logged_func(el, True, False, clss, util.getargspecs(el))
+            elif isclass(el):
+                register_all_members_in_class(el)
+            elif ismethoddescriptor(el) and type(el) is staticmethod and \
+                    _has_type_hints(el):
+                _register_logged_func(el, False, False, clss, util.getargspecs(el))
+            elif isinstance(el, property):
+                if not el.fget is None and _has_type_hints(el.fget, clss):
+                    _register_logged_func(el, True, True, clss, util.getargspecs(el))
+                if not el.fset is None and _has_type_hints(el.fset, clss):
+                    _register_logged_func(el, True, False, clss, util.getargspecs(el))
+    # classmethods are not obtained via inspect.getmembers.
+    # We have to look into __dict__ for that.
+    for key in clss.__dict__:
+        attr = getattr(clss, key)
+        if ismethod(attr):
+            _register_logged_func(attr, True, False, clss, util.getargspecs(el))
+
+
+def register_all_members_in_module(md):
+    funcs = [func[1] for func in getmembers(md, isfunction)]
+    cls = [cl[1] for cl in getmembers(md, isclass)]
+    for func in funcs:
+        _register_logged_func(func, False, False, None, util.getargspecs(func))
+    for cl in cls:
+        if sys.modules[cl.__module__] is md:
+            register_all_members_in_class(cl)
 
 
 def combine_argtype(observations):
