@@ -562,9 +562,9 @@ stubfile\_2\_converter
 
 Run stubfile\_2\_converter.py to leverage pytypes' stubfile converter capabilities:
 
-``python3 -m pytypes.stubfile_2_converter.py [options/flags] [in_file]``
+``python3 -m pytypes.stubfile_2_converter [options/flags] [in_file]``
 
-Use ``python3 -m pytypes.stubfile_2_converter.py -h`` to see detailed usage.
+Use ``python3 -m pytypes.stubfile_2_converter -h`` to see detailed usage.
 
 By default the out file will be created in the same folder as the in file, but with 'pyi2' suffix.
 

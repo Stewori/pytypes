@@ -282,8 +282,11 @@ def as_stub_func_if_any(func0, decorated_func = None, func_class = None, nesting
     module = get_stub_module(func0)
     if not module is None:
         if hasattr(module, func0.__name__):
-            return getattr(module, func0.__name__)
-        elif not decorated_func is None and ismethod(decorated_func):
+            res = getattr(module, func0.__name__)
+            if inspect.isfunction(res) or inspect.ismethod(res) \
+                    or inspect.ismethoddescriptor(res):
+                return getattr(module, func0.__name__)
+        if not decorated_func is None and ismethod(decorated_func):
             cls = util.get_class_that_defined_method(decorated_func)
             if hasattr(module, cls.__name__):
                 cls2 = getattr(module, cls.__name__)

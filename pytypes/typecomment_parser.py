@@ -52,6 +52,8 @@ def _get_typestrings(obj, slf):
         srclines = inspect.getsourcelines(obj)[0]
     except IOError:
         return None
+    except TypeError:
+        srclines = inspect.getsourcelines(getattr(obj.__class__, obj.__name__))[0]
     funcstart = 0
     startInit = False
     result = []
