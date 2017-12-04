@@ -892,15 +892,38 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
 
 def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typevars):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
+    This subclass-check treats Mapping-values as covariant.
     """
-    # This subclass-check treats Mapping-values as covariant
     if isinstance(subclass, GenericMeta):
-        if not issubclass(subclass.__origin__, Mapping):
-            return False
-        if not _issubclass(subclass.__args__[0], superclass.__args__[0],
+        if subclass.__origin__ is None or not issubclass(subclass.__origin__, Mapping):
+            return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars)
+        if superclass.__args__ is None:
+            if not pytypes.check_unbound_types:
+                raise TypeError("Attempted to check unbound mapping type(superclass): "+
+                        str(superclass))
+            if pytypes.strict_unknown_check:
+                # Nothing is subtype of unknown type
+                return False
+            super_args = (Any, Any)
+        else:
+            super_args = superclass.__args__
+        if subclass.__args__ is None:
+            if not pytypes.check_unbound_types:
+                raise TypeError("Attempted to check unbound mapping type(subclass): "+
+                        str(subclass))
+            if pytypes.strict_unknown_check:
+                # Nothing can subclass unknown type
+                # For value type it would be okay if superclass had Any as value type,
+                # as unknown type is subtype of Any. However, since key type is invariant
+                # and also unknown, it cannot pass.
+                return False
+            sub_args = (Any, Any)
+        else:
+            sub_args = subclass.__args__
+        if not _issubclass(sub_args[0], super_args[0],
                 bound_Generic, bound_typevars):
             return False
-        if not _issubclass(subclass.__args__[1], superclass.__args__[1],
+        if not _issubclass(sub_args[1], super_args[1],
                 bound_Generic, bound_typevars):
             return False
         return True
@@ -1117,7 +1140,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars):
         #   return False (?) (or NotImplemented? Or let a flag decide behavior?)
         if origin is None:
             if not pytypes.check_unbound_types:
-                raise TypeError("Attempted to check unbound type(superclass: "+str(superclass))
+                raise TypeError("Attempted to check unbound type(superclass): "+str(superclass))
             if not subclass.__origin__ is None:
                 if not type.__subclasscheck__(superclass, subclass.__origin__):
                     return False
@@ -1320,7 +1343,9 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars):
         return _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars)
     if isinstance(superclass, GenericMeta):
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
-        if pytypes.covariant_Mapping and _has_base(superclass.__origin__, Mapping):
+        if pytypes.covariant_Mapping and _has_base(
+                superclass.__origin__ if not superclass.__origin__ is None else superclass,
+                Mapping):
             return _issubclass_Mapping_covariant(subclass, superclass,
                     bound_Generic, bound_typevars)
         else:
