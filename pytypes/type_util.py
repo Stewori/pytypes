@@ -1177,8 +1177,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars):
                     return False
             return True
 # 	Formerly: if super(GenericMeta, superclass).__subclasscheck__(subclass):
-    if type.__subclasscheck__(superclass, subclass):
-        return True
+    try:
+        if type.__subclasscheck__(superclass, subclass):
+            return True
+    except TypeError: pass
     if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
         return False
     return _issubclass_2(subclass, superclass.__extra__, bound_Generic, bound_typevars)
@@ -1265,6 +1267,8 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None):
     """
     if superclass is Any:
         return True
+    if subclass == superclass:
+        return True
     if subclass is Any:
         return superclass is Any
     if pytypes.apply_numeric_tower:
@@ -1285,10 +1289,20 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None):
                         bound_Generic, bound_typevars):
                     return _issubclass_2(subclass.__args__[0], superclass.__origin__,
                             bound_Generic, bound_typevars)
-            except TypeError:
-                pass
-    except TypeError:
-        pass
+            except: pass
+    except: pass
+    try:
+        if _issubclass_2(superclass, Empty, bound_Generic, bound_typevars):
+            if _issubclass_2(subclass, Container, bound_Generic, bound_typevars):
+                return _issubclass_2(subclass, superclass.__args__[0],
+                        bound_Generic, bound_typevars)
+            try:
+                if _issubclass_2(subclass.__origin__, Container,
+                        bound_Generic, bound_typevars):
+                    return _issubclass_2(subclass.__origin__, superclass.__args__[0],
+                            bound_Generic, bound_typevars)
+            except: pass
+    except: pass
     if isinstance(superclass, TypeVar):
         if not superclass.__bound__ is None:
             if not _issubclass(subclass, superclass.__bound__, bound_Generic,
@@ -1341,6 +1355,11 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars):
     """
     if isinstance(superclass, TupleMeta):
         return _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars)
+    if is_Union(superclass):
+        return _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars)
+    if is_Union(subclass):
+        return all(_issubclass(t, superclass, bound_Generic, bound_typevars) \
+                for t in get_Union_params(subclass))
     if isinstance(superclass, GenericMeta):
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
         if pytypes.covariant_Mapping and _has_base(
@@ -1350,11 +1369,6 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars):
                     bound_Generic, bound_typevars)
         else:
             return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars)
-    if is_Union(superclass):
-        return _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars)
-    if is_Union(subclass):
-        return all(_issubclass(t, superclass, bound_Generic, bound_typevars) \
-                for t in get_Union_params(subclass))
     if subclass in _extra_dict:
         subclass = _extra_dict[subclass]
     try:
