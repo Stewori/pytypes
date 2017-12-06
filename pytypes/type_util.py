@@ -278,10 +278,15 @@ def deep_type(obj, depth = None, max_sample = None):
     all elements are probed. If there are fewer elements than max_sample, all
     existing elements are probed.
     """
-    return _deep_type(obj, [], depth, max_sample)
+    return _deep_type(obj, [], 0, depth, max_sample)
 
 
-def _deep_type(obj, checked, depth = None, max_sample = None):
+def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
+    """checked_len allows to operate with a fake length for checked.
+    This is necessary to ensure that each depth level operates based
+    on the same checked list subset. Otherwise our recursion detection
+    mechanism can fall into false-positives.
+    """
     if depth is None:
         depth = pytypes.default_typecheck_depth
     if max_sample is None:
@@ -292,17 +297,23 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
         res = obj.__orig_class__
     except AttributeError:
         res = type(obj)
-    if depth == 0 or obj in checked:
+    if depth == 0 or obj in checked[:checked_len]:
         return res
-    else:
+    elif not obj in checked[checked_len:]:
         checked.append(obj)
+    # We must operate with a consistent checked list for one certain depth level
+    # to avoid issues with a list, tuple, dict, etc containing the same element
+    # multiple times. This could otherwise be misconcepted as a recursion.
+    # Using a fake len checked_len2 ensures this. Each depth level operates with
+    # a common fake length of checked list:
+    checked_len2 = len(checked)
     if res == tuple:
-        res = Tuple[tuple(_deep_type(t, checked, depth-1) for t in obj)]
+        res = Tuple[tuple(_deep_type(t, checked, checked_len2, depth-1) for t in obj)]
     elif res == list:
         if len(obj) == 0:
             return Empty[List]
         if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
-            tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
+            tpl = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in obj)
         else:
             # In case of lists I somehow feel it's better to ensure that
             # first and last element are part of the sample
@@ -312,7 +323,7 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
             except NameError:
                 rsmp = random.sample(range(1, len(obj)-1), max_sample-2)
             sample.extend(rsmp)
-            tpl = tuple(_deep_type(obj[t], checked, depth-1) for t in sample)
+            tpl = tuple(_deep_type(obj[t], checked, checked_len2, depth-1) for t in sample)
         res = List[Union[tpl]]
     elif res == dict:
         if len(obj) == 0:
@@ -320,12 +331,14 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
         if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
             try:
                 # We prefer a view (avoid copy)
-                tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.viewkeys())
-                tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.viewvalues())
+                tpl1 = tuple(_deep_type(t, checked, checked_len2, depth-1) \
+                        for t in obj.viewkeys())
+                tpl2 = tuple(_deep_type(t, checked, checked_len2, depth-1) \
+                        for t in obj.viewvalues())
             except AttributeError:
                 # Python 3 gives views like this:
-                tpl1 = tuple(_deep_type(t, checked, depth-1) for t in obj.keys())
-                tpl2 = tuple(_deep_type(t, checked, depth-1) for t in obj.values())
+                tpl1 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in obj.keys())
+                tpl2 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in obj.values())
         else:
             try:
                 kitr = iter(obj.viewkeys())
@@ -351,8 +364,8 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
                         k -= 1
                 ksmpl.append(next(kitr))
                 vsmpl.append(next(vitr))
-            tpl1 = tuple(_deep_type(t, checked, depth-1) for t in ksmpl)
-            tpl2 = tuple(_deep_type(t, checked, depth-1) for t in vsmpl)
+            tpl1 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in ksmpl)
+            tpl2 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in vsmpl)
         res = Dict[Union[tpl1], Union[tpl2]]
     elif res == set:
         if len(obj) == 0:
