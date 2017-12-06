@@ -380,10 +380,9 @@ def _deep_type(obj, checked, depth = None, max_sample = None):
     elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
         # For old-style instances return the actual class:
         return obj.__class__
-    elif _issubclass_2(res, Container, None, None) and len(obj) == 0:
+    elif _has_base(res, Container) and len(obj) == 0:
         return Empty[res]
-    elif hasattr(res, '__origin__') and \
-            _issubclass_2(res.__origin__, Container, None, None) and len(obj) == 0:
+    elif hasattr(res, '__origin__') and _has_base(res.__origin__, Container) and len(obj) == 0:
         return Empty[res.__origin__]
     return res
 
