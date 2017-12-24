@@ -36,6 +36,7 @@ from . import util
 _annotated_modules = {}
 _extra_dict = {}
 _saved_profilers = {}
+_fw_resolve_cache = {}
 
 for tp in typing.__all__:
     tpa = getattr(typing, tp)
@@ -771,6 +772,35 @@ def _handle_defaults(sig_types, arg_specs, unspecified_indices = None):
     return sig_types
 
 
+def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
+    if in_type in _fw_resolve_cache:
+        return _fw_resolve_cache[in_type], True
+    if globs is None:
+        #if not module_name is None:
+        globs = util.get_function_perspective_globals(module_name, level+1)
+    if isinstance(in_type, _basestring):
+        # For the case that a pure forward ref is given as string
+        out_type = eval(in_type, globs)
+        _fw_resolve_cache[in_type] = out_type
+        return out_type, True
+    elif isinstance(in_type, typing._ForwardRef):
+        # Todo: Mabe somehow get globs from in_type.__forward_code__
+        if not in_type.__forward_evaluated__:
+            in_type.__forward_value__ = eval(in_type.__forward_arg__, globs)
+            in_type.__forward_evaluated__ = True
+            return in_type, True
+    elif isinstance(in_type, TupleMeta):
+        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+                for in_tp in get_Tuple_params(in_type)])
+    elif is_Union(in_type):
+        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+                for in_tp in get_Union_params(in_type)])
+    elif hasattr(in_type, '__args__'):
+        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+                for in_tp in in_type.__args__])
+    return in_type, False
+
+
 def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
         unspecified_type=Any, infer_defaults=None):
     if infer_defaults is None:
@@ -832,7 +862,7 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
                     val = type(None)
                 elif isinstance(val, _basestring):
                     if globs is None:
-                        globs = util.get_function_perspective_globals(func, 3)
+                        globs = util.get_function_perspective_globals(func.__module__, 3)
                     val = eval(val, globs)
                 tpHints[key] = val
         # We're running Python 3 or have custom __annotations__ in Python 2.7
@@ -852,7 +882,7 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
                         % (func.__module__, func.__name__))
             else:
                 if globs is None:
-                    globs = util.get_function_perspective_globals(func, 3)
+                    globs = util.get_function_perspective_globals(func.__module__, 3)
                 resType2 = _funcsigtypesfromstring(*tpStr, argspec=argSpecs, glbls=globs,
                         argCount=len(argNames), unspecified_type=unspecified_type,
                         defaults=argSpecs.defaults if infer_defaults else None,
@@ -874,7 +904,7 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
                     util._fully_qualified_func_name(func, slf, func_class), resType[1]))
         return resType
     if globs is None:
-        globs = util.get_function_perspective_globals(func, 3)
+        globs = util.get_function_perspective_globals(func.__module__, 3)
     res = _funcsigtypesfromstring(*tpStr, glbls=globs, argspec=argSpecs,
             argCount=len(argNames),
             defaults = argSpecs.defaults if infer_defaults else None,
@@ -1283,6 +1313,18 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None):
         return True
     if subclass is Any:
         return superclass is Any
+    if isinstance(subclass, typing._ForwardRef):
+        if not subclass.__forward_evaluated__:
+            raise TypeError("ForwardRef in subclass not evaluated: '%s'\n%s"%
+                    (subclass.__forward_arg__, "Use pytypes.resolve_fw_decl"))
+        else:
+            return _issubclass(subclass.__forward_value__, superclass)
+    elif isinstance(superclass, typing._ForwardRef):
+        if not superclass.__forward_evaluated__:
+            raise TypeError("ForwardRef in superclass not evaluated: '%s'\n%s"%
+                    (superclass.__forward_arg__, "Use pytypes.resolve_fw_decl"))
+        else:
+            return _issubclass(subclass, superclass.__forward_value__)
     if pytypes.apply_numeric_tower:
         if superclass is float and subclass is int:
             return True
