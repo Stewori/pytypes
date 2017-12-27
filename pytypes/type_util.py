@@ -790,13 +790,19 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
             in_type.__forward_evaluated__ = True
             return in_type, True
     elif isinstance(in_type, TupleMeta):
-        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+        return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in get_Tuple_params(in_type)])
     elif is_Union(in_type):
-        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+        return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in get_Union_params(in_type)])
+    elif isinstance(in_type, CallableMeta):
+        args, res = get_Callable_args_res(in_type)
+        ret = any([resolve_fw_decl(in_tp, None, globs)[1] \
+                for in_tp in args])
+        ret = resolve_fw_decl(res, None, globs)[1] or ret
+        return in_type, ret
     elif hasattr(in_type, '__args__'):
-        return in_type, any([resolve_fw_decl(in_tp, None, globs) \
+        return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in in_type.__args__])
     return in_type, False
 
