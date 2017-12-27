@@ -866,10 +866,13 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
                 val = tmp[key]
                 if val is None:
                     val = type(None)
-                elif isinstance(val, _basestring):
+                else:
+                    # We manually create globals here for resolve_fw_decl, because globals
+                    # might be needed again later. Usually resolve_fw_decl can create
+                    # globals internally.
                     if globs is None:
                         globs = util.get_function_perspective_globals(func.__module__, 3)
-                    val = eval(val, globs)
+                    val = resolve_fw_decl(val, func.__module__, globs, 3)[0]
                 tpHints[key] = val
         # We're running Python 3 or have custom __annotations__ in Python 2.7
         retTp = tpHints['return'] if 'return' in tpHints else Any
