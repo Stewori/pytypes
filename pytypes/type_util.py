@@ -581,6 +581,8 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
             return type_str(prm, assumed_globals, update_assumed_globals,
                     implicit_globals, bound_Generic, bound_typevars)
         return tp.__name__
+    elif isinstance(tp, typing._ForwardRef):
+        return "'%s'" % tp.__forward_arg__
     elif isclass(tp) and not isinstance(tp, GenericMeta) \
             and not hasattr(typing, tp.__name__):
         tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
