@@ -282,15 +282,6 @@ def deep_type(obj, depth = None, max_sample = None):
     return _deep_type(obj, [], 0, depth, max_sample)
 
 
-def _is_in(obj, lst):
-    """Checks if obj is in lst using referential equality.
-    """
-    for el in lst:
-        if el is obj:
-            return True
-    return False
-
-
 def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
     """checked_len allows to operate with a fake length for checked.
     This is necessary to ensure that each depth level operates based
@@ -307,9 +298,9 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
         res = obj.__orig_class__
     except AttributeError:
         res = type(obj)
-    if depth == 0 or _is_in(obj, checked[:checked_len]):
+    if depth == 0 or util._is_in(obj, checked[:checked_len]):
         return res
-    elif not _is_in(obj, checked[checked_len:]):
+    elif not util._is_in(obj, checked[checked_len:]):
         checked.append(obj)
     # We must operate with a consistent checked list for one certain depth level
     # to avoid issues with a list, tuple, dict, etc containing the same element
