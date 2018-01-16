@@ -568,7 +568,8 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
             type_str(tp, bound_Generic=func_class, bound_typevars=bound_typevars))
 
 
-def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force = False):
+def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_readonly,
+            follow_fwd_refs, _recursion_check, is_args, func, force = False):
     if isinstance(cls, typing.TupleMeta):
         prms = pytypes.get_Tuple_params(cls)
         try:
@@ -580,6 +581,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
         if isinstance(obj, tuple):
             for i in range(len(obj)):
                 res, obj2 = _checkinstance(obj[i], prms[i], bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check,
                         is_args, func)
                 if not res:
                     return False, obj
@@ -590,7 +592,8 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
             return False, obj
     # This (optionally) turns some types into a checked version, e.g. generators or callables
     if isinstance(cls, typing.CallableMeta):
-        if not type_util._isinstance_Callable(obj, cls, bound_Generic, bound_typevars, False):
+        if not type_util._isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
+                    bound_typevars_readonly, follow_fwd_refs, _recursion_check, False):
             return False, obj
         if pytypes.check_callables:
             # Todo: Only this part shall reside in _checkInstance
@@ -603,7 +606,8 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
     if isinstance(cls, typing.GenericMeta):
         if cls.__origin__ is typing.Iterable:
             if not pytypes.check_iterables:
-                return _isinstance(obj, cls, bound_Generic, bound_typevars), obj
+                return _isinstance(obj, cls, bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
             else:
                 if not type_util.is_iterable(obj):
                     return False, obj
@@ -630,7 +634,9 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
 # 						obj.__iter__ = types.MethodType(__iter__checked, obj)
 # 						return True, obj
                 else:
-                    return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars), obj
+                    return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs,
+                            _recursion_check), obj
         elif cls.__origin__ is typing.Generator:
             if is_args or not inspect.isgeneratorfunction(func):
                 # Todo: Insert fully qualified function name
@@ -643,10 +649,14 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
                         return True, obj
                     if sys.version_info.major == 2:
                         wrgen = type_util.generator_checker_py2(obj, cls,
-                                bound_Generic, bound_typevars)
+                                bound_Generic, bound_typevars,
+                                bound_typevars_readonly, follow_fwd_refs,
+                                _recursion_check)
                     else:
                         wrgen = type_util.generator_checker_py3(obj, cls,
-                                bound_Generic, bound_typevars)
+                                bound_Generic, bound_typevars,
+                                bound_typevars_readonly, follow_fwd_refs,
+                                _recursion_check)
                         try:
                             wrgen.__qualname__ = obj.__qualname__
                         except:
@@ -656,21 +666,25 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, is_args, func, force
                     return True, obj
             else:
                 return False, obj
-    return _isinstance(obj, cls, bound_Generic, bound_typevars), obj
+    return _isinstance(obj, cls, bound_Generic, bound_typevars,
+            bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
 
 
-def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val=False, \
-            prop_getter=False, argspecs=None, var_type=None, force_exception=False, \
-            bound_typevars={}):
+def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val=False,
+            prop_getter=False, argspecs=None, var_type=None, force_exception=False,
+            bound_typevars={}, bound_typevars_readonly=False, follow_fwd_refs=True,
+            _recursion_check=None):
     if argspecs is None:
         argspecs = getargspecs(_actualfunc(func, prop_getter))
     argSig = _preprocess_typecheck(argSig, argspecs, slf) \
             if var_type is None else var_type
     if make_checked_val:
         result, checked_val = _checkinstance(check_val, argSig,
-                func_class, bound_typevars, True, func)
+                func_class, bound_typevars, bound_typevars_readonly, follow_fwd_refs,
+                _recursion_check, True, func)
     else:
-        result = _isinstance(check_val, argSig, func_class, bound_typevars)
+        result = _isinstance(check_val, argSig, func_class, bound_typevars,
+                bound_typevars_readonly, follow_fwd_refs, _recursion_check)
         checked_val = None
     if not result:
         tpch = deep_type(check_val)
@@ -684,13 +698,16 @@ def _checkfunctype(argSig, check_val, func, slf, func_class, make_checked_val=Fa
 
 def _checkfuncresult(resSig, check_val, func, slf, func_class, \
             make_checked_val=False, prop_getter=False, force_exception=False, \
-            bound_typevars={}):
+            bound_typevars={}, bound_typevars_readonly=False, follow_fwd_refs=True,
+            _recursion_check=None):
     if make_checked_val:
         result, checked_val = _checkinstance(check_val, _match_stub_type(resSig),
-                func_class, bound_typevars, False, func)
+                func_class, bound_typevars, bound_typevars_readonly, follow_fwd_refs,
+                _recursion_check, False, func)
     else:
         result = _isinstance(check_val, _match_stub_type(resSig),
-                func_class, bound_typevars)
+                func_class, bound_typevars, bound_typevars_readonly, follow_fwd_refs,
+                _recursion_check)
         checked_val = None
     if not result:
         # todo: constrain deep_type-depth
