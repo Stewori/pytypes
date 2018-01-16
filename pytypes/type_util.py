@@ -1674,7 +1674,7 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
     if obj == {}:
         try:
             return issubclass(typing.Dict, cls.__origin__)
-        except TypeError:
+        except (TypeError, AttributeError):
             return issubclass(typing.Dict, cls)
     return _issubclass(deep_type(obj), cls, bound_Generic, bound_typevars,
             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
