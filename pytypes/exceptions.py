@@ -49,3 +49,9 @@ class TypeSyntaxError(TypeError):
     """Error type to indicate errors regarding ill-formated typestrings.
     """
     pass
+
+
+class ForwardRefError(TypeError):
+    """Error type to indicate errors regarding forward references.
+    """
+    pass

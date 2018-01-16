@@ -555,7 +555,7 @@ if not hasattr(typing, '_generic_new'):
 
 # We import some public API for central access:
 from .exceptions import TypeCheckError, InputTypeError, ReturnTypeError, TypeWarning, \
-    InputTypeWarning, ReturnTypeWarning, OverrideError, TypeSyntaxError
+    InputTypeWarning, ReturnTypeWarning, OverrideError, TypeSyntaxError, ForwardRefError
 from .type_util import deep_type, is_builtin_type, has_type_hints, resolve_fw_decl, \
     type_str, get_types, get_type_hints, is_iterable, get_iterable_itemtype, get_generator_type, \
     get_generator_yield_type, is_Union, get_Union_params, get_Tuple_params, \
