@@ -300,9 +300,9 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
         res = obj.__orig_class__
     except AttributeError:
         res = type(obj)
-    if depth == 0 or obj in checked[:checked_len]:
+    if depth == 0 or util._is_in(obj, checked[:checked_len]):
         return res
-    elif not obj in checked[checked_len:]:
+    elif not util._is_in(obj, checked[checked_len:]):
         checked.append(obj)
     # We must operate with a consistent checked list for one certain depth level
     # to avoid issues with a list, tuple, dict, etc containing the same element
@@ -1671,11 +1671,6 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
     if isinstance(cls, CallableMeta):
         return _isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-    if obj == {}:
-        try:
-            return issubclass(typing.Dict, cls.__origin__)
-        except (TypeError, AttributeError):
-            return issubclass(typing.Dict, cls)
     return _issubclass(deep_type(obj), cls, bound_Generic, bound_typevars,
             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
 

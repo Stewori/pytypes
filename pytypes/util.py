@@ -820,3 +820,9 @@ def _pytypes_excepthook(exctype, value, tb):
             sys.__excepthook__(exctype, value, tb)
         else:
             _sys_excepthook(exctype, value, tb)
+
+
+def _is_in(obj, lst):
+    """Checks if obj is in lst using referential equality.
+    """
+    return any(el is obj for el in lst)
