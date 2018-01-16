@@ -1318,7 +1318,7 @@ def _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars,
 
 def _issubclass_Union_rec(subclass, superclass, bound_Generic, bound_typevars,
             bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-    """Helper for _issubclass_Union, a.k.a pytypes.issubtype.
+    """Helper for _issubclass_Union.
     """
     # this function is partly based on code from typing module 3.5.2.2
     super_args = get_Union_params(superclass)
@@ -1419,7 +1419,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                     "ForwardRef encountered, but follow_fwd_refs is False: '%s'\n%s"%
                     ((subclass if isinstance(subclass, typing._ForwardRef) else superclass)
                     .__forward_arg__,
-                    "Retry with follow_fwd_refs==True."))
+                    "Retry with follow_fwd_refs=True."))
         # Now that forward refs are in the game, we must continue in recursion-proof manner:
         if _recursion_check is None:
             _recursion_check = {superclass: {subclass}}
