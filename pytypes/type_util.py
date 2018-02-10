@@ -199,6 +199,7 @@ def get_Generic_parameters(tp, generic_supertype):
 def get_Tuple_params(tpl):
     """Python version independent function to obtain the parameters
     of a typing.Tuple object.
+    Omits the ellipsis argument if present. Use is_Tuple_ellipsis for that.
     Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
     """
     try:
@@ -208,9 +209,32 @@ def get_Tuple_params(tpl):
             if tpl.__args__ is None:
                 return None
             # Python 3.6
-            return () if tpl.__args__[0] == () else tpl.__args__
+            if tpl.__args__[0] == ():
+                return ()
+            else:
+                if tpl.__args__[-1] is Ellipsis:
+                    return tpl.__args__[:-1] if len(tpl.__args__) > 1 else None
+                else:
+                    return tpl.__args__
         except AttributeError:
             return None
+
+
+def is_Tuple_ellipsis(tpl):
+    """Python version independent function to check if  a typing.Tuple object
+    contains an ellipsis."""
+    try:
+        return tpl.__tuple_use_ellipsis__
+    except AttributeError:
+        try:
+            if tpl.__args__ is None:
+                return False
+            # Python 3.6
+            if tpl.__args__[-1] is Ellipsis:
+                return True
+        except AttributeError:
+            pass
+        return False
 
 
 def get_Union_params(un):
@@ -1294,10 +1318,63 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars,
     if sub_args is None:
         return False  # ???
     # Covariance.
-    return (len(super_args) == len(sub_args) and
-            all(_issubclass(x, p, bound_Generic, bound_typevars,
-            bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-            for x, p in zip(sub_args, super_args)))
+    # For now we check ellipsis in most explicit manner.
+    # Todo: Compactify and Pythonify ellipsis branches (tests required before this).
+    if is_Tuple_ellipsis(subclass):
+        if is_Tuple_ellipsis(superclass):
+            # both are ellipsis, so no length check
+            common = min(len(super_args), len(sub_args))
+            for i in range(common):
+                if not _issubclass(sub_args[i], super_args[i], bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                    return False
+            if len(super_args) < len(sub_args):
+                for i in range(len(super_args), len(sub_args)):
+                    # Check remaining super args against the ellipsis type
+                    if not _issubclass(sub_args[i], super_args[-1], bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                        return False
+            elif len(super_args) > len(sub_args):
+                for i in range(len(sub_args), len(super_args)):
+                    # Check remaining super args against the ellipsis type
+                    if not _issubclass(sub_args[-1], super_args[i], bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                        return False
+            return True
+        else:
+            # only subclass has ellipsis
+            if len(super_args) < len(sub_args)-1:
+                return False
+            for i in range(len(sub_args)-1):
+                if not _issubclass(sub_args[i], super_args[i], bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                    return False
+            for i in range(len(sub_args), len(super_args)):
+                # Check remaining super args against the ellipsis type
+                if not _issubclass(sub_args[-1], super_args[i], bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                    return False
+            return True
+    elif is_Tuple_ellipsis(superclass):
+        # only superclass has ellipsis
+        if len(super_args)-1 > len(sub_args):
+            return False
+        for i in range(len(super_args)-1):
+            if not _issubclass(sub_args[i], super_args[i], bound_Generic, bound_typevars,
+                    bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                return False
+        for i in range(len(super_args), len(sub_args)):
+            # Check remaining sub args against the ellipsis type
+            if not _issubclass(sub_args[i], super_args[-1], bound_Generic, bound_typevars,
+                    bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                return False
+        return True
+    else:
+        # none has ellipsis, so strict length check
+        return (len(super_args) == len(sub_args) and
+                all(_issubclass(x, p, bound_Generic, bound_typevars,
+                bound_typevars_readonly, follow_fwd_refs, _recursion_check)
+                for x, p in zip(sub_args, super_args)))
 
 
 def _issubclass_Union(subclass, superclass, bound_Generic, bound_typevars,
