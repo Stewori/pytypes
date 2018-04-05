@@ -1608,11 +1608,6 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
     try:
         if _issubclass_2(subclass, Empty, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-            if _issubclass_2(superclass, Container, bound_Generic, bound_typevars,
-                    bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                return _issubclass_2(subclass.__args__[0], superclass,
-                        bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check)
             try:
                 if _issubclass_2(superclass.__origin__, Container,
                         bound_Generic, bound_typevars,
@@ -1621,6 +1616,11 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                             bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
             except: pass
+            if _issubclass_2(superclass, Container, bound_Generic, bound_typevars,
+                    bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                return _issubclass_2(subclass.__args__[0], superclass,
+                        bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check)
     except: pass
     try:
         if _issubclass_2(superclass, Empty, bound_Generic, bound_typevars,
