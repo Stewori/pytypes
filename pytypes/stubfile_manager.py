@@ -24,9 +24,9 @@ import tempfile
 import warnings
 from inspect import isclass, ismodule, ismethod
 try:
-    from backports.typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
+    from backports.typing import Union, Tuple, Callable
 except ImportError:
-    from typing import Union, Tuple, TupleMeta, GenericMeta, CallableMeta
+    from typing import Union, Tuple, Callable
 
 import pytypes
 from pytypes import util
@@ -247,7 +247,7 @@ def _match_stub_type(stub_type):
         return stub_type
     # Todo: Only apply if stub-module is involved
     # Todo: Somehow cache results
-    if isinstance(stub_type, TupleMeta):
+    if pytypes.is_Tuple(stub_type):
         prms = pytypes.get_Tuple_params(stub_type)
         res = Tuple[(tuple(_match_stub_type(t) for t in prms))]
     elif pytypes.is_Union(stub_type):
@@ -256,19 +256,23 @@ def _match_stub_type(stub_type):
             res = Union[tuple(_match_stub_type(t) for t in stub_type.__args__)]
         except AttributeError:
             res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
-    elif isinstance(stub_type, GenericMeta):
+    elif pytypes.is_Generic(stub_type):
         if stub_type.__args__ is None:
             res = stub_type
-        elif isinstance(stub_type, CallableMeta):
+        elif pytypes.is_Callable(stub_type):
             if hasattr(stub_type, '__result__'):
-                res = stub_type.__origin__[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+                res = Callable[tuple(_match_stub_type(t) for t in stub_type.__args__)]
                 res.__result__ = _match_stub_type(stub_type.__result__)
             else:
-                res = stub_type.__origin__[tuple([
+                res = Callable[tuple([
                         [_match_stub_type(t) for t in stub_type.__args__[:-1]],
                         _match_stub_type(stub_type.__args__[-1]) ]) ]
         else:
-            res = stub_type.__origin__[tuple(_match_stub_type(t) for t in stub_type.__args__)]
+            tpl = tuple(_match_stub_type(t) for t in stub_type.__args__)
+            try:
+                res = stub_type.__origin__[tpl]
+            except TypeError:
+                res = pytypes.abc2typing_dict[stub_type.__origin__][tpl]
     elif isclass(stub_type):
         res = stub_type._match_type if hasattr(stub_type, '_match_type') else stub_type
     else:

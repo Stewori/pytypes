@@ -35,16 +35,16 @@ except ImportError:
     pass
 
 try:
-    from backports.typing import Union, Any, Tuple, TupleMeta
+    from backports.typing import Union, Any, Tuple
 except ImportError:
-    from typing import Union, Any, Tuple, TupleMeta
+    from typing import Union, Any, Tuple
 
 import pytypes
 from .type_util import deep_type, type_str, get_Tuple_params, \
         Empty, simplify_for_Union, _get_types, _has_type_hints, \
         _preprocess_typecheck, get_Union_params, is_Union, \
         get_Generic_itemtype, TypeAgent, _implicit_globals, \
-        _check_as_func
+        _check_as_func, is_Tuple
 from .util import getargspecs, getargnames
 from .typechecker import _typeinspect_func
 from . import util
@@ -146,12 +146,12 @@ def combine_argtype(observations):
     additional unification effort (e.g. can apply PEP 484 style numeric tower).
     """
     assert len(observations) > 0
-    assert isinstance(observations[0], TupleMeta)
+    assert isinstance(is_Tuple(observations[0]))
     if len(observations) > 1:
         prms = [get_Tuple_params(observations[0])]
         ln = len(prms[0])
         for obs in observations[1:]:
-            assert isinstance(obs, TupleMeta)
+            assert is_Tuple(obs)
             prms.append(get_Tuple_params(obs))
             assert len(prms[-1]) == ln
         if simplify:

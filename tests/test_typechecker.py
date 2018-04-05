@@ -24,7 +24,7 @@ import pytypes
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
     get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
     TypeSyntaxError, check_argument_types, annotations, get_member_types
-
+pytypes.clean_traceback = False
 try:
     from backports import typing
     from backports.typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, \

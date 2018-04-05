@@ -33,7 +33,7 @@ from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
         deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
         _preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent, \
-        _check_as_func
+        _check_as_func, is_Tuple
 from . import util, type_util
 
 try:
@@ -570,7 +570,7 @@ def _make_type_error_message(tp, func, slf, func_class, expected_tp, \
 
 def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_readonly,
             follow_fwd_refs, _recursion_check, is_args, func, force = False):
-    if isinstance(cls, typing.TupleMeta):
+    if is_Tuple(cls):
         prms = pytypes.get_Tuple_params(cls)
         try:
             if len(obj) != len(prms):
@@ -591,7 +591,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
         else:
             return False, obj
     # This (optionally) turns some types into a checked version, e.g. generators or callables
-    if isinstance(cls, typing.CallableMeta):
+    if type_util.is_Callable(cls):
         if not type_util._isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check, False):
             return False, obj
@@ -603,7 +603,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
             clb_args, clb_res = pytypes.get_Callable_args_res(cls)
             return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
         return True, obj
-    if isinstance(cls, typing.GenericMeta):
+    if type_util.is_Generic(cls):
         if cls.__origin__ is typing.Iterable:
             if not pytypes.check_iterables:
                 return _isinstance(obj, cls, bound_Generic, bound_typevars,

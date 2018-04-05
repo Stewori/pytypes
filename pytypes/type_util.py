@@ -19,13 +19,21 @@ import sys
 import types
 import threading
 import typing
+import collections
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
-    from backports.typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, \
-        GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
+    from backports.typing import Tuple, Dict, List, Set, Union, Any, \
+        Sequence, Mapping, TypeVar, Container, Generic
 except ImportError:
-    from typing import Tuple, Dict, List, Set, Union, Any, TupleMeta, Optional, \
-        GenericMeta, CallableMeta, Sequence, Mapping, TypeVar, Container, Generic
+    from typing import Tuple, Dict, List, Set, Union, Any, Optional, \
+        Sequence, Mapping, TypeVar, Container, Generic
+try:
+    # Python 3.7
+    from typing import ForwardRef
+    _typing_3_7 = True
+except ImportError:
+    from typing import _ForwardRef as ForwardRef
+    _typing_3_7 = False
 from warnings import warn, warn_explicit
 
 import pytypes
@@ -43,7 +51,9 @@ for tp in typing.__all__:
     try:
         _extra_dict[tpa.__extra__] = tpa
     except AttributeError:
-        pass
+        try:
+            _extra_dict[tpa.__origin__] = tpa
+        except: pass
 if not tuple in _extra_dict:
     _extra_dict[tuple] = Tuple
 
@@ -62,6 +72,30 @@ class Empty(Generic[EMPTY]):
     is necessary.
     """
     pass
+
+
+def _origin(tp):
+    if _typing_3_7:
+        res = tp.__origin__
+        try:
+            return _extra_dict[res]
+        except KeyError:
+            return res
+    else:
+        return tp.__origin__
+
+
+def _extra(tp):
+    #return tp.__extra__
+    try:
+        return tp.__extra__
+    except AttributeError:
+        pass
+    try:
+        return tp.__origin__
+    except AttributeError:
+        pass
+    return None
 
 
 def get_generator_yield_type(genr):
@@ -105,7 +139,7 @@ def get_iterable_itemtype(obj):
         return get_generator_yield_type(obj)
     else:
         tp = deep_type(obj)
-        if isinstance(tp, GenericMeta):
+        if is_Generic(tp):
             if issubclass(tp.__origin__, typing.Iterable):
                 if len(tp.__args__) == 1:
                     return tp.__args__[0]
@@ -116,12 +150,12 @@ def get_iterable_itemtype(obj):
         if hasattr(obj, '__iter__'):
             if has_type_hints(obj.__iter__):
                 itrator = _funcsigtypes(obj.__iter__, True, obj.__class__)[1]
-                if isinstance(itrator, GenericMeta) and itrator.__origin__ is typing.Iterator:
+                if is_Generic(itrator) and itrator.__origin__ is typing.Iterator:
                     return itrator.__args__[0]
         if hasattr(obj, '__getitem__'):
             if has_type_hints(obj.__getitem__):
                 itrator =  _funcsigtypes(obj.__getitem__, True, obj.__class__)[1]
-                if isinstance(itrator, GenericMeta) and itrator.__origin__ is typing.Iterator:
+                if is_Generic(itrator) and itrator.__origin__ is typing.Iterator:
                     return itrator.__args__[0]
         return None # means that type is unknown
     else:
@@ -136,7 +170,7 @@ def get_Generic_itemtype(sq, simplify=True):
     For typing.Tuple all contained types are returned as a typing.Union.
     If simplify == True some effort is taken to eliminate redundancies in such a union.
     """
-    if isinstance(sq, TupleMeta):
+    if is_Tuple(sq):
         if simplify:
             itm_tps = [x for x in get_Tuple_params(sq)]
             simplify_for_Union(itm_tps)
@@ -287,6 +321,43 @@ def is_Union(tp):
     except AttributeError:
         try:
             return isinstance(tp, typing.UnionMeta)
+        except AttributeError:
+            return False
+
+
+def is_Tuple(tp):
+    try:
+        return isinstance(tp, typing.TupleMeta)
+    except AttributeError:
+        try:
+            return isinstance(tp, typing._VariadicGenericAlias) and \
+                    tp.__origin__ is tuple
+        except AttributeError:
+            return False
+
+
+def is_Generic(tp):
+    try:
+        return isinstance(tp, typing.GenericMeta)
+    except AttributeError:
+        try:
+            return issubclass(tp, typing.Generic)
+# 			return isinstance(tp, typing._VariadicGenericAlias) and \
+# 					tp.__origin__ is tuple
+        except AttributeError:
+            return False
+        except TypeError:
+            # Shall we accept _GenericAlias, i.e. Tuple, Union, etc?
+            return isinstance(tp, typing._GenericAlias)
+
+
+def is_Callable(tp):
+    try:
+        return isinstance(tp, typing.CallableMeta)
+    except AttributeError:
+        try:
+            return isinstance(tp, typing._VariadicGenericAlias) and \
+                    tp.__origin__ is collections.abc.Callable
         except AttributeError:
             return False
 
@@ -525,7 +596,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
             return tp_name
     # For some reason Callable does not have __origin__, so we special-case
     # it here. Todo: Find a cleaner solution.
-    elif isinstance(tp, CallableMeta) and typing.Callable in assumed_globals:
+    elif is_Callable(tp) and typing.Callable in assumed_globals:
         try:
             return assumed_globals[typing.Callable]
         except:
@@ -534,7 +605,7 @@ def _tp_relfq_name(tp, tp_name=None, assumed_globals=None, update_assumed_global
         if not assumed_globals is None:
             if hasattr(tp, '__origin__') and not tp.__origin__ is None:
                 toadd = tp.__origin__
-            elif isinstance(tp, CallableMeta):
+            elif is_Callable(tp):
                 toadd = typing.Callable
             else:
                 toadd = tp
@@ -607,9 +678,9 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
             return type_str(prm, assumed_globals, update_assumed_globals,
                     implicit_globals, bound_Generic, bound_typevars)
         return tp.__name__
-    elif isinstance(tp, typing._ForwardRef):
+    elif isinstance(tp, ForwardRef):
         return "'%s'" % tp.__forward_arg__
-    elif isclass(tp) and not isinstance(tp, GenericMeta) \
+    elif isclass(tp) and not is_Generic(tp) \
             and not hasattr(typing, tp.__name__):
         tp_name = _tp_relfq_name(tp, None, assumed_globals, update_assumed_globals,
                 implicit_globals)
@@ -625,7 +696,7 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
                 implicit_globals, bound_Generic, bound_typevars) for param in prms]
         return '%s[%s]'%(_tp_relfq_name(Union, 'Union', assumed_globals,
                 update_assumed_globals, implicit_globals), ', '.join(params))
-    elif isinstance(tp, TupleMeta):
+    elif is_Tuple(tp):
         prms = get_Tuple_params(tp)
         tpl_params = [type_str(param, assumed_globals, update_assumed_globals,
                 implicit_globals, bound_Generic, bound_typevars) for param in prms]
@@ -649,7 +720,7 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
             return '%s[[%s], %s]'%(tp_name, ', '.join(params),
                     type_str(tp.__result__, assumed_globals, update_assumed_globals,
                     implicit_globals, bound_Generic, bound_typevars))
-        elif isinstance(tp, CallableMeta):
+        elif is_Callable(tp):
             return '%s[[%s], %s]'%(tp_name, ', '.join(params[:-1]),
                     type_str(params[-1], assumed_globals, update_assumed_globals,
                     implicit_globals, bound_Generic, bound_typevars))
@@ -817,13 +888,13 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
             in_type.__forward_value__ = eval(in_type.__forward_arg__, globs)
             in_type.__forward_evaluated__ = True
             return in_type, True
-    elif isinstance(in_type, TupleMeta):
+    elif is_Tuple(in_type):
         return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in get_Tuple_params(in_type)])
     elif is_Union(in_type):
         return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in get_Union_params(in_type)])
-    elif isinstance(in_type, CallableMeta):
+    elif is_Callable(in_type):
         args, res = get_Callable_args_res(in_type)
         ret = any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in args])
@@ -974,7 +1045,7 @@ def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typ
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     This subclass-check treats Mapping-values as covariant.
     """
-    if isinstance(subclass, GenericMeta):
+    if is_Generic(subclass):
         if subclass.__origin__ is None or not issubclass(subclass.__origin__, Mapping):
             return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check)
@@ -1020,7 +1091,7 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     param_map = {}
     while len(stack) > 0:
         bs = stack.pop()
-        if isinstance(bs, GenericMeta):
+        if is_Generic(bs):
             if not bs.__origin__ is None and len(bs.__origin__.__parameters__) > 0:
                 for i in range(len(bs.__args__)):
                     ors = bs.__origin__.__parameters__[i]
@@ -1148,7 +1219,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         return False
     if subclass in _extra_dict:
         subclass = _extra_dict[subclass]
-    if isinstance(subclass, TupleMeta):
+    if is_Tuple(subclass):
         tpl_prms = get_Tuple_params(subclass)
         if not tpl_prms is None and len(tpl_prms) == 0:
             # (This section is required because Empty shall not be
@@ -1158,10 +1229,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # because that should have been checked in _issubclass_Tuple
             return issubclass(typing.Sequence, superclass.__origin__)
         subclass = Sequence[Union[tpl_prms]]
-    if isinstance(subclass, GenericMeta):
+    if is_Generic(subclass):
         # For a class C(Generic[T]) where T is co-variant,
         # C[X] is a subclass of C[Y] iff X is a subclass of Y.
-        origin = superclass.__origin__
+        origin = _origin(superclass) #superclass.__origin__
         if subclass.__origin__ is None:
             try:
                 orig_bases = subclass.__orig_bases__
@@ -1170,15 +1241,17 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 # became reserved for __orig_bases__. So we can use it as a fallback:
                 orig_bases = subclass.__bases__
             for scls in orig_bases:
-                if isinstance(scls, GenericMeta):
+                if is_Generic(scls):
                     if _issubclass_Generic(scls, superclass, bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs,
                             _recursion_check):
                         return True
         #Formerly: if origin is not None and origin is subclass.__origin__:
         elif origin is not None and \
-                _issubclass(subclass.__origin__, origin, bound_Generic, bound_typevars,
+                _issubclass(_origin(subclass), origin, bound_Generic, bound_typevars,
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+# 				_issubclass(subclass.__origin__, origin, bound_Generic, bound_typevars,
+# 						bound_typevars_readonly, follow_fwd_refs, _recursion_check):
             assert len(superclass.__args__) == len(origin.__parameters__)
             if len(subclass.__args__) == len(origin.__parameters__):
                 sub_args = subclass.__args__
@@ -1280,9 +1353,9 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         if type.__subclasscheck__(superclass, subclass):
             return True
     except TypeError: pass
-    if superclass.__extra__ is None or isinstance(subclass, GenericMeta):
+    if _extra(superclass) is None or is_Generic(subclass):
         return False
-    return _issubclass_2(subclass, superclass.__extra__, bound_Generic, bound_typevars,
+    return _issubclass_2(subclass, _extra(superclass), bound_Generic, bound_typevars,
             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
 
 
@@ -1296,8 +1369,8 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars,
     if not isinstance(subclass, type):
         # To TypeError.
         return False
-    if not isinstance(subclass, TupleMeta):
-        if isinstance(subclass, GenericMeta):
+    if not is_Tuple(subclass):
+        if is_Generic(subclass):
             try:
                 return _issubclass_Generic(subclass, superclass,
                         bound_Generic, bound_typevars,
@@ -1490,11 +1563,11 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
         return True
     if subclass is Any:
         return superclass is Any
-    if isinstance(subclass, typing._ForwardRef) or isinstance(superclass, typing._ForwardRef):
+    if isinstance(subclass, ForwardRef) or isinstance(superclass, ForwardRef):
         if not follow_fwd_refs:
             raise pytypes.ForwardRefError(
                     "ForwardRef encountered, but follow_fwd_refs is False: '%s'\n%s"%
-                    ((subclass if isinstance(subclass, typing._ForwardRef) else superclass)
+                    ((subclass if isinstance(subclass, ForwardRef) else superclass)
                     .__forward_arg__,
                     "Retry with follow_fwd_refs=True."))
         # Now that forward refs are in the game, we must continue in recursion-proof manner:
@@ -1508,7 +1581,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                 _recursion_check[superclass].add(subclass)
         else:
             _recursion_check[superclass] = {subclass}
-        if isinstance(subclass, typing._ForwardRef):
+        if isinstance(subclass, ForwardRef):
             if not subclass.__forward_evaluated__:
                 raise pytypes.ForwardRefError("ForwardRef in subclass not evaluated: '%s'\n%s"%
                         (subclass.__forward_arg__, "Use pytypes.resolve_fw_decl"))
@@ -1516,7 +1589,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                 return _issubclass(subclass.__forward_value__, superclass,
                         bound_Generic, bound_typevars,
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-        else: # isinstance(superclass, typing._ForwardRef)
+        else: # isinstance(superclass, ForwardRef)
             if not superclass.__forward_evaluated__:
                 raise pytypes.ForwardRefError("ForwardRef in superclass not evaluated: '%s'\n%s"%
                         (superclass.__forward_arg__, "Use pytypes.resolve_fw_decl"))
@@ -1629,7 +1702,7 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
             bound_typevars_readonly, follow_fwd_refs, _recursion_check):
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
-    if isinstance(superclass, TupleMeta):
+    if is_Tuple(superclass):
         return _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check)
     if is_Union(superclass):
@@ -1639,7 +1712,7 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
         return all(_issubclass(t, superclass, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check) \
                 for t in get_Union_params(subclass))
-    if isinstance(superclass, GenericMeta):
+    if is_Generic(superclass):
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
         if pytypes.covariant_Mapping and _has_base(
                 superclass.__origin__ if not superclass.__origin__ is None else superclass,
@@ -1723,20 +1796,20 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
     values already present in ``bound_typevars`` or ``bound_Generic``.
 
     follow_fwd_refs : bool
-    Defines if ``_ForwardRef``s should be explored.
+    Defines if ``ForwardRef``s should be explored.
     Default: True
-    If this is set to ``False`` and a ``_ForwardRef`` is encountered, pytypes aborts the check
+    If this is set to ``False`` and a ``ForwardRef`` is encountered, pytypes aborts the check
     raising a ForwardRefError.
 
     _recursion_check : Optional[Dict[type, Set[type]]]
     Internally used for recursion checks.
     Default: None
-    If ``Union``s and ``_ForwardRef``s occur in the same type, recursions can occur. As soon as
-    a ``_ForwardRef`` is encountered, pytypes automatically creates this dictionary and
+    If ``Union``s and ``ForwardRef``s occur in the same type, recursions can occur. As soon as
+    a ``ForwardRef`` is encountered, pytypes automatically creates this dictionary and
     continues in recursion-proof manner.
     """
     # Special treatment if cls is Iterable[...]
-    if isinstance(cls, GenericMeta) and cls.__origin__ is typing.Iterable:
+    if is_Generic(cls) and cls.__origin__ is typing.Iterable:
         if not is_iterable(obj):
             return False
         itp = get_iterable_itemtype(obj)
@@ -1745,7 +1818,7 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
         else:
             return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-    if isinstance(cls, CallableMeta):
+    if is_Callable(cls):
         return _isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check)
     return _issubclass(deep_type(obj), cls, bound_Generic, bound_typevars,
