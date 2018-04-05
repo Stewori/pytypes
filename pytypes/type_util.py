@@ -23,10 +23,10 @@ import collections
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
     from backports.typing import Tuple, Dict, List, Set, Union, Any, \
-        Sequence, Mapping, TypeVar, Container, Generic
+        Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
 except ImportError:
-    from typing import Tuple, Dict, List, Set, Union, Any, Optional, \
-        Sequence, Mapping, TypeVar, Container, Generic
+    from typing import Tuple, Dict, List, Set, Union, Any, \
+        Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
 try:
     # Python 3.7
     from typing import ForwardRef
@@ -1608,36 +1608,45 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
     try:
         if _issubclass_2(subclass, Empty, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-            try:
-                if _issubclass_2(superclass.__origin__, Container,
+            for empty_target in [Container, Sized, Iterable]:
+                # We cannot simply use Union[Container, Sized, Iterable] as empty_target
+                # because of implementation detail behavior of _issubclass_2.
+                # It would e.g. cause false negative result of
+                # is_subtype(Empty[Dict], Empty[Container])
+                try:
+                    if _issubclass_2(superclass.__origin__, empty_target,
+                            bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                        return _issubclass_2(subclass.__args__[0], superclass.__origin__,
+                                bound_Generic, bound_typevars,
+                                bound_typevars_readonly, follow_fwd_refs, _recursion_check)
+                except: pass
+                if _issubclass_2(superclass, empty_target,
                         bound_Generic, bound_typevars,
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                    return _issubclass_2(subclass.__args__[0], superclass.__origin__,
+                    return _issubclass_2(subclass.__args__[0], superclass,
                             bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-            except: pass
-            if _issubclass_2(superclass, Container, bound_Generic, bound_typevars,
-                    bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                return _issubclass_2(subclass.__args__[0], superclass,
-                        bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check)
     except: pass
     try:
         if _issubclass_2(superclass, Empty, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-            if _issubclass_2(subclass, Container, bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                return _issubclass_2(subclass, superclass.__args__[0],
-                        bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-            try:
-                if _issubclass_2(subclass.__origin__, Container,
-                        bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                    return _issubclass_2(subclass.__origin__, superclass.__args__[0],
+            for empty_target in [Container, Sized, Iterable]:
+                # We cannot simply use Union[Container, Sized, Iterable] as empty_target
+                # because of implementation detail behavior of _issubclass_2.
+                try:
+                    if _issubclass_2(subclass.__origin__, empty_target,
+                            bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                        return _issubclass_2(subclass.__origin__, superclass.__args__[0],
+                                bound_Generic, bound_typevars,
+                                bound_typevars_readonly, follow_fwd_refs, _recursion_check)
+                except: pass
+                if _issubclass_2(subclass, empty_target, bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check):
+                    return _issubclass_2(subclass, superclass.__args__[0],
                             bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-            except: pass
     except: pass
     if isinstance(superclass, TypeVar):
         if not superclass.__bound__ is None:
