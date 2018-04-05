@@ -1531,7 +1531,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
 
     bound_typevars : Optional[Dict[typing.TypeVar, type]]
     A dictionary holding values for unbound typevars occurring in ``subclass`` or ``superclass``.
-    Default: None
+    Default: {}
     Depending on ``bound_typevars_readonly`` pytypes can also bind values to typevars as needed.
     This is done by inserting according mappings into this dictionary. This can e.g. be useful to
     infer values for ``TypeVar``s or to consistently check a set of ``TypeVar``s across multiple
@@ -1539,7 +1539,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
     In collision case with ``bound_Generic`` the value from ``bound_Generic`` if preferred.
 
     bound_typevars_readonly : bool
-    Defines if pytypes is allowed to write into the ``bound_typevars`` dictionary if not ``None``.
+    Defines if pytypes is allowed to write into the ``bound_typevars`` dictionary.
     Default: True
     If set to False, pytypes cannot assign values to ``TypeVar``s, but only checks regarding
     values already present in ``bound_typevars`` or ``bound_Generic``.
@@ -1557,6 +1557,8 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
     a ``_ForwardRef`` is encountered, pytypes automatically creates this dictionary and
     continues in recursion-proof manner.
     """
+    if bound_typevars is None:
+        bound_typevars = {}
     if superclass is Any:
         return True
     if subclass == superclass:
@@ -1791,7 +1793,7 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
 
     bound_typevars : Optional[Dict[typing.TypeVar, type]]
     A dictionary holding values for unbound typevars occurring in ``cls``.
-    Default: None
+    Default: {}
     Depending on ``bound_typevars_readonly`` pytypes can also bind values to typevars as needed.
     This is done by inserting according mappings into this dictionary. This can e.g. be useful to
     infer values for ``TypeVar``s or to consistently check a set of ``TypeVar``s across multiple
@@ -1799,7 +1801,7 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
     In collision case with ``bound_Generic`` the value from ``bound_Generic`` if preferred.
 
     bound_typevars_readonly : bool
-    Defines if pytypes is allowed to write into the ``bound_typevars`` dictionary if not ``None``.
+    Defines if pytypes is allowed to write into the ``bound_typevars`` dictionary.
     Default: True
     If set to False, pytypes cannot assign values to ``TypeVar``s, but only checks regarding
     values already present in ``bound_typevars`` or ``bound_Generic``.
@@ -1817,6 +1819,8 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
     a ``ForwardRef`` is encountered, pytypes automatically creates this dictionary and
     continues in recursion-proof manner.
     """
+    if bound_typevars is None:
+        bound_typevars = {}
     # Special treatment if cls is Iterable[...]
     if is_Generic(cls) and cls.__origin__ is typing.Iterable:
         if not is_iterable(obj):

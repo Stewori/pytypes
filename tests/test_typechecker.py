@@ -4652,5 +4652,63 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
         self.assertRaises(InputTypeError, lambda:
                 py3.test_inner_class_testf1_err())
 
+
+class Test_utils(unittest.TestCase):
+    def test_empty_values(self):
+        self.assertTrue(pytypes.is_of_type([], typing.Sequence))
+        self.assertTrue(pytypes.is_of_type([], typing.Sequence[int]))
+
+        self.assertTrue(isinstance(set(), typing.Sized))
+        self.assertTrue(pytypes.is_of_type(set(), typing.Sized))
+        self.assertTrue(isinstance([], typing.Sized))
+        self.assertTrue(pytypes.is_of_type([], typing.Sized))
+
+    def test_tuple_elipsis(self):
+        class Foo:
+            pass
+
+        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[object, ...]))
+        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[typing.Any, ...]))
+
+    def test_bound_typevars_readonly(self):
+        T = typing.TypeVar('T', covariant=True)
+
+        class L(typing.List[T]):
+            pass
+
+        C = typing.TypeVar('T', bound=L)
+
+        self.assertTrue(pytypes.is_subtype(L[float], C))
+        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars={}))
+        self.assertFalse(pytypes.is_subtype(L[float], C, bound_typevars_readonly=True, bound_typevars={}))
+        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars_readonly=False, bound_typevars={}))
+
+    def test_forward_declaration(self):
+        Container = typing.Union[
+            typing.List['Data'],
+        ]
+
+        Data = typing.Union[
+            Container,
+            str, bytes, bool, float, int, dict,
+        ]
+
+        with self.assertRaises(pytypes.ForwardRefError):
+            pytypes.is_subtype(typing.List[float], Container)
+
+        pytypes.resolve_fw_decl(Container)
+
+        pytypes.is_subtype(typing.List[float], Container)
+
+    def test_forward_declaration_infinite_recursion(self):
+        Data = typing.Union['Container', float]
+        Container = typing.Union[Data, int]
+
+        pytypes.resolve_fw_decl(Data)
+        pytypes.resolve_fw_decl(Container)
+
+        self.assertFalse(pytypes.is_subtype(list, Container))
+
+
 if __name__ == '__main__':
     unittest.main()
