@@ -900,7 +900,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
                 for in_tp in args])
         ret = resolve_fw_decl(res, None, globs)[1] or ret
         return in_type, ret
-    elif hasattr(in_type, '__args__'):
+    elif hasattr(in_type, '__args__') and in_type.__args__ is not None:
         return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in in_type.__args__])
     return in_type, False
