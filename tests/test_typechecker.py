@@ -23,7 +23,7 @@ from numbers import Real
 import pytypes
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
     get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
-    TypeSyntaxError, check_argument_types, annotations, get_member_types
+    TypeSyntaxError, check_argument_types, annotations, get_member_types, resolve_fw_decl
 pytypes.clean_traceback = False
 try:
     from backports import typing
@@ -4651,6 +4651,19 @@ class Test_check_argument_types_Python3_5(unittest.TestCase):
         self.assertEqual(py3.test_inner_class_testf1(), '99')
         self.assertRaises(InputTypeError, lambda:
                 py3.test_inner_class_testf1_err())
+
+
+class Test_utils(unittest.TestCase):
+    # See: https://github.com/Stewori/pytypes/issues/36
+    def test_resolve_fw_decl(self):
+        T = typing.TypeVar('T')
+
+        class Foo(typing.Generic[T]):
+            pass
+
+        # No exception.
+        resolve_fw_decl(Foo)
+
 
 if __name__ == '__main__':
     unittest.main()
