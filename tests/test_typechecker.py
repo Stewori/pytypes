@@ -4664,6 +4664,10 @@ class Test_utils(unittest.TestCase):
         # No exception.
         resolve_fw_decl(Foo)
 
+    # See: https://github.com/Stewori/pytypes/issues/35
+    def test_frozenset(self):
+        self.assertTrue(pytypes.is_of_type(frozenset({1, 2, 'a', None, 'b'}), typing.AbstractSet[typing.Union[str, int, None]]))
+
 
 if __name__ == '__main__':
     unittest.main()
