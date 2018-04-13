@@ -22,10 +22,10 @@ import typing
 import collections
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
-    from backports.typing import Tuple, Dict, List, Set, Union, Any, \
+    from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
         Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
 except ImportError:
-    from typing import Tuple, Dict, List, Set, Union, Any, \
+    from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
         Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
 try:
     # Python 3.7
@@ -465,9 +465,13 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
             tpl1 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in ksmpl)
             tpl2 = tuple(_deep_type(t, checked, checked_len2, depth-1) for t in vsmpl)
         res = Dict[Union[tpl1], Union[tpl2]]
-    elif res == set:
+    elif res == set or res == frozenset:
+        if res == set:
+            typ = Set
+        else:
+            typ = FrozenSet
         if len(obj) == 0:
-            return Empty[Set]
+            return Empty[typ]
         if max_sample == -1 or max_sample >= len(obj)-1 or len(obj) <= 2:
             tpl = tuple(_deep_type(t, checked, depth-1) for t in obj)
         else:
@@ -485,7 +489,7 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None):
                         j -= 1
                 smpl.append(next(itr))
             tpl = tuple(_deep_type(t, checked, depth-1) for t in smpl)
-        res = Set[Union[tpl]]
+        res = typ[Union[tpl]]
     elif res == types.GeneratorType:
         res = get_generator_type(obj)
     elif sys.version_info.major == 2 and isinstance(obj, types.InstanceType):
@@ -900,7 +904,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
                 for in_tp in args])
         ret = resolve_fw_decl(res, None, globs)[1] or ret
         return in_type, ret
-    elif hasattr(in_type, '__args__'):
+    elif hasattr(in_type, '__args__') and in_type.__args__ is not None:
         return in_type, any([resolve_fw_decl(in_tp, None, globs)[1] \
                 for in_tp in in_type.__args__])
     return in_type, False
