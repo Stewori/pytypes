@@ -4722,7 +4722,7 @@ class Test_utils(unittest.TestCase):
         self.assertTrue(pytypes.is_subtype(int, Data))
         self.assertTrue(pytypes.is_subtype(float, Data))
         self.assertFalse(pytypes.is_subtype(Data, Wrapper))
-        self.assertFalse(pytypes.is_subtype(Wrapper, Data))
+        self.assertTrue(pytypes.is_subtype(Wrapper, Data))
 
     # See: https://github.com/Stewori/pytypes/issues/22
     def test_forward_declaration_infinite_recursion(self):
