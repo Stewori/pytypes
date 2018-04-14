@@ -4668,6 +4668,71 @@ class Test_utils(unittest.TestCase):
     def test_frozenset(self):
         self.assertTrue(pytypes.is_of_type(frozenset({1, 2, 'a', None, 'b'}), typing.AbstractSet[typing.Union[str, int, None]]))
 
+    # See: https://github.com/Stewori/pytypes/issues/32
+    # See: https://github.com/Stewori/pytypes/issues/33
+    def test_empty_values(self):
+        self.assertTrue(pytypes.is_of_type([], typing.Sequence))
+        self.assertTrue(pytypes.is_of_type([], typing.Sequence[int]))
+
+        for interface in (typing.Iterable, typing.Sized, typing.Container):
+            self.assertTrue(isinstance(set(), interface), interface)
+            self.assertTrue(pytypes.is_of_type(set(), interface), interface)
+            self.assertTrue(isinstance([], interface), interface)
+            self.assertTrue(pytypes.is_of_type([], interface), interface)
+
+    # See: https://github.com/Stewori/pytypes/issues/21
+    def test_tuple_ellipsis(self):
+        class Foo:
+            pass
+
+        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[object, ...]))
+        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[typing.Any, ...]))
+
+    # See: https://github.com/Stewori/pytypes/issues/24
+    def test_bound_typevars_readonly(self):
+        T = typing.TypeVar('T', covariant=True)
+
+        class L(typing.List[T]):
+            pass
+
+        C = typing.TypeVar('T', bound=L)
+
+        self.assertTrue(pytypes.is_subtype(L[float], C))
+        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars={}))
+        self.assertFalse(pytypes.is_subtype(L[float], C, bound_typevars_readonly=True, bound_typevars={}))
+        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars_readonly=False, bound_typevars={}))
+
+    # See: https://github.com/Stewori/pytypes/issues/22
+    def test_forward_declaration(self):
+        Wrapper = typing.Union[
+            typing.Sequence['Data'],
+        ]
+
+        Data = typing.Union[
+            Wrapper,
+            str, bytes, bool, float, int, dict,
+        ]
+
+        with self.assertRaises(pytypes.ForwardRefError):
+            pytypes.is_subtype(typing.Sequence[float], Wrapper)
+
+        pytypes.resolve_fw_decl(Wrapper)
+
+        self.assertTrue(pytypes.is_subtype(typing.Sequence[float], Wrapper))
+        self.assertTrue(pytypes.is_subtype(int, Data))
+        self.assertTrue(pytypes.is_subtype(float, Data))
+        self.assertFalse(pytypes.is_subtype(Data, Wrapper))
+        self.assertTrue(pytypes.is_subtype(Wrapper, Data))
+
+    # See: https://github.com/Stewori/pytypes/issues/22
+    def test_forward_declaration_infinite_recursion(self):
+        Data = typing.Union['Wrapper', float]
+        Wrapper = typing.Union[Data, int]
+
+        pytypes.resolve_fw_decl(Data)
+
+        self.assertFalse(pytypes.is_subtype(list, Wrapper))
+
 
 if __name__ == '__main__':
     unittest.main()
