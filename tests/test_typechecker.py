@@ -4721,7 +4721,7 @@ class Test_utils(unittest.TestCase):
         self.assertTrue(pytypes.is_subtype(typing.Sequence[float], Wrapper))
         self.assertTrue(pytypes.is_subtype(int, Data))
         self.assertTrue(pytypes.is_subtype(float, Data))
-        self.assertTrue(pytypes.is_subtype(Data, Wrapper))
+        self.assertFalse(pytypes.is_subtype(Data, Wrapper))
         self.assertFalse(pytypes.is_subtype(Wrapper, Data))
 
     # See: https://github.com/Stewori/pytypes/issues/22
