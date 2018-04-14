@@ -4705,7 +4705,7 @@ class Test_utils(unittest.TestCase):
     # See: https://github.com/Stewori/pytypes/issues/22
     def test_forward_declaration(self):
         Wrapper = typing.Union[
-            typing.List['Data'],
+            typing.Sequence['Data'],
         ]
 
         Data = typing.Union[
@@ -4714,13 +4714,13 @@ class Test_utils(unittest.TestCase):
         ]
 
         with self.assertRaises(pytypes.ForwardRefError):
-            pytypes.is_subtype(typing.List[float], Wrapper)
+            pytypes.is_subtype(typing.Sequence[float], Wrapper)
 
         pytypes.resolve_fw_decl(Wrapper)
 
-        self.assertTrue(pytypes.is_subtype(typing.List[float], Wrapper))
-        self.assertTrue(pytypes.is_subtype(int, Wrapper))
-        self.assertTrue(pytypes.is_subtype(float, Wrapper))
+        self.assertTrue(pytypes.is_subtype(typing.Sequence[float], Wrapper))
+        self.assertTrue(pytypes.is_subtype(int, Data))
+        self.assertTrue(pytypes.is_subtype(float, Data))
         self.assertTrue(pytypes.is_subtype(Data, Wrapper))
         self.assertFalse(pytypes.is_subtype(Wrapper, Data))
 
