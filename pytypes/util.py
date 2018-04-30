@@ -22,6 +22,7 @@ Todo: Some functions in this module can be simplified or replaced
       by more consequent use of inspect module.
 """
 
+import functools
 import pytypes
 import subprocess
 import hashlib
@@ -691,6 +692,7 @@ def _code_matches_func(func, code):
                     return False
 
 
+@functools.lru_cache()
 def get_function_perspective_globals(module_name, level=0):
     globs = {}
     if not module_name is None:
