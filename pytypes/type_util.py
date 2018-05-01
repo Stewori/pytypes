@@ -899,6 +899,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0,
     See ``util.get_function_perspective_globals`` for obtaining a ``globs`` that can be
     cached. ``util.get_function_perspective_globals`` works like described above.
     '''
+    # Also see discussion at https://github.com/Stewori/pytypes/pull/43#issuecomment-385562749.
     if in_type in _fw_resolve_cache:
         return _fw_resolve_cache[in_type], True
     if globs is None:
