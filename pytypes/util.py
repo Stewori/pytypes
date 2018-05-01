@@ -691,7 +691,7 @@ def _code_matches_func(func, code):
                     return False
 
 
-def get_function_perspective_globals(module_name, level=0):
+def get_function_perspective_globals(module_name, level=0, max_level=None):
     globs = {}
     if not module_name is None:
         if module_name.endswith('.pyi') or module_name.endswith('.pyi2'):
@@ -704,9 +704,10 @@ def get_function_perspective_globals(module_name, level=0):
                 pass
         else:
             globs.update(sys.modules[module_name].__dict__)
-    stck = inspect.stack()
-    for ln in stck[level:]:
-        globs.update(ln[0].f_locals)
+    if level != max_level:
+        stck = inspect.stack()
+        for ln in stck[level:max_level]:
+            globs.update(ln[0].f_locals)
     return globs
 
 

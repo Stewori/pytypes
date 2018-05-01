@@ -879,12 +879,32 @@ def _handle_defaults(sig_types, arg_specs, unspecified_indices = None):
     return sig_types
 
 
-def resolve_fw_decl(in_type, module_name=None, globs=None, level=0):
+def resolve_fw_decl(in_type, module_name=None, globs=None, level=0,
+        search_stack_depth=2):
+    '''Resolves forward references in ``in_type``, see
+    https://www.python.org/dev/peps/pep-0484/#forward-references.
+
+
+    Note:
+
+    ``globs`` should be a dictionary containing values for the names
+    that must be resolved in ``in_type``. If ``globs`` is not provided, it
+    will be created by ``__globals__`` from the module named ``module_name``,
+    plus ``__locals__`` from the last ``search_stack_depth`` stack frames (Default: 2),
+    beginning at the calling function. This is to resolve cases where ``in_type`` and/or
+    types it fw-references are defined inside a function.
+
+    To prevent walking the stack, set ``search_stack_depth=0``.
+    Ideally provide a proper ``globs`` for best efficiency.
+    See ``util.get_function_perspective_globals`` for obtaining a ``globs`` that can be
+    cached. ``util.get_function_perspective_globals`` works like described above.
+    '''
     if in_type in _fw_resolve_cache:
         return _fw_resolve_cache[in_type], True
     if globs is None:
         #if not module_name is None:
-        globs = util.get_function_perspective_globals(module_name, level+1)
+        globs = util.get_function_perspective_globals(module_name, level+1,
+                level+1+search_stack_depth)
     if isinstance(in_type, _basestring):
         # For the case that a pure forward ref is given as string
         out_type = eval(in_type, globs)
