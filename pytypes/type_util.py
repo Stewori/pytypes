@@ -702,6 +702,8 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
         prms = get_Union_params(tp)
         params = [type_str(param, assumed_globals, update_assumed_globals,
                 implicit_globals, bound_Generic, bound_typevars) for param in prms]
+        if pytypes.canonical_type_str:
+            params = sorted(params)
         return '%s[%s]'%(_tp_relfq_name(Union, 'Union', assumed_globals,
                 update_assumed_globals, implicit_globals), ', '.join(params))
     elif is_Tuple(tp):

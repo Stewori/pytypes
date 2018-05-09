@@ -223,6 +223,11 @@ deep_type_samplesize : int
     -1 lets pytypes always evaluate the whole list, set or dict, while other
     positive values let it only check a somewhat random sample of that size.
 
+canonical_type_str : bool
+    Should string representation of types be equal for equivalent types,
+    or should it always match internal type structure?
+    Default: True
+
 dump_typelog_at_exit : bool
     Lets typelogger dump typelog at exit.
     Default: True
@@ -344,6 +349,8 @@ strict_annotation_collision_check = False
 default_typecheck_depth = 10
 # -1 lets pytypes always evaluate the whole list, set or dict
 deep_type_samplesize = -1
+
+canonical_type_str = True
 
 dump_typelog_at_exit = True
 dump_typelog_at_exit_python2 = False
