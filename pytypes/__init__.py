@@ -224,7 +224,7 @@ deep_type_samplesize : int
     positive values let it only check a somewhat random sample of that size.
 
 canonical_type_str : bool
-    Forces parameters of Union to to be sorted.
+    Forces type_util.type_str to sort parameters of Unions.
     Default: True
     While the order of type parameters of a Union is arbitrary, it might be
     desirable to obtain a canonical type string that properly reflects equality
@@ -232,6 +232,8 @@ canonical_type_str : bool
     the string representations of the parameters.
     Set this flag to False, if a representation of the internal type structure is
     desired.
+    Not that this flag not only affects string representations of Unions, but of
+    every type that contains a Union directly or indirectly as a parameter.
 
 dump_typelog_at_exit : bool
     Lets typelogger dump typelog at exit.
