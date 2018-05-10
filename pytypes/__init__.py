@@ -224,9 +224,14 @@ deep_type_samplesize : int
     positive values let it only check a somewhat random sample of that size.
 
 canonical_type_str : bool
-    Should string representation of types be equal for equivalent types,
-    or should it always match internal type structure?
+    Forces parameters of Union to to be sorted.
     Default: True
+    While the order of type parameters of a Union is arbitrary, it might be
+    desirable to obtain a canonical type string that properly reflects equality
+    of the same Union with different parameter order. This is achieved by sorting
+    the string representations of the parameters.
+    Set this flag to False, if a representation of the internal type structure is
+    desired.
 
 dump_typelog_at_exit : bool
     Lets typelogger dump typelog at exit.
