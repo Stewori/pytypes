@@ -606,13 +606,10 @@ pytypes was created in 2016/17 by `Stefan Richthofer <https://github.com/Stewori
 Contributors (no specific order, names as provided on github)
 -------------------------------------------------------------
 
-`Alex Grönholm <https://github.com/agronholm>`__
-
-`Mitar <https://github.com/mitar>`__
-
-`Ilya Kulakov <https://github.com/Kentzo>`__
-
-`Jonas <https://github.com/elcombato>`__
+* `Alex Grönholm <https://github.com/agronholm>`__
+* `Mitar <https://github.com/mitar>`__
+* `Ilya Kulakov <https://github.com/Kentzo>`__
+* `Jonas <https://github.com/elcombato>`__
 
 
 License
