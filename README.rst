@@ -1,4 +1,4 @@
-.. Copyright 2017 Stefan Richthofer
+.. Copyright 2017, 2018 Stefan Richthofer
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -540,6 +540,24 @@ E.g. using a local ``TypeVar`` ``T`` would yield different results than
 using ``typing.T`` despite the equal name.
 
 
+resolve_fw_decl(in_type, module_name=None, globs=None, level=0, search_stack_depth=2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Resolves forward references in ``in_type``.
+
+``globs`` should be a dictionary containing values for the names
+that must be resolved in ``in_type``. If ``globs`` is not provided, it
+will be created by ``__globals__`` from the module named ``module_name``,
+plus ``__locals__`` from the last ``search_stack_depth`` stack frames,
+beginning at the calling function. This is to resolve cases where ``in_type`` and/or
+types it fw-references are defined inside a function.
+
+To prevent walking the stack, set ``search_stack_depth=0``.
+Ideally provide a proper ``globs`` for best efficiency.
+See ``util.get_function_perspective_globals`` for obtaining a ``globs`` that can be
+cached. ``util.get_function_perspective_globals`` works like described above.
+
+
 Python 2.7 compliant stubfiles
 ------------------------------
 
@@ -580,12 +598,18 @@ Next steps
 - runtime independent parser for stubfiles
 
 
-Authors
-=======
+Contributors
+============
 
-`Stefan Richthofer <https://github.com/Stewori>`__ – founder, initial work, logo
+pytypes was created in 2016/17 by `Stefan Richthofer <https://github.com/Stewori>`__.
 
-`Alex Grönholm <https://github.com/agronholm>`__ – deployment, migration to pytest
+Contributors (no specific order, names as provided on github)
+-------------------------------------------------------------
+
+`Alex Grönholm <https://github.com/agronholm>`__
+`Mitar <https://github.com/mitar>`__
+`Ilya Kulakov <https://github.com/Kentzo>`__
+`Jonas <https://github.com/elcombato>`__
 
 
 License
@@ -595,7 +619,7 @@ pytypes is released under Apache 2.0 license.
 A copy is provided in the file LICENSE.
 
 | 
-| Copyright 2017 Stefan Richthofer
+| Copyright 2017, 2018 Stefan Richthofer
 | 
 | Licensed under the Apache License, Version 2.0 (the "License");
 | you may not use this file except in compliance with the License.
