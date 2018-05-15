@@ -255,7 +255,7 @@ def get_Tuple_params(tpl):
 
 
 def is_Tuple_ellipsis(tpl):
-    """Python version independent function to check if  a typing.Tuple object
+    """Python version independent function to check if a typing.Tuple object
     contains an ellipsis."""
     try:
         return tpl.__tuple_use_ellipsis__

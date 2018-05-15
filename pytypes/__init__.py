@@ -289,7 +289,7 @@ default_typelogger_path : str
     Default: 'typelogger_output'
 """
 
-_version = '>=1.0b3' # Only used as fallback for jython-standalone.jar
+_version = '>=1.0b4' # Only used as fallback for jython-standalone.jar
 # Needs to be imported before touching the Python import machinery
 try:
     import pkg_resources
