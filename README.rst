@@ -607,8 +607,11 @@ Contributors (no specific order, names as provided on github)
 -------------------------------------------------------------
 
 `Alex Grönholm <https://github.com/agronholm>`__
+
 `Mitar <https://github.com/mitar>`__
+
 `Ilya Kulakov <https://github.com/Kentzo>`__
+
 `Jonas <https://github.com/elcombato>`__
 
 
