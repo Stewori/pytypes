@@ -4734,5 +4734,38 @@ class Test_utils(unittest.TestCase):
         self.assertFalse(pytypes.is_subtype(list, Wrapper))
 
 
+class Test_combine_argtype(unittest.TestCase):
+    def test_exceptions(self):
+        # Empty observations not allowed
+        with self.assertRaises(AssertionError):
+            pytypes.typelogger.combine_argtype([])
+
+        # Non tuple types not allowed
+        with self.assertRaises(AssertionError):
+            notTuple = typing.List[int]
+            pytypes.typelogger.combine_argtype([notTuple])
+
+        with self.assertRaises(AssertionError):
+            notTuple = typing.List[int]
+            pytypes.typelogger.combine_argtype([typing.Tuple[int], notTuple])
+
+    def test_function(self):
+        # If single observation is supplied it should return itself
+        self.assertEqual(
+            pytypes.typelogger.combine_argtype([typing.Tuple[int]]),
+            typing.Tuple[int],
+        )
+        # Observations should be unioned
+        self.assertEqual(
+            pytypes.typelogger.combine_argtype([typing.Tuple[int], typing.Tuple[str]]),
+            typing.Tuple[typing.Union[int, str]],
+        )
+        # Number classes should be combined as PEP 484 style numeric tower
+        self.assertEqual(
+            pytypes.typelogger.combine_argtype([typing.Tuple[int], typing.Tuple[float]]),
+            typing.Tuple[float],
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

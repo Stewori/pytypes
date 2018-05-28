@@ -146,7 +146,7 @@ def combine_argtype(observations):
     additional unification effort (e.g. can apply PEP 484 style numeric tower).
     """
     assert len(observations) > 0
-    assert isinstance(is_Tuple(observations[0]))
+    assert is_Tuple(observations[0])
     if len(observations) > 1:
         prms = [get_Tuple_params(observations[0])]
         ln = len(prms[0])
