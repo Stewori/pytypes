@@ -23,7 +23,9 @@ from numbers import Real
 import pytypes
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
     get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
-    TypeSyntaxError, check_argument_types, annotations, get_member_types, resolve_fw_decl
+    TypeSyntaxError, check_argument_types, annotations, get_member_types, resolve_fw_decl, \
+    TypeChecker, restore_profiler
+    
 pytypes.clean_traceback = False
 try:
     from backports import typing
@@ -4766,6 +4768,40 @@ class Test_combine_argtype(unittest.TestCase):
             typing.Tuple[float],
         )
 
+
+def testfunc_agent(v):
+    # type: (str) -> int
+    return 67
+
+
+def testfunc_agent_err(v):
+    # type: (str) -> int
+    return 'abc'
+
+
+class Test_agent(unittest.TestCase):
+    def test_function_agent(self):
+        with TypeChecker():
+            self.assertEqual(testfunc_agent('abc'), 67)
+            self.assertRaises(InputTypeError, lambda: testfunc_agent(12))
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, lambda: testfunc_agent_err('abc'))
+
+
+@unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
+        'Only applicable in Python >= 3.5.')
+class Test_agent_Python3_5(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        global py3
+        from testhelpers import typechecker_testhelper_py3 as py3
+
+    def test_function_agent(self):
+        with TypeChecker():
+            self.assertEqual(py3.testfunc_agent('abc'), 69)
+            self.assertRaises(InputTypeError, lambda: py3.testfunc_agent(12))
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, lambda: py3.testfunc_agent_err('abc'))
 
 if __name__ == '__main__':
     unittest.main()

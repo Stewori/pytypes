@@ -1340,3 +1340,9 @@ class IntB(IntA): pass
 @typechecked
 def test_typevar_A(x: A[int]) -> None:
     pass
+
+def testfunc_agent(v: str) -> int:
+    return 69
+
+def testfunc_agent_err(v: str) -> int:
+    return 'abc'

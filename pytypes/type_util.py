@@ -2417,6 +2417,9 @@ class TypeAgent(object):
                         _saved_profilers[threading.current_thread().ident] = self
                         self._cleared = True
                         raise
+                    except TypeError:
+                        # Caller could not be determined.
+                        pass
                 if self._is_logging():
                     try:
                         cllable, clss, slf, clsm, prop, prop_getter = \
