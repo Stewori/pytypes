@@ -24,7 +24,7 @@ import pytypes
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
     get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
     TypeSyntaxError, check_argument_types, annotations, get_member_types, resolve_fw_decl, \
-    TypeChecker, restore_profiler
+    TypeChecker, restore_profiler, is_subtype, is_of_type
     
 pytypes.clean_traceback = False
 try:
@@ -1548,11 +1548,11 @@ class TestTypecheck(unittest.TestCase):
             return '_'+s+'*'*i
 
         self.assertTrue(
-                pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
+                is_of_type(clb, typing.Callable[[str, int], str]))
         self.assertFalse(
-                pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
+                is_of_type(clb, typing.Callable[[str, str], str]))
         self.assertFalse(
-                pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
+                is_of_type(clb, typing.Callable[[str, int], float]))
 
         self.assertEqual(testfunc_Callable_arg(clb, 'pqrs'), '_pqrs****')
         self.assertRaises(InputTypeError, lambda:
@@ -1624,34 +1624,34 @@ class TestTypecheck(unittest.TestCase):
 
     def test_unparameterized(self):
         # invariant type-vars
-        self.assertFalse(pytypes.is_subtype(List, List[str]))
-        self.assertFalse(pytypes.is_subtype(List, List[Any]))
-        self.assertFalse(pytypes.is_subtype(List[str], List))
-        self.assertFalse(pytypes.is_subtype(list, List[str]))
-        self.assertFalse(pytypes.is_subtype(list, List[Any]))
-        self.assertFalse(pytypes.is_subtype(List[str], list))
-        self.assertTrue(pytypes.is_subtype(List, list))
-        self.assertTrue(pytypes.is_subtype(list, List))
-        self.assertFalse(pytypes.is_subtype(List[str], List[Any]))
-        self.assertFalse(pytypes.is_subtype(List[Any], List[str]))
+        self.assertFalse(is_subtype(List, List[str]))
+        self.assertFalse(is_subtype(List, List[Any]))
+        self.assertFalse(is_subtype(List[str], List))
+        self.assertFalse(is_subtype(list, List[str]))
+        self.assertFalse(is_subtype(list, List[Any]))
+        self.assertFalse(is_subtype(List[str], list))
+        self.assertTrue(is_subtype(List, list))
+        self.assertTrue(is_subtype(list, List))
+        self.assertFalse(is_subtype(List[str], List[Any]))
+        self.assertFalse(is_subtype(List[Any], List[str]))
 
         # covariant
-        self.assertTrue(pytypes.is_subtype(Sequence[str], Sequence[Any]))
-        self.assertFalse(pytypes.is_subtype(Sequence[Any], Sequence[str]))
-        self.assertTrue(pytypes.is_subtype(Sequence[str], Sequence))
-        self.assertFalse(pytypes.is_subtype(Sequence, Sequence[str]))
+        self.assertTrue(is_subtype(Sequence[str], Sequence[Any]))
+        self.assertFalse(is_subtype(Sequence[Any], Sequence[str]))
+        self.assertTrue(is_subtype(Sequence[str], Sequence))
+        self.assertFalse(is_subtype(Sequence, Sequence[str]))
 
         # special case Tuple
-        self.assertFalse(pytypes.is_subtype(Tuple, Tuple[str]))
-        self.assertTrue(pytypes.is_subtype(Tuple[str], Tuple))
-        self.assertFalse(pytypes.is_subtype(tuple, Tuple[str]))
-        self.assertTrue(pytypes.is_subtype(Tuple[str], tuple))
-        self.assertTrue(pytypes.is_subtype(Tuple, tuple))
-        self.assertTrue(pytypes.is_subtype(tuple, Tuple))
-        self.assertTrue(pytypes.is_subtype(Tuple, Sequence))
-        self.assertTrue(pytypes.is_subtype(Tuple, Sequence[Any]))
-        self.assertTrue(pytypes.is_subtype(tuple, Sequence))
-        self.assertTrue(pytypes.is_subtype(tuple, Sequence[Any]))
+        self.assertFalse(is_subtype(Tuple, Tuple[str]))
+        self.assertTrue(is_subtype(Tuple[str], Tuple))
+        self.assertFalse(is_subtype(tuple, Tuple[str]))
+        self.assertTrue(is_subtype(Tuple[str], tuple))
+        self.assertTrue(is_subtype(Tuple, tuple))
+        self.assertTrue(is_subtype(tuple, Tuple))
+        self.assertTrue(is_subtype(Tuple, Sequence))
+        self.assertTrue(is_subtype(Tuple, Sequence[Any]))
+        self.assertTrue(is_subtype(tuple, Sequence))
+        self.assertTrue(is_subtype(tuple, Sequence[Any]))
 
     def test_empty(self):
         asg = {Dict, List, Set, pytypes.Empty}
@@ -1659,56 +1659,56 @@ class TestTypecheck(unittest.TestCase):
         empty_dict = pytypes.Empty[Dict]
         self.assertEqual(pytypes.deep_type({}), empty_dict)
         self.assertEqual(pytypes.type_str(empty_dict, asg), 'Empty[Dict]')
-        self.assertTrue(pytypes.is_subtype(empty_dict, pytypes.Empty))
-        #self.assertFalse(pytypes.is_subtype(Dict[str, int], empty_dict))
-        self.assertTrue(pytypes.is_subtype(empty_dict, Dict[str, int]))
-        self.assertTrue(pytypes.is_subtype(empty_dict, Dict))
+        self.assertTrue(is_subtype(empty_dict, pytypes.Empty))
+        #self.assertFalse(is_subtype(Dict[str, int], empty_dict))
+        self.assertTrue(is_subtype(empty_dict, Dict[str, int]))
+        self.assertTrue(is_subtype(empty_dict, Dict))
 
         empty_lst = pytypes.Empty[List]
         self.assertEqual(pytypes.deep_type([]), empty_lst)
         self.assertEqual(pytypes.type_str(empty_lst, asg), 'Empty[List]')
-        self.assertTrue(pytypes.is_subtype(empty_lst, pytypes.Empty))
-        #self.assertFalse(pytypes.is_subtype(List[str], empty_lst))
-        self.assertTrue(pytypes.is_subtype(empty_lst, List[int]))
-        self.assertTrue(pytypes.is_subtype(empty_lst, List))
-        self.assertFalse(pytypes.is_subtype(empty_lst, empty_dict))
-        self.assertFalse(pytypes.is_subtype(empty_dict, empty_lst))
+        self.assertTrue(is_subtype(empty_lst, pytypes.Empty))
+        #self.assertFalse(is_subtype(List[str], empty_lst))
+        self.assertTrue(is_subtype(empty_lst, List[int]))
+        self.assertTrue(is_subtype(empty_lst, List))
+        self.assertFalse(is_subtype(empty_lst, empty_dict))
+        self.assertFalse(is_subtype(empty_dict, empty_lst))
 
         empty_seq = pytypes.Empty[Sequence]
         empty_con = pytypes.Empty[typing.Container]
-        self.assertTrue(pytypes.is_subtype(Dict[str, int],
+        self.assertTrue(is_subtype(Dict[str, int],
                 typing.Container[str]))
-        self.assertFalse(pytypes.is_subtype(empty_dict, empty_seq))
-        self.assertTrue(pytypes.is_subtype(empty_dict, empty_con))
-        self.assertTrue(pytypes.is_subtype(empty_lst, empty_seq))
-        self.assertFalse(pytypes.is_subtype(empty_seq, empty_lst))
+        self.assertFalse(is_subtype(empty_dict, empty_seq))
+        self.assertTrue(is_subtype(empty_dict, empty_con))
+        self.assertTrue(is_subtype(empty_lst, empty_seq))
+        self.assertFalse(is_subtype(empty_seq, empty_lst))
 
         empty_set = pytypes.Empty[Set]
         self.assertEqual(pytypes.deep_type(set()), empty_set)
         self.assertEqual(pytypes.type_str(empty_set, asg), 'Empty[Set]')
-        self.assertTrue(pytypes.is_subtype(empty_set, pytypes.Empty))
-        #self.assertFalse(pytypes.is_subtype(Set[int], empty_set))
-        self.assertTrue(pytypes.is_subtype(empty_set, Set[int]))
-        self.assertTrue(pytypes.is_subtype(empty_set, Set))
+        self.assertTrue(is_subtype(empty_set, pytypes.Empty))
+        #self.assertFalse(is_subtype(Set[int], empty_set))
+        self.assertTrue(is_subtype(empty_set, Set[int]))
+        self.assertTrue(is_subtype(empty_set, Set))
 
     def test_numeric_tower(self):
         num_tow_tmp = pytypes.apply_numeric_tower
         pytypes.apply_numeric_tower = True
 
-        self.assertTrue(pytypes.is_subtype(int, float))
-        self.assertTrue(pytypes.is_subtype(int, complex))
-        self.assertTrue(pytypes.is_subtype(float, complex))
+        self.assertTrue(is_subtype(int, float))
+        self.assertTrue(is_subtype(int, complex))
+        self.assertTrue(is_subtype(float, complex))
 
-        self.assertFalse(pytypes.is_subtype(float, int))
-        self.assertFalse(pytypes.is_subtype(complex, int))
-        self.assertFalse(pytypes.is_subtype(complex, float))
+        self.assertFalse(is_subtype(float, int))
+        self.assertFalse(is_subtype(complex, int))
+        self.assertFalse(is_subtype(complex, float))
 
-        self.assertTrue(pytypes.is_subtype(Union[int, float], float))
-        self.assertTrue(pytypes.is_subtype(Sequence[int], Sequence[float]))
-        self.assertTrue(pytypes.is_subtype(List[int], Sequence[float]))
-        self.assertTrue(pytypes.is_subtype(Tuple[int, float], Tuple[float, complex]))
-        self.assertTrue(pytypes.is_subtype(Tuple[int, float], Sequence[float]))
-        self.assertTrue(pytypes.is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
+        self.assertTrue(is_subtype(Union[int, float], float))
+        self.assertTrue(is_subtype(Sequence[int], Sequence[float]))
+        self.assertTrue(is_subtype(List[int], Sequence[float]))
+        self.assertTrue(is_subtype(Tuple[int, float], Tuple[float, complex]))
+        self.assertTrue(is_subtype(Tuple[int, float], Sequence[float]))
+        self.assertTrue(is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
 
         self.assertEqual(testfunc_numeric_tower_float(3), '3')
         self.assertEqual(testfunc_numeric_tower_float(1.7), '1.7')
@@ -1751,20 +1751,20 @@ class TestTypecheck(unittest.TestCase):
 
         pytypes.apply_numeric_tower = False
 
-        self.assertFalse(pytypes.is_subtype(int, float))
-        self.assertFalse(pytypes.is_subtype(int, complex))
-        self.assertFalse(pytypes.is_subtype(float, complex))
+        self.assertFalse(is_subtype(int, float))
+        self.assertFalse(is_subtype(int, complex))
+        self.assertFalse(is_subtype(float, complex))
 
-        self.assertFalse(pytypes.is_subtype(float, int))
-        self.assertFalse(pytypes.is_subtype(complex, int))
-        self.assertFalse(pytypes.is_subtype(complex, float))
+        self.assertFalse(is_subtype(float, int))
+        self.assertFalse(is_subtype(complex, int))
+        self.assertFalse(is_subtype(complex, float))
 
-        self.assertFalse(pytypes.is_subtype(Union[int, float], float))
-        self.assertFalse(pytypes.is_subtype(Sequence[int], Sequence[float]))
-        self.assertFalse(pytypes.is_subtype(List[int], Sequence[float]))
-        self.assertFalse(pytypes.is_subtype(Tuple[int, float], Tuple[float, complex]))
-        self.assertFalse(pytypes.is_subtype(Tuple[int, float], Sequence[float]))
-        self.assertFalse(pytypes.is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
+        self.assertFalse(is_subtype(Union[int, float], float))
+        self.assertFalse(is_subtype(Sequence[int], Sequence[float]))
+        self.assertFalse(is_subtype(List[int], Sequence[float]))
+        self.assertFalse(is_subtype(Tuple[int, float], Tuple[float, complex]))
+        self.assertFalse(is_subtype(Tuple[int, float], Sequence[float]))
+        self.assertFalse(is_subtype(Tuple[List[int]], Tuple[Sequence[float]]))
 
         self.assertRaises(InputTypeError, lambda:
                 testfunc_numeric_tower_float(3))
@@ -1821,24 +1821,24 @@ class TestTypecheck(unittest.TestCase):
         class Lfloat(List[float]):
             pass
 
-        self.assertTrue(pytypes.is_subtype(List[int], Sequence[int]))
-        self.assertFalse(pytypes.is_subtype(Iterable[int], Sequence[int]))
+        self.assertTrue(is_subtype(List[int], Sequence[int]))
+        self.assertFalse(is_subtype(Iterable[int], Sequence[int]))
 
-        self.assertTrue(pytypes.is_subtype(Lint, Sequence[float]))
-        self.assertFalse(pytypes.is_subtype(Lint, List[float])) # False because mutable list is invariant
-        self.assertTrue(pytypes.is_subtype(Lint, List[int]))
+        self.assertTrue(is_subtype(Lint, Sequence[float]))
+        self.assertFalse(is_subtype(Lint, List[float])) # False because mutable list is invariant
+        self.assertTrue(is_subtype(Lint, List[int]))
 
-        self.assertTrue(pytypes.is_subtype(Lint2, Sequence[float]))
-        self.assertFalse(pytypes.is_subtype(Lint2, List[float])) # False because mutable list is invariant
-        self.assertTrue(pytypes.is_subtype(Lint2, List[int]))
-        self.assertTrue(pytypes.is_subtype(Lint2, Lint))
+        self.assertTrue(is_subtype(Lint2, Sequence[float]))
+        self.assertFalse(is_subtype(Lint2, List[float])) # False because mutable list is invariant
+        self.assertTrue(is_subtype(Lint2, List[int]))
+        self.assertTrue(is_subtype(Lint2, Lint))
 
-        self.assertTrue(pytypes.is_subtype(Lfloat, Sequence[float]))
-        self.assertTrue(pytypes.is_subtype(Lfloat, List[float]))
-        self.assertFalse(pytypes.is_subtype(Lfloat, Sequence[int]))
-        self.assertFalse(pytypes.is_subtype(Lfloat, List[int]))
-        self.assertFalse(pytypes.is_subtype(Lfloat, Lint))
-        self.assertFalse(pytypes.is_subtype(Lint, Lfloat))
+        self.assertTrue(is_subtype(Lfloat, Sequence[float]))
+        self.assertTrue(is_subtype(Lfloat, List[float]))
+        self.assertFalse(is_subtype(Lfloat, Sequence[int]))
+        self.assertFalse(is_subtype(Lfloat, List[int]))
+        self.assertFalse(is_subtype(Lfloat, Lint))
+        self.assertFalse(is_subtype(Lint, Lfloat))
 
 
     def test_typevar_func(self):
@@ -2927,9 +2927,9 @@ class TestStubfile(unittest.TestCase):
             # type: (str, int) -> int
             return '_'+s+'*'*i
 
-        self.assertTrue(pytypes.is_of_type(clb, typing.Callable[[str, int], str]))
-        self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, str], str]))
-        self.assertFalse(pytypes.is_of_type(clb, typing.Callable[[str, int], float]))
+        self.assertTrue(is_of_type(clb, typing.Callable[[str, int], str]))
+        self.assertFalse(is_of_type(clb, typing.Callable[[str, str], str]))
+        self.assertFalse(is_of_type(clb, typing.Callable[[str, int], float]))
 
         self.assertEqual(
                 stub_py2.testfunc_Callable_arg_py2(clb, 'pqrs'), '_pqrs****')
@@ -3991,9 +3991,9 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Dict_ret_err(6))
 
     def test_callable_py3(self):
-        self.assertTrue(pytypes.is_of_type(py3.pclb, typing.Callable[[str, int], str]))
-        self.assertFalse(pytypes.is_of_type(py3.pclb, typing.Callable[[str, str], str]))
-        self.assertFalse(pytypes.is_of_type(py3.pclb, typing.Callable[[str, int], float]))
+        self.assertTrue(is_of_type(py3.pclb, typing.Callable[[str, int], str]))
+        self.assertFalse(is_of_type(py3.pclb, typing.Callable[[str, str], str]))
+        self.assertFalse(is_of_type(py3.pclb, typing.Callable[[str, int], float]))
 
         self.assertEqual(py3.testfunc_Callable_arg(py3.pclb, 'pqrs'), '_pqrs****')
         self.assertRaises(InputTypeError, lambda:
@@ -4668,27 +4668,33 @@ class Test_utils(unittest.TestCase):
 
     # See: https://github.com/Stewori/pytypes/issues/35
     def test_frozenset(self):
-        self.assertTrue(pytypes.is_of_type(frozenset({1, 2, 'a', None, 'b'}), typing.AbstractSet[typing.Union[str, int, None]]))
+        self.assertTrue(is_of_type(frozenset({1, 2, 'a', None, 'b'}), typing.AbstractSet[typing.Union[str, int, None]]))
 
     # See: https://github.com/Stewori/pytypes/issues/32
     # See: https://github.com/Stewori/pytypes/issues/33
     def test_empty_values(self):
-        self.assertTrue(pytypes.is_of_type([], typing.Sequence))
-        self.assertTrue(pytypes.is_of_type([], typing.Sequence[int]))
+        self.assertTrue(is_of_type([], typing.Sequence))
+        self.assertTrue(is_of_type([], typing.Sequence[int]))
 
         for interface in (typing.Iterable, typing.Sized, typing.Container):
             self.assertTrue(isinstance(set(), interface), interface)
-            self.assertTrue(pytypes.is_of_type(set(), interface), interface)
+            self.assertTrue(is_of_type(set(), interface), interface)
             self.assertTrue(isinstance([], interface), interface)
-            self.assertTrue(pytypes.is_of_type([], interface), interface)
+            self.assertTrue(is_of_type([], interface), interface)
 
     # See: https://github.com/Stewori/pytypes/issues/21
     def test_tuple_ellipsis(self):
         class Foo:
             pass
 
-        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[object, ...]))
-        self.assertTrue(pytypes.is_subtype(typing.Tuple[Foo], typing.Tuple[typing.Any, ...]))
+        self.assertTrue(is_subtype(typing.Tuple[Foo], typing.Tuple[object, ...]))
+        self.assertTrue(is_subtype(typing.Tuple[Foo], typing.Tuple[typing.Any, ...]))
+
+    # See: https://github.com/Stewori/pytypes/issues/48
+    def test_empty_tuple(self):
+        self.assertFalse(is_of_type((), List))
+        self.assertTrue(is_of_type((), Tuple))
+        self.assertTrue(is_of_type((), Sequence))
 
     # See: https://github.com/Stewori/pytypes/issues/24
     def test_bound_typevars_readonly(self):
@@ -4699,10 +4705,10 @@ class Test_utils(unittest.TestCase):
 
         C = typing.TypeVar('T', bound=L)
 
-        self.assertTrue(pytypes.is_subtype(L[float], C))
-        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars={}))
-        self.assertFalse(pytypes.is_subtype(L[float], C, bound_typevars_readonly=True, bound_typevars={}))
-        self.assertTrue(pytypes.is_subtype(L[float], C, bound_typevars_readonly=False, bound_typevars={}))
+        self.assertTrue(is_subtype(L[float], C))
+        self.assertTrue(is_subtype(L[float], C, bound_typevars={}))
+        self.assertFalse(is_subtype(L[float], C, bound_typevars_readonly=True, bound_typevars={}))
+        self.assertTrue(is_subtype(L[float], C, bound_typevars_readonly=False, bound_typevars={}))
 
     # See: https://github.com/Stewori/pytypes/issues/22
     def test_forward_declaration(self):
@@ -4716,15 +4722,15 @@ class Test_utils(unittest.TestCase):
         ]
 
         with self.assertRaises(pytypes.ForwardRefError):
-            pytypes.is_subtype(typing.Sequence[float], Wrapper)
+            is_subtype(typing.Sequence[float], Wrapper)
 
         pytypes.resolve_fw_decl(Wrapper)
 
-        self.assertTrue(pytypes.is_subtype(typing.Sequence[float], Wrapper))
-        self.assertTrue(pytypes.is_subtype(int, Data))
-        self.assertTrue(pytypes.is_subtype(float, Data))
-        self.assertFalse(pytypes.is_subtype(Data, Wrapper))
-        self.assertTrue(pytypes.is_subtype(Wrapper, Data))
+        self.assertTrue(is_subtype(typing.Sequence[float], Wrapper))
+        self.assertTrue(is_subtype(int, Data))
+        self.assertTrue(is_subtype(float, Data))
+        self.assertFalse(is_subtype(Data, Wrapper))
+        self.assertTrue(is_subtype(Wrapper, Data))
 
     # See: https://github.com/Stewori/pytypes/issues/22
     def test_forward_declaration_infinite_recursion(self):
@@ -4733,7 +4739,7 @@ class Test_utils(unittest.TestCase):
 
         pytypes.resolve_fw_decl(Data)
 
-        self.assertFalse(pytypes.is_subtype(list, Wrapper))
+        self.assertFalse(is_subtype(list, Wrapper))
 
 
 class Test_combine_argtype(unittest.TestCase):

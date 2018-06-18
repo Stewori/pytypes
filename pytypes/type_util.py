@@ -1259,7 +1259,8 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # an empty Tuple is any Sequence, regardless of type
             # note that we needn't consider superclass beeing a tuple,
             # because that should have been checked in _issubclass_Tuple
-            return issubclass(typing.Sequence, superclass.__origin__)
+            return issubclass(typing.Sequence,
+                    superclass if superclass.__origin__ is None else superclass.__origin__)
         subclass = Sequence[Union[tpl_prms]]
     if is_Generic(subclass):
         # For a class C(Generic[T]) where T is co-variant,
