@@ -661,6 +661,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
                             wrgen.__qualname__ = obj.__qualname__
                         except:
                             pass
+                    type_util._checked_generator_types[wrgen] = cls
                     return True, wrgen
                 else:
                     return True, obj

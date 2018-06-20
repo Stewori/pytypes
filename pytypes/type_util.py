@@ -20,13 +20,14 @@ import types
 import threading
 import typing
 import collections
+import weakref
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
     from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-        Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator
 except ImportError:
     from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-        Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator
 try:
     # Python 3.7
     from typing import ForwardRef
@@ -45,6 +46,7 @@ _annotated_modules = {}
 _extra_dict = {}
 _saved_profilers = {}
 _fw_resolve_cache = {}
+_checked_generator_types = weakref.WeakKeyDictionary()
 
 for tp in typing.__all__:
     tpa = getattr(typing, tp)
@@ -108,10 +110,16 @@ def get_generator_type(genr):
     """Obtains PEP 484 style type of a generator object, i.e. returns a
     typing.Generator object.
     """
-    if 'gen_type' in genr.gi_frame.f_locals:
+    if genr in _checked_generator_types:
+        return _checked_generator_types[genr]
+    if not genr.gi_frame is None and 'gen_type' in genr.gi_frame.f_locals:
         return genr.gi_frame.f_locals['gen_type']
     else:
-        return _funcsigtypes(genr.gi_code, False, None, genr.gi_frame.f_globals)[1]
+        cllble, nesting, slf = util.get_callable_fq_for_code(genr.gi_code)
+        if cllble is None:
+            return Generator
+        return _funcsigtypes(cllble, slf, nesting[-1] if slf else None,
+                genr.gi_frame.f_globals if not genr.gi_frame is None else None)[1]
 
 
 def get_iterable_itemtype(obj):

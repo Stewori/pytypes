@@ -1584,6 +1584,7 @@ class TestTypecheck(unittest.TestCase):
         self.assertRaises(TypeCheckError, lambda:
                 testfunc_Generator_arg(test_gen))
         self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
+        self.assertEqual(pytypes.deep_type(test_gen), Generator[int, Union[str, None], Any])
 
     def test_custom_generic(self):
         self.assertEqual(testfunc_Generic_arg(Custom_Generic[str]('abc')), 'abc')
@@ -4013,6 +4014,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
     def test_generator_py3(self):
         test_gen = py3.testfunc_Generator()
+        self.assertEqual(pytypes.deep_type(test_gen), Generator[int, Union[str, None], float])
         self.assertIsNone(test_gen.send(None))
         self.assertEqual(test_gen.send('abc'), 3)
         self.assertEqual(test_gen.send('ddffd'), 5)
@@ -4740,6 +4742,18 @@ class Test_utils(unittest.TestCase):
         pytypes.resolve_fw_decl(Data)
 
         self.assertFalse(is_subtype(list, Wrapper))
+
+    # See: https://github.com/Stewori/pytypes/issues/49
+    def test_Generator_is_of_type(self):
+        value = (i for i in range(10))
+        self.assertFalse(is_of_type(value, int))
+
+        class Foo:
+            def bar(self):
+                value = (i for i in range(10))
+                return is_of_type(value, int)
+
+        self.assertFalse(Foo().bar())
 
 
 class Test_combine_argtype(unittest.TestCase):
