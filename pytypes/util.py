@@ -296,8 +296,6 @@ def _actualfunc(func, prop_getter = False):
         return _actualfunc((func.ov_func), prop_getter)
     elif hasattr(func, 'ch_func'):
         return _actualfunc((func.ch_func), prop_getter)
-    elif hasattr(func, 'gen_func'):
-        return _actualfunc((func.gen_func), prop_getter)
     return func
 
 

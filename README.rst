@@ -610,6 +610,7 @@ Contributors (no specific order, names as provided on github)
 * `Mitar <https://github.com/mitar>`__
 * `Ilya Kulakov <https://github.com/Kentzo>`__
 * `Jonas <https://github.com/elcombato>`__
+* `MinJune Kim <https://github.com/qria>`__
 
 
 License
