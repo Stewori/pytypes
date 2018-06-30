@@ -317,6 +317,22 @@ def is_iterable(obj):
         return False
 
 
+def is_Type(tp):
+    """Python version independent check if an object is a type.
+    For Python 3.7 onwards(?) this is not equivalent to
+    ``isinstance(tp, type)`` any more, as that call would return
+    ``False`` for PEP 484 types.
+    Tested with CPython 2.7, 3.5, 3.6, 3.7 and Jython 2.7.1.
+    """
+    if isinstance(tp, type):
+        return True
+    try:
+        typing._type_check(tp, '')
+        return True
+    except TypeError:
+        return False
+
+
 def is_Union(tp):
     """Python version independent check if a type is typing.Union.
     Tested with CPython 2.7, 3.5, 3.6 and Jython 2.7.1.
@@ -338,7 +354,7 @@ def is_Tuple(tp):
         return isinstance(tp, typing.TupleMeta)
     except AttributeError:
         try:
-            return isinstance(tp, typing._VariadicGenericAlias) and \
+            return isinstance(tp, typing._GenericAlias) and \
                     tp.__origin__ is tuple
         except AttributeError:
             return False
@@ -1290,6 +1306,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         #Formerly: if origin is not None and origin is subclass.__origin__:
         elif origin is not None and \
                 _issubclass(_origin(subclass), origin, bound_Generic, bound_typevars,
+                        # In Python 3.7 this can currently cause infinite recursion.
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check):
 # 				_issubclass(subclass.__origin__, origin, bound_Generic, bound_typevars,
 # 						bound_typevars_readonly, follow_fwd_refs, _recursion_check):
@@ -1407,7 +1424,7 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars,
     # this function is partly based on code from typing module 3.5.2.2
     if subclass in _extra_dict:
         subclass = _extra_dict[subclass]
-    if not isinstance(subclass, type):
+    if not is_Type(subclass):
         # To TypeError.
         return False
     if not is_Tuple(subclass):
@@ -1545,9 +1562,12 @@ def _has_base(cls, base):
         return True
     elif cls is None:
         return False
-    for bs in cls.__bases__:
-        if _has_base(bs, base):
-            return True
+    try:
+        for bs in cls.__bases__:
+            if _has_base(bs, base):
+                return True
+    except:
+        pass
     return False
 
 
@@ -1765,10 +1785,11 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check) \
                 for t in get_Union_params(subclass))
     if is_Generic(superclass):
+        cls = superclass.__origin__ if not superclass.__origin__ is None else superclass
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
-        if pytypes.covariant_Mapping and _has_base(
-                superclass.__origin__ if not superclass.__origin__ is None else superclass,
-                Mapping):
+        if pytypes.covariant_Mapping and (_has_base(cls, Mapping) or
+                    # Python 3.7 maps everything to collections.abc:
+                    (cls in _extra_dict and issubclass(cls, collections.abc.Mapping))):
             return _issubclass_Mapping_covariant(subclass, superclass,
                     bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs,
@@ -1781,8 +1802,12 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
     try:
         return issubclass(subclass, superclass)
     except TypeError:
-        raise TypeError("Invalid type declaration: %s, %s" %
-                (type_str(subclass), type_str(superclass)))
+        if not is_Type(subclass):
+            # For Python 3.7, types from typing are not types.
+            # So issubclass emits TypeError: issubclass() arg 1 must be a class
+            raise TypeError("Invalid type declaration: %s, %s" %
+                        (type_str(subclass), type_str(superclass)))
+        return False
 
 
 def _isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
