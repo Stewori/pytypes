@@ -14,7 +14,7 @@
 
 # Created on 13.12.2016
 
-import inspect
+import inspect, typing
 
 import pytypes
 from .exceptions import TypeSyntaxError
@@ -224,6 +224,10 @@ def _funcsigtypesfromstring(typestring, argTypes=None, argspec=None, glbls=globa
 # 		useEllipsis = False
     argTypes0 = argTypes
     resString = typestring[splt+2:].strip()
+    if pytypes.tp_comment_parser_import_typing:
+        for tpname in typing.__all__:
+            if not tpname in glbls:
+                glbls[tpname] = getattr(typing, tpname)
     argTp = eval(argString, glbls)
     if selfType is None:
         argTypes = []

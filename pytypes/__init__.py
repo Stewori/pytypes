@@ -206,6 +206,13 @@ strict_annotation_collision_check : bool
     type hints.
     If this flag is true, pytypes will prohibit multiple type hints.
 
+tp_comment_parser_import_typing : bool
+    Lets type comment parser implicitly import typing on parsing.
+    Default: True
+    With this flag enabled it is not necessary for modules with type comments
+    to import the typing module. For usual production mode with typechecking
+    disabled, the typing module would be an unnecessary and undesired import.
+
 default_typecheck_depth : int
     Specifies maximal recursion depth of deep_type.
     Default: 10
@@ -232,7 +239,7 @@ canonical_type_str : bool
     the string representations of the parameters.
     Set this flag to False, if a representation of the internal type structure is
     desired.
-    Not that this flag not only affects string representations of Unions, but of
+    Note that this flag not only affects string representations of Unions, but of
     every type that contains a Union directly or indirectly as a parameter.
 
 dump_typelog_at_exit : bool
@@ -352,6 +359,8 @@ infer_default_value_types = True
 annotations_override_typestring = False
 annotations_from_typestring = False
 strict_annotation_collision_check = False
+
+tp_comment_parser_import_typing = True
 
 default_typecheck_depth = 10
 # -1 lets pytypes always evaluate the whole list, set or dict
