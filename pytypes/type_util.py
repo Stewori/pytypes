@@ -974,7 +974,12 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
         stub_func = func
         func = util._actualfunc(func, prop_getter)
     try:
-        tpHints = typing.get_type_hints(func)
+        try:
+            tpHints = typing.get_type_hints(func)
+        except NameError:
+            if globs is None:
+                globs = util.get_function_perspective_globals(func.__module__, 3)
+            tpHints = typing.get_type_hints(func, globs)
     except AttributeError:
         tpHints = None
     tpStr = _get_typestrings(func, slf)
