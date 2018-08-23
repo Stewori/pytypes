@@ -762,7 +762,11 @@ def _calc_traceback_limit(tb):
     limit = 1
     tb2 = tb
     while not tb2.tb_next is None:
-        if tb2.tb_next.tb_frame.f_code.co_filename.split(os.sep)[-2] == 'pytypes' and not \
+        try:
+            maybe_pytypes = tb2.tb_next.tb_frame.f_code.co_filename.split(os.sep)[-2]
+        except IndexError:
+            maybe_pytypes = None
+        if maybe_pytypes == 'pytypes' and not \
                 tb2.tb_next.tb_frame.f_code == pytypes.typechecker._pytypes___import__.__code__:
             break
         else:
