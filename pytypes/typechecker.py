@@ -33,7 +33,7 @@ from .util import getargspecs, _actualfunc
 from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_type, \
         deep_type, _funcsigtypes, _issubclass, _isinstance, _find_typed_base_method, \
         _preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent, \
-        _check_as_func, is_Tuple
+        _check_as_func, is_Tuple, _get_orig_class
 from . import util, type_util
 
 try:
@@ -796,7 +796,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
         parent_class = None
         if slf:
             try:
-                parent_class = args_kw[0].__orig_class__
+                parent_class = _get_orig_class(args_kw[0])
             except AttributeError:
                 parent_class = args_kw[0].__class__
         elif clsm:
