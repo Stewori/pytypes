@@ -777,7 +777,9 @@ def _calc_traceback_limit(tb):
 
 def _calc_traceback_list_offset(tb_list):
     for off in range(len(tb_list)):
-        if tb_list[off][0].split(os.sep)[-2] == 'pytypes':
+        # if tb_list[off].filename looks like '.../pytypes/x/y':
+        path = tb_list[off].filename.split(os.sep)
+        if len(path) >= 2 and path[-2] == 'pytypes':
             return off-2 if off >= 2 else 0
     return -1
 
