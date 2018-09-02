@@ -2591,6 +2591,12 @@ class TestTypecheck_class(unittest.TestCase):
 
 
 class TestTypecheck_class_with_getattr(unittest.TestCase):
+    """
+    See pull request:
+    https://github.com/Stewori/pytypes/pull/53
+    commit #:
+    e2523b347e52707f87d7078daad1a93940c12e2e
+    """
     def test_valid_access(self):
         obj = GetAttrDictWrapper({'a': 5, 'b': 10})
         self.assertEqual(obj.a, 5)
