@@ -784,7 +784,8 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                     util._warn_argname('property using non-idiomatic self argname',
                             func0, slf, clsm)
                     check_args = args_kw[1:] # omit self
-                check_args = args_kw
+                else:
+                    check_args = args_kw
         else:
             # Todo: Fill in fully qualified names
             if clsm:
