@@ -938,7 +938,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0,
         out_type = eval(in_type, globs)
         _fw_resolve_cache[in_type] = out_type
         return out_type, True
-    elif isinstance(in_type, typing._ForwardRef):
+    elif isinstance(in_type, ForwardRef):
         # Todo: Mabe somehow get globs from in_type.__forward_code__
         if not in_type.__forward_evaluated__:
             in_type.__forward_value__ = eval(in_type.__forward_arg__, globs)
