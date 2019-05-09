@@ -604,7 +604,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
             return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
         return True, obj
     if type_util.is_Generic(cls):
-        if cls.__origin__ is typing.Iterable:
+        if cls.__origin__ is type_util._orig_Iterable:
             if not pytypes.check_iterables:
                 return _isinstance(obj, cls, bound_Generic, bound_typevars,
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj

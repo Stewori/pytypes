@@ -18,13 +18,14 @@ import abc
 import sys
 import unittest
 import warnings
+import collections
 from abc import abstractmethod
 from numbers import Real
 import pytypes
 from pytypes import typechecked, override, auto_override, no_type_check, get_types, \
     get_type_hints, TypeCheckError, InputTypeError, ReturnTypeError, OverrideError, \
     TypeSyntaxError, check_argument_types, annotations, get_member_types, resolve_fw_decl, \
-    TypeChecker, restore_profiler, is_subtype, is_of_type
+    TypeChecker, restore_profiler, is_subtype, is_of_type, type_bases
     
 pytypes.clean_traceback = False
 try:
@@ -34,7 +35,8 @@ try:
 except ImportError:
     import typing
     from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, Iterable, \
-        Iterator, Sequence, Callable, Mapping, Set, Optional
+        Iterator, Sequence, Callable, Mapping, Set, Optional, \
+        T_co, V_co, VT_co, T_contra, KT, T, VT
 
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True
@@ -4754,6 +4756,56 @@ class Test_utils(unittest.TestCase):
                 return is_of_type(value, int)
 
         self.assertFalse(Foo().bar())
+
+    def test_type_bases(self):
+        def cmp(bs1, bs2):
+            if len(bs1) != len(bs2): return False
+            for i in range(len(bs1)):
+                if bs1[i] is not bs2[i]:
+                    try:
+                        if bs1[i].__origin__ is not bs2[i].__origin__: return False
+                    except: return False
+            return True
+
+        try:
+            cabc = collections.abc
+        except AttributeError:
+            cabc = collections
+        # The outcommented tests mostly fail because of something with Generic,
+        # collections.abc.Sized vs typing.Sized or they were out-commented because
+        # they were not reasonably applicable to all scoped python versions.
+        # These slightly different bases shouln'd impact pytypes too much.
+        self.assertTrue(cmp(type_bases(cabc.Hashable), (object,)))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.Awaitable), (typing.Generic[T_co],)))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.Coroutine), (typing.Awaitable[V_co], typing.Generic[T_co, T_contra, V_co])))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.AsyncIterable), (typing.Generic[T_co],)))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.AsyncIterator), (typing.AsyncIterable[T_co],)))
+        self.assertTrue(cmp(type_bases(typing.Iterable), (typing.Generic[T_co],)))
+        self.assertTrue(cmp(type_bases(typing.Iterator), (typing.Iterable[T_co],)))
+        #self.assertTrue(cmp(type_bases(typing.Reversible), (typing.Iterable[T_co],)))
+        self.assertTrue(cmp(type_bases(cabc.Sized), (object,)))
+        self.assertTrue(cmp(type_bases(typing.Container), (typing.Generic[T_co],)))
+        #self.assertTrue(cmp(type_bases(typing.Collection), (collections.abc.Sized, typing.Iterable[T_co], typing.Container[T_co])))
+        #self.assertTrue(cmp(type_bases(typing.Callable), ()))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.AbstractSet), (typing.Collection[T_co],)))
+        self.assertTrue(cmp(type_bases(typing.MutableSet), (typing.AbstractSet[T],)))
+        #self.assertTrue(cmp(type_bases(typing.Mapping), (typing.Collection[KT], typing.Generic[KT, VT_co])))
+        self.assertTrue(cmp(type_bases(typing.MutableMapping), (typing.Mapping[KT, VT],)))
+        #Not in python2: self.assertTrue(cmp(type_bases(typing.Sequence), (typing.Reversible[T_co], typing.Collection[T_co])))
+        self.assertTrue(cmp(type_bases(typing.MutableSequence), (typing.Sequence[T],)))
+        self.assertTrue(cmp(type_bases(typing.ByteString), (typing.Sequence[int],)))
+        self.assertTrue(cmp(type_bases(typing.List), (list, typing.MutableSequence[T])))
+        self.assertTrue(cmp(type_bases(typing.Set), (set, typing.MutableSet[T])))
+        self.assertTrue(cmp(type_bases(typing.FrozenSet), (frozenset, typing.AbstractSet[T_co])))
+        #self.assertTrue(cmp(type_bases(typing.MappingView), (collections.abc.Sized, typing.Iterable[T_co])))
+        self.assertTrue(cmp(type_bases(typing.KeysView), (typing.MappingView[KT], typing.AbstractSet[KT])))
+        #self.assertTrue(cmp(type_bases(typing.ItemsView), (typing.MappingView[typing.Tuple[KT, VT_co]], typing.AbstractSet[typing.Tuple[KT, VT_co]], typing.Generic[KT, VT_co])))
+        #self.assertTrue(cmp(type_bases(typing.ValuesView), (typing.MappingView[VT_co],)))
+        #self.assertTrue(cmp(type_bases(typing.ContextManager), (typing.Generic[T_co],)))
+        self.assertTrue(cmp(type_bases(typing.Dict), (dict, typing.MutableMapping[KT, VT])))
+        #self.assertTrue(cmp(type_bases(typing.DefaultDict), (collections.defaultdict, typing.MutableMapping[KT, VT])))
+        #self.assertTrue(cmp(type_bases(typing.Generator), (typing.Iterator[T_co], typing.Generic[T_co, T_contra, V_co])))
+        #self.assertTrue(cmp(type_bases(typing.Type), (typing.Generic[CT_co],)))
 
 
 class Test_combine_argtype(unittest.TestCase):
