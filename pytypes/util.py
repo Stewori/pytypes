@@ -731,11 +731,7 @@ def mro(clss):
 def _orig_mro(clss, dest = []):
     if not clss in dest:
         dest.append(clss)
-        if hasattr(clss, '__orig_bases__'):
-            for clss2 in clss.__orig_bases__:
-                _orig_mro(clss2, dest)
-        else:
-            for clss2 in clss.__bases__:
+        for clss2 in pytypes.type_util._bases(clss):
                 _orig_mro(clss2, dest)
     return dest
 

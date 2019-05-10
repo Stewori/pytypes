@@ -115,6 +115,8 @@ def _bases(tp):
         # (Also Python 3.6)
         return tp.__bases__
     except AttributeError: pass
+    if not _typing_3_7:
+        return ()
     # Python 3.7
     if tp is _Generic_Singleton:
         return ()
@@ -158,6 +160,13 @@ def _extra(tp):
     except AttributeError:
         pass
     return None
+
+
+def get_Generic_type(ob):
+    try:
+        return ob.__orig_class__
+    except AttributeError:
+        return ob.__class__
 
 
 def get_generator_yield_type(genr):
@@ -275,7 +284,7 @@ def get_Mapping_key_value(mp):
         return tuple(res)
 
 
-def get_Generic_parameters(tp, generic_supertype):
+def get_Generic_parameters(tp, generic_supertype=None):
     """tp must be a subclass of generic_supertype.
     Retrieves the type values from tp that correspond to parameters
     defined by generic_supertype.
@@ -283,10 +292,19 @@ def get_Generic_parameters(tp, generic_supertype):
     E.g. get_Generic_parameters(tp, typing.Mapping) is equivalent
     to get_Mapping_key_value(tp) except for the error message.
 
+    generic_supertype defaults to tp.__origin__.
+
     Note that get_Generic_itemtype(tp) is not exactly equal to
     get_Generic_parameters(tp, typing.Container), as that method
     additionally contains treatment for typing.Tuple and typing.Iterable.
     """
+    if generic_supertype is None:
+        generic_supertype = _origin(tp)
+    if generic_supertype is None:
+        for bs in pytypes.util.orig_mro(tp):
+            generic_supertype = _origin(bs)
+            if not generic_supertype is None:
+                break
     try:
         res = _select_Generic_superclass_parameters(tp, generic_supertype)
     except TypeError:
@@ -1253,17 +1271,16 @@ def _find_Generic_super_origin(subclass, superclass_origin):
 
 def _find_base_with_origin(subclass, superclass_origin):
     try:
-        if not subclass.__origin__ is None and issubclass(subclass.__origin__, superclass_origin):
+        sub_orig = _origin(subclass)
+        if not sub_orig is None and issubclass(sub_orig, superclass_origin):
             return subclass
     except AttributeError:
         return None
-    try:
-        orig_bases = subclass.__orig_bases__
-    except AttributeError:
-        orig_bases = subclass.__bases__
+    orig_bases = _bases(subclass)
     for bs in orig_bases:
         try:
-            if not bs.__origin__ is None and issubclass(bs.__origin__, superclass_origin):
+            bs_orig = _origin(bs)
+            if not bs_orig is None and issubclass(bs_orig, superclass_origin):
                 return bs
         except AttributeError:
             return None
@@ -1279,7 +1296,7 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
     subclass = _find_base_with_origin(subclass, superclass_origin)
     if subclass is None:
         return None
-    if subclass.__origin__ is superclass_origin:
+    if _origin(subclass) is superclass_origin:
         return subclass.__args__
     prms = _find_Generic_super_origin(subclass, superclass_origin)
     res = []
@@ -1299,29 +1316,30 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
     return res
 
 
-def get_arg_for_TypeVar(typevar, generic):
+def get_arg_for_TypeVar(typevar, generic, arg_holder=None):
     """Retrieves the parameter value of a given TypeVar from a Generic.
     Returns None if the generic does not contain an appropriate value.
     Note that the TypeVar is compared by instance and not by name.
     E.g. using a local TypeVar T would yield different results than
     using typing.T despite the equal name.
     """
-    return _get_arg_for_TypeVar(typevar, generic, generic)
+    if not is_Generic(generic):
+        generic = get_Generic_type(generic)
+    return _get_arg_for_TypeVar(typevar, generic,
+            generic if arg_holder is None else arg_holder)
 
 
 def _get_arg_for_TypeVar(typevar, generic, arg_holder):
+    bases = _bases(generic)
     try:
-        if arg_holder.__args__ is None:
-            try:
-                bases = generic.__orig_bases__
-            except AttributeError:
-                bases = generic.__bases__
-            for i in range(len(bases)):
-                res = _get_arg_for_TypeVar(typevar, generic.__bases__[i], bases[i])
-                if not res is None:
-                    return res
-    except AttributeError:
-        return None
+        # typing-3.5.3.0+ special treatment:
+        # It does not contain __origin__ in __bases__.
+        if not _origin(generic) is None and not bases[0] == _origin(generic):
+            res = _get_arg_for_TypeVar(typevar, generic.__origin__, arg_holder)
+            if not res is None:
+                return res
+    except:
+        pass
     try:
         if typevar in generic.__parameters__:
             idx = generic.__parameters__.index(typevar)
@@ -1329,16 +1347,7 @@ def _get_arg_for_TypeVar(typevar, generic, arg_holder):
             return res[idx]
     except (AttributeError, TypeError):
         return None
-    try:
-        # typing-3.5.3.0 special treatment:
-        # It does not contain __origin__ in __bases__.
-        if not generic.__bases__[0] == generic.__origin__:
-            res = _get_arg_for_TypeVar(typevar, generic.__origin__, arg_holder)
-            if not res is None:
-                return res
-    except:
-        pass
-    for base in generic.__bases__:
+    for base in bases:
         res = _get_arg_for_TypeVar(typevar, base, arg_holder)
         if not res is None:
             return res
@@ -2322,10 +2331,7 @@ def _check_caller_type(return_type, cllable = None, call_args = None, clss = Non
     if call_args is None:
         call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
     if slf:
-        try:
-            orig_clss = call_args[0].__orig_class__
-        except AttributeError:
-            orig_clss = call_args[0].__class__
+        orig_clss = get_Generic_type(call_args[0])
         call_args = call_args[1:]
     elif clsm:
         orig_clss = call_args[0]
