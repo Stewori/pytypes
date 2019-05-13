@@ -1372,6 +1372,38 @@ class B_auto_override_err(A_auto_override):
         return 3*len(c)
 
 
+@typechecked
+class GetAttrDictWrapper(object):
+    """Test a plausible use of __getattr__ -
+    A class that wraps a dict, enabling the values to be accessed as if they were attributes
+    (`d.abc` instead of `d['abc']`)
+    For example, the `pyrsistent` library does this on its dict replacement.
+
+    >>> o = GetAttrDictWrapper({'a': 5, 'b': 10})
+    >>> o.a
+    5
+    >>> o.b
+    10
+    >>> o.nonexistent
+    Traceback (most recent call last):
+      ...
+    AttributeError('nonexistent')
+    
+    """
+
+    def __init__(self, dct):
+        # type: (dict) -> None
+        self.__dct = dct
+
+    def __getattr__(self, attr):
+        # type: (str) -> typing.Any
+        dct = self.__dct # can safely access the attribute because it exists so it won't trigger __getattr__
+        try:
+            return dct[attr]
+        except KeyError:
+            raise AttributeError(attr)
+
+
 class TestTypecheck(unittest.TestCase):
     def test_function(self):
         self.assertEqual(testfunc(3, 2.5, 'abcd'), (9, 7.5))
@@ -2558,6 +2590,23 @@ class TestTypecheck_class(unittest.TestCase):
         self.assertEqual(tc.testmeth_static2(11, 1.9), '11-1.9-static')
         self.assertRaises(InputTypeError, lambda:
                 tc.testmeth_static2(11, ('a', 'b'), 1.9))
+
+
+class TestTypecheck_class_with_getattr(unittest.TestCase):
+    """
+    See pull request:
+    https://github.com/Stewori/pytypes/pull/53
+    commit #:
+    e2523b347e52707f87d7078daad1a93940c12e2e
+    """
+    def test_valid_access(self):
+        obj = GetAttrDictWrapper({'a': 5, 'b': 10})
+        self.assertEqual(obj.a, 5)
+        self.assertEqual(obj.b, 10)
+
+    def test_invalid_access(self):
+        obj = GetAttrDictWrapper({'a': 5, 'b': 10})
+        self.assertRaises(AttributeError, lambda: obj.nonexistent)
 
 
 class TestTypecheck_module(unittest.TestCase):
