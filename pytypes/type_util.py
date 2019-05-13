@@ -24,17 +24,43 @@ import weakref
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
     from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
+            T_co, V_co, VT_co, T_contra, KT, T, VT
 except ImportError:
     from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
+            T_co, V_co, VT_co, T_contra, KT, T, VT
 try:
     # Python 3.7
     from typing import ForwardRef
     _typing_3_7 = True
+    _Generic_Singleton = Generic[T_co]
+    _bases_cache = {
+        List: (list, typing.MutableSequence),
+        Set: (set, typing.MutableSet),
+        Dict: (dict, typing.MutableMapping),
+        FrozenSet: (frozenset, typing.AbstractSet),
+        Tuple: (tuple,),
+        # Python 3.6 thinks this should extend MutableMapping,
+        # but Python 3.7 thinks it should extend Dict:
+        typing.DefaultDict: (collections.defaultdict, Dict),
+        typing.ItemsView: (
+                # For ItemsView, Python 3.7 seems to omit the information
+                # that KT, VT_co must be Tupelized.
+                typing.MappingView[Tuple[KT, VT_co]],
+                typing.AbstractSet[Tuple[KT, VT_co]],
+                Generic[KT, VT_co])
+
+        # There is still collections.abc.Sized vs typing.Sized.
+        # Leaving it unresolved until it crashes something notable.
+    }
+    _orig_Iterable = collections.abc.Iterable
+    _orig_Iterator = collections.abc.Iterator
 except ImportError:
     from typing import _ForwardRef as ForwardRef
     _typing_3_7 = False
+    _orig_Iterable = Iterable
+    _orig_Iterator = typing.Iterator
 from warnings import warn, warn_explicit
 
 import pytypes
@@ -76,19 +102,55 @@ class Empty(Generic[EMPTY]):
     pass
 
 
+def _bases(tp):
+    # Python 3.7 fundamentally changed the way to retrieve base types,
+    # especially w.r.t. collections.
+    try:
+        # Python 3.5
+        return tp.__orig_bases__
+    except AttributeError: pass
+    try:
+        # Before typing 3.5.3.0 __bases__ used to contain all info that later
+        # became reserved for __orig_bases__. So we can use it as a fallback:
+        # (Also Python 3.6)
+        return tp.__bases__
+    except AttributeError: pass
+    if not _typing_3_7:
+        return ()
+    # Python 3.7
+    if tp is _Generic_Singleton:
+        return ()
+    try:
+        return _bases_cache[_extra_dict[tp.__origin__]]
+    except KeyError: pass
+    res = [_extra_dict[bs] if bs in _extra_dict else bs
+            for bs in tp.__origin__.__bases__]
+    try:
+        obidx = res.index(object)
+        res[obidx] = _Generic_Singleton
+    except ValueError: pass
+    res = tuple(res)
+    if tp.__origin__ in _extra_dict:
+        _bases_cache[_extra_dict[tp.__origin__]] = res
+    return res
+
+
+def _parameters(origin):
+    if _typing_3_7 and origin in _extra_dict:
+        # Python 3.7
+        origin = _extra_dict[origin]
+    try: return origin.__parameters__
+    except: return ()
+
+
 def _origin(tp):
-    if _typing_3_7:
-        res = tp.__origin__
-        try:
-            return _extra_dict[res]
-        except KeyError:
-            return res
-    else:
+    try:
         return tp.__origin__
+    except AttributeError:
+        return None
 
 
 def _extra(tp):
-    #return tp.__extra__
     try:
         return tp.__extra__
     except AttributeError:
@@ -98,6 +160,30 @@ def _extra(tp):
     except AttributeError:
         pass
     return None
+
+
+def _get_orig_class(obj):
+    """Returns  `obj.__orig_class__` protecting from infinite recursion in `__getattr[ibute]__` wrapped in a `checker_tp`.
+    (See `checker_tp` in `typechecker._typeinspect_func for context)
+    Necessary if:
+    - we're wrapping a method (`obj` is `self`/`cls`) and either
+        - the object's class defines __getattribute__
+    or
+        - the object doesn't have an `__orig_class__` attribute
+          and the object's class defines __getattr__.
+    In such a situation, `parent_class = obj.__orig_class__`
+    would call `__getattr[ibute]__`. But that method is wrapped in a `checker_tp` too,
+    so then we'd go into the wrapped `__getattr[ibute]__` and do
+    `parent_class = obj.__orig_class__`, which would call `__getattr[ibute]__` again, and so on.
+    So to bypass `__getattr[ibute]__` we do this: """
+    return object.__getattribute__(obj, '__orig_class__')
+
+
+def get_Generic_type(ob):
+    try:
+        return _get_orig_class(ob)
+    except AttributeError:
+        return ob.__class__
 
 
 def get_generator_yield_type(genr):
@@ -148,22 +234,22 @@ def get_iterable_itemtype(obj):
     else:
         tp = deep_type(obj)
         if is_Generic(tp):
-            if issubclass(tp.__origin__, typing.Iterable):
+            if issubclass(tp.__origin__, Iterable):
                 if len(tp.__args__) == 1:
                     return tp.__args__[0]
-                return _select_Generic_superclass_parameters(tp, typing.Iterable)[0]
+                return _select_Generic_superclass_parameters(tp, Iterable)[0]
     if is_iterable(obj):
         if type(obj) is str:
             return str
         if hasattr(obj, '__iter__'):
             if has_type_hints(obj.__iter__):
                 itrator = _funcsigtypes(obj.__iter__, True, obj.__class__)[1]
-                if is_Generic(itrator) and itrator.__origin__ is typing.Iterator:
+                if is_Generic(itrator) and itrator.__origin__ is _orig_Iterator:
                     return itrator.__args__[0]
         if hasattr(obj, '__getitem__'):
             if has_type_hints(obj.__getitem__):
                 itrator =  _funcsigtypes(obj.__getitem__, True, obj.__class__)[1]
-                if is_Generic(itrator) and itrator.__origin__ is typing.Iterator:
+                if is_Generic(itrator) and itrator.__origin__ is _orig_Iterator:
                     return itrator.__args__[0]
         return None # means that type is unknown
     else:
@@ -215,7 +301,7 @@ def get_Mapping_key_value(mp):
         return tuple(res)
 
 
-def get_Generic_parameters(tp, generic_supertype):
+def get_Generic_parameters(tp, generic_supertype=None):
     """tp must be a subclass of generic_supertype.
     Retrieves the type values from tp that correspond to parameters
     defined by generic_supertype.
@@ -223,10 +309,19 @@ def get_Generic_parameters(tp, generic_supertype):
     E.g. get_Generic_parameters(tp, typing.Mapping) is equivalent
     to get_Mapping_key_value(tp) except for the error message.
 
+    generic_supertype defaults to tp.__origin__.
+
     Note that get_Generic_itemtype(tp) is not exactly equal to
     get_Generic_parameters(tp, typing.Container), as that method
     additionally contains treatment for typing.Tuple and typing.Iterable.
     """
+    if generic_supertype is None:
+        generic_supertype = _origin(tp)
+    if generic_supertype is None:
+        for bs in pytypes.util.orig_mro(tp):
+            generic_supertype = _origin(bs)
+            if not generic_supertype is None:
+                break
     try:
         res = _select_Generic_superclass_parameters(tp, generic_supertype)
     except TypeError:
@@ -373,6 +468,7 @@ def is_Generic(tp):
         except TypeError:
             # Shall we accept _GenericAlias, i.e. Tuple, Union, etc?
             return isinstance(tp, typing._GenericAlias)
+            #return False
 
 
 def is_Callable(tp):
@@ -938,7 +1034,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0,
         out_type = eval(in_type, globs)
         _fw_resolve_cache[in_type] = out_type
         return out_type, True
-    elif isinstance(in_type, typing._ForwardRef):
+    elif isinstance(in_type, ForwardRef):
         # Todo: Mabe somehow get globs from in_type.__forward_code__
         if not in_type.__forward_evaluated__:
             in_type.__forward_value__ = eval(in_type.__forward_arg__, globs)
@@ -1150,48 +1246,58 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     """
     stack = [subclass]
     param_map = {}
+    _alias = _typing_3_7 and isinstance(subclass, typing._GenericAlias)
+    if _alias:
+        alsprms = _parameters(subclass.__origin__)
     while len(stack) > 0:
         bs = stack.pop()
         if is_Generic(bs):
-            if not bs.__origin__ is None and len(bs.__origin__.__parameters__) > 0:
-                for i in range(len(bs.__args__)):
-                    ors = bs.__origin__.__parameters__[i]
-                    if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
-                        param_map[ors] = bs.__args__[i]
-            if (bs.__origin__ is superclass_origin or \
-                    (bs.__origin__ is None and bs is superclass_origin)):
-                prms = []
-                try:
-                    if len(bs.__origin__.__parameters__) > len(bs.__parameters__):
-                        prms.extend(bs.__origin__.__parameters__)
+            if not bs.__origin__ is None:
+                bsoprms = _parameters(bs.__origin__)
+                if len(bsoprms) > 0:
+                    if _alias:
+                    # The correct rule seems to be to match typevars by order if no name matches.
+                        for i in range(len(bs.__args__)):
+                            ors = alsprms[i]
+                            if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
+                                if not bs.__args__[i] in alsprms:
+                                    param_map[bs.__args__[i]] = ors
                     else:
-                        prms.extend(bs.__parameters__)
+                        for i in range(len(bs.__args__)):
+                            ors = bsoprms[i]
+                            if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
+                                param_map[ors] = bs.__args__[i]
+            if (bs.__origin__ is superclass_origin or \
+                    bs is superclass_origin):
+                prms = []
+                bsprms = _parameters(bs)
+                try:
+                    if len(bsoprms) > len(bsprms):
+                        prms.extend(bsoprms)
+                    else:
+                        prms.extend(bsprms)
                 except:
-                    prms.extend(bs.__parameters__)
+                    prms.extend(bsprms)
                 for i in range(len(prms)):
                     while prms[i] in param_map:
                         prms[i] = param_map[prms[i]]
                 return prms
-            try:
-                stack.extend(bs.__orig_bases__)
-            except AttributeError:
-                stack.extend(bs.__bases__)
+            stack.extend(_bases(bs))
     return None
 
 
 def _find_base_with_origin(subclass, superclass_origin):
     try:
-        if not subclass.__origin__ is None and issubclass(subclass.__origin__, superclass_origin):
+        sub_orig = _origin(subclass)
+        if not sub_orig is None and issubclass(sub_orig, superclass_origin):
             return subclass
     except AttributeError:
         return None
-    try:
-        orig_bases = subclass.__orig_bases__
-    except AttributeError:
-        orig_bases = subclass.__bases__
+    orig_bases = _bases(subclass)
     for bs in orig_bases:
         try:
-            if not bs.__origin__ is None and issubclass(bs.__origin__, superclass_origin):
+            bs_orig = _origin(bs)
+            if not bs_orig is None and issubclass(bs_orig, superclass_origin):
                 return bs
         except AttributeError:
             return None
@@ -1207,15 +1313,16 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
     subclass = _find_base_with_origin(subclass, superclass_origin)
     if subclass is None:
         return None
-    if subclass.__origin__ is superclass_origin:
+    if _origin(subclass) is superclass_origin:
         return subclass.__args__
     prms = _find_Generic_super_origin(subclass, superclass_origin)
     res = []
     for prm in prms:
         sub_search = subclass
         while not sub_search is None:
+            subprms = _parameters(sub_search.__origin__)
             try:
-                res.append(sub_search.__args__[sub_search.__origin__.__parameters__.index(prm)])
+                res.append(sub_search.__args__[subprms.index(prm)])
                 break
             except ValueError:
                 # We search the closest base that actually contains the parameter
@@ -1226,29 +1333,30 @@ def _select_Generic_superclass_parameters(subclass, superclass_origin):
     return res
 
 
-def get_arg_for_TypeVar(typevar, generic):
+def get_arg_for_TypeVar(typevar, generic, arg_holder=None):
     """Retrieves the parameter value of a given TypeVar from a Generic.
     Returns None if the generic does not contain an appropriate value.
     Note that the TypeVar is compared by instance and not by name.
     E.g. using a local TypeVar T would yield different results than
     using typing.T despite the equal name.
     """
-    return _get_arg_for_TypeVar(typevar, generic, generic)
+    if not is_Generic(generic):
+        generic = get_Generic_type(generic)
+    return _get_arg_for_TypeVar(typevar, generic,
+            generic if arg_holder is None else arg_holder)
 
 
 def _get_arg_for_TypeVar(typevar, generic, arg_holder):
+    bases = _bases(generic)
     try:
-        if arg_holder.__args__ is None:
-            try:
-                bases = generic.__orig_bases__
-            except AttributeError:
-                bases = generic.__bases__
-            for i in range(len(bases)):
-                res = _get_arg_for_TypeVar(typevar, generic.__bases__[i], bases[i])
-                if not res is None:
-                    return res
-    except AttributeError:
-        return None
+        # typing-3.5.3.0+ special treatment:
+        # It does not contain __origin__ in __bases__.
+        if not _origin(generic) is None and not bases[0] == _origin(generic):
+            res = _get_arg_for_TypeVar(typevar, generic.__origin__, arg_holder)
+            if not res is None:
+                return res
+    except:
+        pass
     try:
         if typevar in generic.__parameters__:
             idx = generic.__parameters__.index(typevar)
@@ -1256,16 +1364,7 @@ def _get_arg_for_TypeVar(typevar, generic, arg_holder):
             return res[idx]
     except (AttributeError, TypeError):
         return None
-    try:
-        # typing-3.5.3.0 special treatment:
-        # It does not contain __origin__ in __bases__.
-        if not generic.__bases__[0] == generic.__origin__:
-            res = _get_arg_for_TypeVar(typevar, generic.__origin__, arg_holder)
-            if not res is None:
-                return res
-    except:
-        pass
-    for base in generic.__bases__:
+    for base in bases:
         res = _get_arg_for_TypeVar(typevar, base, arg_holder)
         if not res is None:
             return res
@@ -1294,14 +1393,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
     if is_Generic(subclass):
         # For a class C(Generic[T]) where T is co-variant,
         # C[X] is a subclass of C[Y] iff X is a subclass of Y.
-        origin = _origin(superclass) #superclass.__origin__
-        if subclass.__origin__ is None:
-            try:
-                orig_bases = subclass.__orig_bases__
-            except AttributeError:
-                # Before typing 3.5.3.0 __bases__ used to contain all info that later
-                # became reserved for __orig_bases__. So we can use it as a fallback:
-                orig_bases = subclass.__bases__
+        origin = _origin(superclass)
+        suborigin = _origin(subclass)
+        if suborigin is None:
+            orig_bases = _bases(subclass)
             for scls in orig_bases:
                 if is_Generic(scls):
                     if _issubclass_Generic(scls, superclass, bound_Generic, bound_typevars,
@@ -1311,20 +1406,18 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         #Formerly: if origin is not None and origin is subclass.__origin__:
         elif origin is not None and \
                 _issubclass(_origin(subclass), origin, bound_Generic, bound_typevars,
-                        # In Python 3.7 this can currently cause infinite recursion.
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-# 				_issubclass(subclass.__origin__, origin, bound_Generic, bound_typevars,
-# 						bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-            assert len(superclass.__args__) == len(origin.__parameters__)
-            if len(subclass.__args__) == len(origin.__parameters__):
+            prms = _parameters(origin)
+            assert len(superclass.__args__) == len(prms)
+            if len(subclass.__args__) == len(prms):
                 sub_args = subclass.__args__
             else:
                 # We select the relevant subset of args by TypeVar-matching
                 sub_args = _select_Generic_superclass_parameters(subclass, superclass.__origin__)
-                assert len(sub_args) == len(origin.__parameters__)
+                assert len(sub_args) == len(prms)
             for p_self, p_cls, p_origin in zip(superclass.__args__,
                                             sub_args,
-                                            origin.__parameters__):
+                                            prms):
                 if isinstance(p_origin, TypeVar):
                     if p_origin.__covariant__:
                         # Covariant -- p_cls must be a subclass of p_self.
@@ -1672,6 +1765,13 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                 (subclass is int or subclass is float):
             return True
     if superclass in _extra_dict:
+        if subclass in _extra_dict:
+            try:
+                # if both are not PEP 484 types, attempt to use ordinary issubclass
+                return issubclass(subclass, superclass)
+                #if issubclass(subclass, superclass):
+                #	return True
+            except: pass
         superclass = _extra_dict[superclass]
     try:
         if _issubclass_2(subclass, Empty, bound_Generic, bound_typevars,
@@ -2248,10 +2348,7 @@ def _check_caller_type(return_type, cllable = None, call_args = None, clss = Non
     if call_args is None:
         call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
     if slf:
-        try:
-            orig_clss = _get_orig_class(call_args[0])
-        except AttributeError:
-            orig_clss = call_args[0].__class__
+        orig_clss = get_Generic_type(call_args[0])
         call_args = call_args[1:]
     elif clsm:
         orig_clss = call_args[0]
@@ -2476,20 +2573,3 @@ class TypeAgent(object):
             else:
                 if self._previous_profiler is not None:
                     self._previous_profiler(frame, event, arg)
-
-
-def _get_orig_class(obj):
-    """Returns  `obj.__orig_class__` protecting from infinite recursion in `__getattr[ibute]__` wrapped in a `checker_tp`.
-    (See `checker_tp` in `typechecker._typeinspect_func for context)
-    Necessary if:
-    - we're wrapping a method (`obj` is `self`/`cls`) and either
-        - the object's class defines __getattribute__
-    or
-        - the object doesn't have an `__orig_class__` attribute
-          and the object's class defines __getattr__.
-    In such a situation, `parent_class = args_kw[0].__orig_class__`
-    would call `__getattr[ibute]__`. But that method is wrapped in a `checker_tp` too,
-    so then we'd go into the wrapped `__getattr[ibute]__` and do
-    `parent_class = args_kw[0].__orig_class__`, which would call `__getattr[ibute]__` again, and so on.
-    So to bypass `__getattr[ibute]__` we do this: """
-    return object.__getattribute__(obj, '__orig_class__')

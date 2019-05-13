@@ -377,7 +377,7 @@ def get_class_qualname(cls):
     module = sys.modules[cls.__module__]
     if cls.__module__ == 'typing' and not hasattr(cls, '__name__'):
         # Python 3.7
-        return cls._name
+        return cls._name if not cls._name is None else cls.__origin__.__name__
     if hasattr(module, cls.__name__) and getattr(module, cls.__name__) is cls:
         return cls.__name__
     else:
@@ -731,11 +731,7 @@ def mro(clss):
 def _orig_mro(clss, dest = []):
     if not clss in dest:
         dest.append(clss)
-        if hasattr(clss, '__orig_bases__'):
-            for clss2 in clss.__orig_bases__:
-                _orig_mro(clss2, dest)
-        else:
-            for clss2 in clss.__bases__:
+        for clss2 in pytypes.type_util._bases(clss):
                 _orig_mro(clss2, dest)
     return dest
 
