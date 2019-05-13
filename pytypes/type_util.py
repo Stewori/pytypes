@@ -309,7 +309,8 @@ def get_Generic_parameters(tp, generic_supertype=None):
     E.g. get_Generic_parameters(tp, typing.Mapping) is equivalent
     to get_Mapping_key_value(tp) except for the error message.
 
-    generic_supertype defaults to tp.__origin__.
+    generic_supertype defaults to tp.__origin__ or closest __origin__ in
+    terms of util.orig_mro if the former is not available.
 
     Note that get_Generic_itemtype(tp) is not exactly equal to
     get_Generic_parameters(tp, typing.Container), as that method
