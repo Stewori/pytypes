@@ -611,6 +611,7 @@ Contributors (no specific order, names as provided on github)
 * `Ilya Kulakov <https://github.com/Kentzo>`__
 * `Jonas <https://github.com/elcombato>`__
 * `MinJune Kim <https://github.com/qria>`__
+* `Uryga <https://github.com/lubieowoce>`__
 
 
 License
