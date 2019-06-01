@@ -477,10 +477,21 @@ def is_Callable(tp):
         return isinstance(tp, typing.CallableMeta)
     except AttributeError:
         try:
-            return isinstance(tp, typing._VariadicGenericAlias) and \
-                    tp.__origin__ is collections.abc.Callable
+            return isinstance(tp, typing._GenericAlias) and \
+                    _origin(tp) is collections.abc.Callable
         except AttributeError:
-            return False
+            raise #return False
+
+
+def is_Generator(tp):
+    if not _typing_3_7:
+        return _origin(tp) is typing.Generator
+    else:
+        try:
+            return isinstance(tp, typing._GenericAlias) and \
+                    _origin(tp) is collections.abc.Generator
+        except AttributeError:
+            raise #return False
 
 
 def deep_type(obj, depth = None, max_sample = None, get_type = None):

@@ -637,7 +637,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
                     return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs,
                             _recursion_check), obj
-        elif cls.__origin__ is typing.Generator:
+        elif type_util.is_Generator(cls):
             if is_args or not inspect.isgeneratorfunction(func):
                 # Todo: Insert fully qualified function name
                 # Todo: Move or port this to _isInstance (?)
