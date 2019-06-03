@@ -118,6 +118,12 @@ def _bases(tp):
     if not _typing_3_7:
         return ()
     # Python 3.7
+    try:
+        return tp.__orig_bases__
+    except AttributeError: pass
+    try:
+        return tp.__origin__.__orig_bases__
+    except AttributeError: pass
     if tp is _Generic_Singleton:
         return ()
     try:
@@ -1264,22 +1270,28 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     while len(stack) > 0:
         bs = stack.pop()
         if is_Generic(bs):
-            if not bs.__origin__ is None:
-                bsoprms = _parameters(bs.__origin__)
+            orig_bs = _origin(bs)
+            if not orig_bs is None:
+                bsoprms = _parameters(orig_bs)
                 if len(bsoprms) > 0:
-                    if _alias:
+                    if _alias: # Python 3.7
                     # The correct rule seems to be to match typevars by order if no name matches.
                         for i in range(len(bs.__args__)):
-                            ors = alsprms[i]
-                            if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
-                                if not bs.__args__[i] in alsprms:
-                                    param_map[bs.__args__[i]] = ors
+                            try:
+                                ors = alsprms[i]
+                                if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
+                                    if not bs.__args__[i] in alsprms:
+                                        param_map[bs.__args__[i]] = ors
+                            except IndexError:
+                                ors = bsoprms[i]
+                                if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
+                                    param_map[ors] = bs.__args__[i]
                     else:
                         for i in range(len(bs.__args__)):
                             ors = bsoprms[i]
                             if bs.__args__[i] != ors and isinstance(bs.__args__[i], TypeVar):
                                 param_map[ors] = bs.__args__[i]
-            if (bs.__origin__ is superclass_origin or \
+            if (orig_bs is superclass_origin or \
                     bs is superclass_origin):
                 prms = []
                 bsprms = _parameters(bs)
