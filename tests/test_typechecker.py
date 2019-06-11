@@ -4856,6 +4856,15 @@ class Test_utils(unittest.TestCase):
         #self.assertTrue(cmp(type_bases(typing.Generator), (typing.Iterator[T_co], typing.Generic[T_co, T_contra, V_co])))
         #self.assertTrue(cmp(type_bases(typing.Type), (typing.Generic[CT_co],)))
 
+    # See: https://github.com/Stewori/pytypes/issues/56
+    def test_subtype_mapping(self):
+        self.assertFalse(is_subtype(type(None), Dict[str, str]))
+        self.assertFalse(is_subtype(dict, Dict[str, str]))
+        self.assertTrue(is_subtype(Dict[str, str], dict))
+        self.assertFalse(is_subtype(List[Dict[str, str]], List[dict]))
+        self.assertTrue(is_subtype(List[Dict[str, str]], Sequence[dict]))
+        self.assertTrue(is_subtype(type(None), Optional[Dict[str, Any]]))
+
 
 class Test_combine_argtype(unittest.TestCase):
     def test_exceptions(self):

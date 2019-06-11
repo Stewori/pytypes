@@ -1256,7 +1256,13 @@ def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typ
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check):
             return False
         return True
-    return issubclass(subclass, superclass)
+    if is_Generic(superclass):
+        # For Python 3.5; in this Python e.g. issubclass(dict, Dict[str, str]) would pass.
+        return False
+    try:
+        return issubclass(subclass, superclass)
+    except TypeError:
+        return False
 
 
 def _find_Generic_super_origin(subclass, superclass_origin):
