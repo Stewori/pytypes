@@ -2527,7 +2527,6 @@ class TypeAgent(object):
                         isinstance(self._previous_profiler, TypeAgent):
                     self._previous_profiler._set_caller_level_shift(0)
             else:
-                #if not (sys.getprofile() is None and self._cleared):
                 if sys.getprofile() is not None or not self._cleared:
                     warn('the system profiling hook has changed unexpectedly')
             if self.all_threads:

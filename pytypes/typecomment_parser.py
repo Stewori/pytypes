@@ -51,7 +51,12 @@ def _get_typestrings(obj, slf):
     try:
         srclines = inspect.getsourcelines(obj)[0]
     except TypeError:
-        srclines = inspect.getsourcelines(getattr(obj.__class__, obj.__name__))[0]
+        try:
+            srclines = inspect.getsourcelines(getattr(obj.__class__, obj.__name__))[0]
+        except AttributeError:
+            # This can happen e.g. for slot wrappers.
+            # See https://github.com/Stewori/pytypes/issues/65
+            return None
     except:
         return None
     funcstart = 0

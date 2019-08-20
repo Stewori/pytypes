@@ -4806,6 +4806,10 @@ class Test_utils(unittest.TestCase):
 
         self.assertFalse(Foo().bar())
 
+    # See: https://github.com/Stewori/pytypes/issues/65
+    def test_has_type_hints_on_slot_wrapper(self):
+        self.assertFalse(pytypes.has_type_hints(int.__and__))
+
     def test_type_bases(self):
         def cmp(bs1, bs2):
             if len(bs1) != len(bs2): return False
