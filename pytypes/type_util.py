@@ -2266,7 +2266,7 @@ def simplify_for_Union(type_list):
         i += 1
 
 
-def _preprocess_typecheck(argSig, argspecs, slf_or_clsm = False):
+def _preprocess_typecheck(argSig, argspecs, slf_or_clsm=False):
     """From a PEP 484 style type-tuple with types for *varargs and/or **kw
     this returns a type-tuple containing Tuple[tp, ...] and Dict[str, kw-tp]
     instead.
@@ -2338,7 +2338,7 @@ def _raise_typecheck_error(msg, is_return=False, value=None, received_type=None,
             raise pytypes.InputTypeError(msg)
 
 
-def _get_current_call_info(clss = None, caller_level = 0):
+def _get_current_call_info(clss=None, caller_level=0):
     prop = None
     prop_getter = False
     fq, code = util._get_current_function_fq(caller_level+1)
@@ -2360,7 +2360,7 @@ def _get_current_call_info(clss = None, caller_level = 0):
     return cllable, clss, slf, clsm, prop, prop_getter
 
 
-def _check_caller_type(return_type, cllable = None, call_args = None, clss = None, caller_level = 0):
+def _check_caller_type(return_type, cllable=None, call_args=None, clss=None, caller_level=0):
     prop = None
     prop_getter = False
     if cllable is None:
@@ -2377,14 +2377,14 @@ def _check_caller_type(return_type, cllable = None, call_args = None, clss = Non
     specs = util.getargspecs(act_func)
     if call_args is None:
         call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
-    if slf:
-        orig_clss = get_Generic_type(call_args[0])
-        call_args = call_args[1:]
-    elif clsm:
-        orig_clss = call_args[0]
-        call_args = call_args[1:]
-    else:
-        orig_clss = clss
+    orig_clss = clss
+    if not return_type:
+        if slf:
+            orig_clss = get_Generic_type(call_args[0])
+            call_args = call_args[1:]
+        elif clsm:
+            orig_clss = call_args[0]
+            call_args = call_args[1:]
     if not prop is None:
         argSig, retSig = _get_types(prop, clsm, slf, clss, prop_getter)
         try:
@@ -2527,7 +2527,8 @@ class TypeAgent(object):
                         isinstance(self._previous_profiler, TypeAgent):
                     self._previous_profiler._set_caller_level_shift(0)
             else:
-                if not (sys.getprofile() is None and self._cleared):
+                #if not (sys.getprofile() is None and self._cleared):
+                if sys.getprofile() is not None or not self._cleared:
                     warn('the system profiling hook has changed unexpectedly')
             if self.all_threads:
                 if threading._profile_hook is self:
@@ -2574,7 +2575,6 @@ class TypeAgent(object):
                     self._previous_profiler(frame, event, arg)
                 if self._is_checking():
                     try:
-                        #check_return_type(arg, caller_level=self._caller_level_shift+1)
                         _check_caller_type(True, None, arg, caller_level=self._caller_level_shift+1)
                     except RuntimeError:
                         # Caller could not be determined.

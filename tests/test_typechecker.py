@@ -4909,6 +4909,17 @@ def testfunc_agent_err(v):
     return 'abc'
 
 
+class Test_agent_err_class:
+    def testmeth_agent_err(self):
+        # type: () -> int
+        return {}
+
+    @classmethod
+    def testclassmeth_agent_err(cls):
+        # type: () -> int
+        return {}
+
+
 class Test_agent(unittest.TestCase):
     def test_function_agent(self):
         with TypeChecker():
@@ -4916,6 +4927,16 @@ class Test_agent(unittest.TestCase):
             self.assertRaises(InputTypeError, lambda: testfunc_agent(12))
             restore_profiler()
             self.assertRaises(ReturnTypeError, lambda: testfunc_agent_err('abc'))
+    
+    def test_method_agent_return(self):
+        a = Test_agent_err_class()
+        with TypeChecker():
+            a.testmeth_agent_err
+            self.assertRaises(ReturnTypeError, a.testmeth_agent_err)
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, a.testclassmeth_agent_err)
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, Test_agent_err_class.testclassmeth_agent_err)
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -4932,6 +4953,17 @@ class Test_agent_Python3_5(unittest.TestCase):
             self.assertRaises(InputTypeError, lambda: py3.testfunc_agent(12))
             restore_profiler()
             self.assertRaises(ReturnTypeError, lambda: py3.testfunc_agent_err('abc'))
+    
+    def test_method_agent_return(self):
+        a = py3.Test_agent_err_class()
+        with TypeChecker():
+            a.testmeth_agent_err
+            self.assertRaises(ReturnTypeError, a.testmeth_agent_err)
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, a.testclassmeth_agent_err)
+            restore_profiler()
+            self.assertRaises(ReturnTypeError, py3.Test_agent_err_class.testclassmeth_agent_err)
+
 
 if __name__ == '__main__':
     unittest.main()

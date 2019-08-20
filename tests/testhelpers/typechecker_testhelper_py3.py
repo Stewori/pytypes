@@ -1346,3 +1346,12 @@ def testfunc_agent(v: str) -> int:
 
 def testfunc_agent_err(v: str) -> int:
     return 'abc'
+
+
+class Test_agent_err_class:
+    def testmeth_agent_err(self) -> int:
+        return {}
+
+    @classmethod
+    def testclassmeth_agent_err(cls) -> int:
+        return {}
