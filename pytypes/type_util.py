@@ -2375,10 +2375,13 @@ def _check_caller_type(return_type, cllable=None, call_args=None, clss=None, cal
     if not has_hints and not slf:
         return
     specs = util.getargspecs(act_func)
-    if call_args is None:
-        call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
     orig_clss = clss
     if not return_type:
+        if call_args is None:
+            # If return_type is True we must assume that call_args being None is authorative
+            # i.e. None is the actual value to check rather than an indicator to
+            # auto-retrieve the args. See https://github.com/Stewori/pytypes/issues/64
+            call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
         if slf:
             orig_clss = get_Generic_type(call_args[0])
             call_args = call_args[1:]

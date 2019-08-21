@@ -1349,6 +1349,9 @@ def testfunc_agent_err(v: str) -> int:
 
 
 class Test_agent_err_class:
+    def __init__(self) -> None:
+        pass
+
     def testmeth_agent_err(self) -> int:
         return {}
 

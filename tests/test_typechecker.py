@@ -4914,6 +4914,10 @@ def testfunc_agent_err(v):
 
 
 class Test_agent_err_class:
+    def __init__(self):
+        # type: () -> None
+        pass
+
     def testmeth_agent_err(self):
         # type: () -> int
         return {}
@@ -4941,6 +4945,10 @@ class Test_agent(unittest.TestCase):
             self.assertRaises(ReturnTypeError, a.testclassmeth_agent_err)
             restore_profiler()
             self.assertRaises(ReturnTypeError, Test_agent_err_class.testclassmeth_agent_err)
+    
+    def test_init_agent_return_None(self):
+        with TypeChecker():
+            Test_agent_err_class()
 
 
 @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
@@ -4967,6 +4975,10 @@ class Test_agent_Python3_5(unittest.TestCase):
             self.assertRaises(ReturnTypeError, a.testclassmeth_agent_err)
             restore_profiler()
             self.assertRaises(ReturnTypeError, py3.Test_agent_err_class.testclassmeth_agent_err)
+
+    def test_init_agent_return_None(self):
+        with TypeChecker():
+            py3.Test_agent_err_class()
 
 
 if __name__ == '__main__':
