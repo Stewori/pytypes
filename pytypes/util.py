@@ -33,7 +33,6 @@ from warnings import warn_explicit
 
 _code_callable_dict = {}
 _sys_excepthook = sys.__excepthook__
-#_excepthook_installed = False
 
 
 def _check_python3_5_version():
@@ -375,16 +374,10 @@ def get_class_qualname(cls):
     if hasattr(cls, '__qualname__'):
         return cls.__qualname__
     module = sys.modules[cls.__module__]
-    #print (378, cls, cls.__module__)
-    #if cls.__module__ == 'typing' and not hasattr(cls, '__name__'):
     if not hasattr(cls, '__name__'):
         # Python 3.7
-        #print (380)
         res = cls._name if not cls._name is None else cls.__origin__.__name__
-        #print (382, cls, res)
         return res
-    if not hasattr(cls, '__name__'):
-            print (386, cls, cls._name, cls.__origin__.__name__)
     if hasattr(module, cls.__name__) and getattr(module, cls.__name__) is cls:
         return cls.__name__
     else:

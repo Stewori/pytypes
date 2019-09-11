@@ -22,7 +22,6 @@ import typing
 import collections
 import weakref
 from inspect import isfunction, ismethod, isclass, ismodule
-from typing import TypeVar
 try:
     from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
             Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
