@@ -22,6 +22,7 @@ import typing
 import collections
 import weakref
 from inspect import isfunction, ismethod, isclass, ismodule
+from typing import TypeVar
 try:
     from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
             Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
@@ -287,7 +288,7 @@ def get_Generic_itemtype(sq, simplify=True):
                 res = _select_Generic_superclass_parameters(sq, typing.Iterable)
             except TypeError:
                 pass
-        if res is None:
+        if res is None or isinstance(res[0], TypeVar):
             raise TypeError("Has no itemtype: "+type_str(sq))
         else:
             return res[0]
@@ -303,6 +304,10 @@ def get_Mapping_key_value(mp):
         res = None
     if res is None:
         raise TypeError("Has no key/value types: "+type_str(mp))
+    elif isinstance(res[0], TypeVar):
+        raise TypeError("Has no key type: "+type_str(mp))
+    elif isinstance(res[1], TypeVar):
+        raise TypeError("Has no value type: "+type_str(mp))
     else:
         return tuple(res)
 
@@ -1265,6 +1270,64 @@ def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typ
         return False
 
 
+def _get_inheritance_stack(subclass, superclass_origin):
+    stack = [subclass]
+    b = subclass
+    bo = _origin(b)
+    bo = _extra_dict[bo] if bo in _extra_dict else bo
+    if bo is superclass_origin:
+        return stack, [_parameters(x) for x in stack], [getattr(x, '__args__', None) for x in stack]
+    while True:
+        for bs in _bases(b):
+            bso = _origin(bs)
+            bso = _extra_dict[bso] if bso in _extra_dict else bso
+            try:
+                bs_check = is_Generic(bs) and issubclass(bs, superclass_origin)
+            except TypeError:
+                bs_check = False
+            if bs_check or bso is not None and issubclass(bso, superclass_origin):
+                if getattr(bs, '__args__', None) is not None:
+                    # Required for Python 2.7 and 3.5
+                    stack.append(bs)
+                b = bs
+                bo = bso
+                if b is superclass_origin or bo is superclass_origin:
+                    return stack, [_parameters(x) for x in stack], [getattr(x, '__args__', None) for x in stack]
+                break
+        else:
+            break
+        continue
+
+
+def _resolve_parameters(params_list, args_list):
+    pos_list = [[x[1].index(y) if x[1] is not None else -1 for y in x[0]]
+            for x in zip(params_list, args_list)][::-1]
+    state = list(args_list[-1])
+    for i in range(len(pos_list)-1):
+        pos = 0
+        if args_list[-2-i] is not None:
+            for j in pos_list[i][:len(state)]:
+                if j >= len(state):
+                    break
+                state[j] = args_list[-2-i][pos]
+                pos += 1
+        else:
+            for j in pos_list[i][:len(state)]:
+                if j >= len(state):
+                    break
+                state[j] = params_list[-2-i][pos]
+                pos += 1
+    return state
+
+
+def _select_Generic_superclass_parameters(subclass, superclass_origin):
+    """Helper for _issubclass_Generic.
+    """
+    x = _get_inheritance_stack(subclass, superclass_origin)
+    if x is not None:
+        return _resolve_parameters(x[1], x[2])
+
+
 def _find_Generic_super_origin(subclass, superclass_origin):
     """Helper for _issubclass_Generic.
     """
@@ -1316,53 +1379,6 @@ def _find_Generic_super_origin(subclass, superclass_origin):
     return None
 
 
-def _find_base_with_origin(subclass, superclass_origin):
-    try:
-        sub_orig = _origin(subclass)
-        if not sub_orig is None and issubclass(sub_orig, superclass_origin):
-            return subclass
-    except AttributeError:
-        return None
-    orig_bases = _bases(subclass)
-    for bs in orig_bases:
-        try:
-            bs_orig = _origin(bs)
-            if not bs_orig is None and issubclass(bs_orig, superclass_origin):
-                return bs
-        except AttributeError:
-            return None
-    for bs in orig_bases:
-        res = _find_base_with_origin(bs, superclass_origin)
-        if not res is None:
-            return res
-
-
-def _select_Generic_superclass_parameters(subclass, superclass_origin):
-    """Helper for _issubclass_Generic.
-    """
-    subclass = _find_base_with_origin(subclass, superclass_origin)
-    if subclass is None:
-        return None
-    if _origin(subclass) is superclass_origin:
-        return subclass.__args__
-    prms = _find_Generic_super_origin(subclass, superclass_origin)
-    res = []
-    for prm in prms:
-        sub_search = subclass
-        while not sub_search is None:
-            subprms = _parameters(sub_search.__origin__)
-            try:
-                res.append(sub_search.__args__[subprms.index(prm)])
-                break
-            except ValueError:
-                # We search the closest base that actually contains the parameter
-                sub_search = _find_base_with_origin(
-                        sub_search.__origin__, superclass_origin)
-        else:
-            return None
-    return res
-
-
 def get_arg_for_TypeVar(typevar, generic, arg_holder=None):
     """Retrieves the parameter value of a given TypeVar from a Generic.
     Returns None if the generic does not contain an appropriate value.
@@ -1388,9 +1404,15 @@ def _get_arg_for_TypeVar(typevar, generic, arg_holder):
     except:
         pass
     try:
-        if typevar in generic.__parameters__:
-            idx = generic.__parameters__.index(typevar)
-            res = _select_Generic_superclass_parameters(arg_holder, generic)
+        if _typing_3_7:
+            og = _origin(generic)
+            og = _extra_dict[og] if og in _extra_dict else og
+        else:
+            og = generic
+        prms = _parameters(og)
+        if typevar in prms:
+            idx = prms.index(typevar)
+            res = _select_Generic_superclass_parameters(arg_holder, og)
             return res[idx]
     except (AttributeError, TypeError):
         return None

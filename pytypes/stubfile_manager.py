@@ -257,7 +257,7 @@ def _match_stub_type(stub_type):
         except AttributeError:
             res = Union[tuple(_match_stub_type(t) for t in stub_type.__union_params__)]
     elif pytypes.is_Generic(stub_type):
-        if stub_type.__args__ is None:
+        if getattr(stub_type, '__args__', None) is None:
             res = stub_type
         elif pytypes.is_Callable(stub_type):
             if hasattr(stub_type, '__result__'):

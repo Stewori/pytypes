@@ -1972,15 +1972,35 @@ class TestTypecheck(unittest.TestCase):
         self.assertIsNone(test_typevar_A(IntB(5)))
         self.assertRaises(InputTypeError, lambda: test_typevar_A(IntB(5.7)))
 
-
     @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
+            'Tests with MRO that is invalid in Python >= 3.7')
+    def test_get_generic_parameters_pre3_7(self):
+        class sub_List(List[str]): pass
+        class sub_List5(Generic[T_1], sub_List): pass
+        class sub_Dict(Dict[str, int]): pass
+        class sub_Dict5(Generic[T_1], sub_Dict): pass
+
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5[complex]), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5), str)
+        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5[complex]), str)
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5), (str, int))
+        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5[complex]), (str, int))
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List5[complex]), complex)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List5[complex]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List5[complex]), str)
+
+        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict5[float]), float)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict5[float]), str)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict5[float]), int)
+        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict5[float]), int)
+
     def test_get_generic_parameters(self):
         class sub_List(List[str]): pass
         class sub_List2(List[float], Generic[T_1]): pass
         class sub_List3(Generic[T_1], List[int]): pass
         class sub_List4(sub_List, Generic[T_1]): pass
-        class sub_List5(Generic[T_1], sub_List): pass
         class sub_List6(List[T_1]): pass
         class sub_List7(Generic[T_1], List[T_1]): pass
 
@@ -1988,7 +2008,6 @@ class TestTypecheck(unittest.TestCase):
         class sub_Dict2(Dict[float, str], Generic[T_1]): pass
         class sub_Dict3(Generic[T_1], Dict[int, complex]): pass
         class sub_Dict4(sub_Dict, Generic[T_1]): pass
-        class sub_Dict5(Generic[T_1], sub_Dict): pass
         class sub_Dict6(Dict[T_1, int]): pass
         class sub_Dict7(Dict[int, T_1]): pass
         class sub_Dict8(Generic[T_1], Dict[float, T_1]): pass
@@ -2004,7 +2023,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List2), float)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List3), int)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List4), str)
-        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5), str)
         self.assertRaises(TypeError, lambda:
                 pytypes.get_Generic_itemtype(sub_List6))
         self.assertRaises(TypeError, lambda:
@@ -2012,7 +2030,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List2[str]), float)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List3[complex]), int)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List4[float]), str)
-        self.assertEqual(pytypes.get_Generic_itemtype(sub_List5[complex]), str)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List6[Union[int, str]]),
                 Union[int, str])
         self.assertEqual(pytypes.get_Generic_itemtype(sub_List7[Union[complex, str]]),
@@ -2021,14 +2038,12 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict2), float)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict3), int)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict4), str)
-        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5), str)
         self.assertRaises(TypeError, lambda: pytypes.get_Generic_itemtype(sub_Dict6))
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict7), int)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict8), float)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict2[str]), float)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict3[complex]), int)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict4[float]), str)
-        self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict5[complex]), str)
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict6[Union[int, str]]),
                 Union[int, str])
         self.assertEqual(pytypes.get_Generic_itemtype(sub_Dict7[Union[complex, str]]),
@@ -2045,19 +2060,17 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict2), (float, str))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict3), (int, complex))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict4), (str, int))
-        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5), (str, int))
         self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict6))
         self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict7))
         self.assertRaises(TypeError, lambda: pytypes.get_Mapping_key_value(sub_Dict8))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict2[str]), (float, str))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict3[int]), (int, complex))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict4[float]), (str, int))
-        self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict5[complex]), (str, int))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict6[str]), (str, int))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict7[str]), (int, str))
         self.assertEqual(pytypes.get_Mapping_key_value(sub_Dict8[Union[complex, str]]),
                 (float, Union[complex, str]))
-        
+
         self.assertEqual(pytypes.get_Generic_parameters(sub_List, List)[0], str)
         self.assertEqual(pytypes.get_Generic_parameters(sub_List2[str], List)[0], float)
 
@@ -2095,9 +2108,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List4[complex]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List4[complex]), str)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List4[complex]), str)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List5[complex]), complex)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List5[complex]), str)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List5[complex]), str)
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_List6[complex]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T, sub_List6[complex]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.T_co, sub_List6[complex]), complex)
@@ -2109,27 +2119,22 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict), str)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict), int)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict), int)
-        
+
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict2[complex]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict2[complex]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict2[complex]), str)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict2[complex]), str)
-        
+
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict3[float]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict3[float]), int)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict3[float]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict3[float]), complex)
-        
+
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict4[float]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict4[float]), str)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict4[float]), int)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict4[float]), int)
-        
-        self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict5[float]), float)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict5[float]), str)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict5[float]), int)
-        self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict5[float]), int)
-        
+
         self.assertEqual(pytypes.get_arg_for_TypeVar(T_1, sub_Dict6[float]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict6[float]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict6[float]), int)
@@ -2144,6 +2149,23 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.KT, sub_Dict8[complex]), float)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT, sub_Dict8[complex]), complex)
         self.assertEqual(pytypes.get_arg_for_TypeVar(typing.VT_co, sub_Dict8[complex]), complex)
+
+    def test_typevar_collision(self):
+        # See: https://github.com/Stewori/pytypes/issues/62
+        T1 = typing.TypeVar("T1")
+        T2 = typing.TypeVar("T2")
+        
+        class D0(Dict[T1, T2]):
+            def show_types(self):
+                gt = pytypes.get_Generic_type(self)
+                return gt, pytypes.get_Generic_parameters(gt, D0)
+        
+        class D1(D0[int, T1]): pass
+        class D2(D1[str]): pass
+        
+        self.assertEqual(D0[int, str]().show_types(), (D0[int, str], (int, str)))
+        self.assertEqual(D1[str]().show_types(), (D1[str], (int, str)))
+        self.assertEqual(D2().show_types(), (D2, (int, str))) # was (str, str) before the fix
 
     def test_property(self):
         tcp = testClass_property()
