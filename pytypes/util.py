@@ -67,7 +67,7 @@ def _python_version_string():
 
 def _full_module_file_name_nosuffix(module_name):
     module = sys.modules[module_name]
-    bn = os.path.basename(module.__file__).rpartition('.')[0]
+    bn = os.path.basename(module.__file__).partition('.')[0]
     if not (module.__package__ is None or module.__package__ == ''):
         return module.__package__.replace('.', os.sep)+os.sep+bn
     else:
