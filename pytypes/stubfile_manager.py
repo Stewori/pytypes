@@ -249,7 +249,17 @@ def _match_stub_type(stub_type):
     # Todo: Somehow cache results
     if pytypes.is_Tuple(stub_type):
         prms = pytypes.get_Tuple_params(stub_type)
-        res = Tuple[(tuple(_match_stub_type(t) for t in prms))]
+        prms2 = [_match_stub_type(t) for t in prms]
+        if pytypes.is_Tuple_ellipsis(stub_type):
+            try:
+                if stub_type.__tuple_use_ellipsis__:
+                    res = Tuple[(tuple(prms2))]
+                    res.__tuple_use_ellipsis__ = stub_type.__tuple_use_ellipsis__
+            except AttributeError:
+                prms2.append(Ellipsis)
+                res = Tuple[(tuple(prms2))]
+        else:
+            res = Tuple[(tuple(prms2))]
     elif pytypes.is_Union(stub_type):
         try:
             # Python 3.6

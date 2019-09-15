@@ -572,15 +572,16 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
             follow_fwd_refs, _recursion_check, is_args, func, force = False):
     if is_Tuple(cls):
         prms = pytypes.get_Tuple_params(cls)
+        elps = pytypes.is_Tuple_ellipsis(cls)
         try:
-            if len(obj) != len(prms):
-                return False, obj
+            if not elps and len(obj) != len(prms):
+                    return False, obj
         except TypeError:
             return False, obj
         lst = []
         if isinstance(obj, tuple):
             for i in range(len(obj)):
-                res, obj2 = _checkinstance(obj[i], prms[i], bound_Generic, bound_typevars,
+                res, obj2 = _checkinstance(obj[i], prms[0 if elps else i], bound_Generic, bound_typevars,
                         bound_typevars_readonly, follow_fwd_refs, _recursion_check,
                         is_args, func)
                 if not res:
@@ -837,7 +838,6 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                     toCheck = tfunc if not tfunc is None else func
             else:
                 toCheck = func
-    
             if argType is None or resType is None:
                 argSig, resSig = _funcsigtypes(toCheck, slf or clsm,
                         parent_class, None, prop_getter or auto_prop_getter)
@@ -879,7 +879,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
                     res = func(args[0], *checked_args, **checked_kw)
                 else:
                     res = func(*checked_args, **checked_kw)
-    
+
             checked_res = _checkfuncresult(resSig, res, toCheck, \
                     slf or clsm, parent_class, True, prop_getter, bound_typevars=bound_typevars)
             if pytypes.do_logging_in_typechecked:

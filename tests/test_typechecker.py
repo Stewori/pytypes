@@ -4797,8 +4797,16 @@ class Test_utils(unittest.TestCase):
         class Foo:
             pass
 
-        self.assertTrue(is_subtype(typing.Tuple[Foo], typing.Tuple[object, ...]))
-        self.assertTrue(is_subtype(typing.Tuple[Foo], typing.Tuple[typing.Any, ...]))
+        self.assertTrue(is_subtype(Tuple[Foo], Tuple[object, ...]))
+        self.assertTrue(is_subtype(Tuple[Foo], Tuple[Any, ...]))
+
+    # See: https://github.com/Stewori/pytypes/issues/69
+    def test_tuple_ellipsis_check(self):
+        @typechecked
+        def f():
+            # type: () -> Tuple[Any, ...]
+            return ()
+        self.assertEqual(f(), ())
 
     # See: https://github.com/Stewori/pytypes/issues/48
     @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
