@@ -308,6 +308,12 @@ try:
 except ImportError:
     import typing
 
+typing_3_7 = False
+try:
+    from typing import ForwardRef
+    typing_3_7 = True
+except: pass
+
 from .typechecker import _install_import_hook
 
 checking_enabled = False # Will be enabled by default, unless -o is set
@@ -553,7 +559,7 @@ default_typelogger_path = 'typelogger_output'
 # (Only applies to legacy versions of typing.
 #  Existence of '_generic_new' is suitable to detect whether this
 #  monkeypatch is required, i.e. in typing-3.5.2.2.)
-if not hasattr(typing, '_generic_new'):
+if not hasattr(typing, '_generic_new') and not typing_3_7:
 
 # This former approach has issues if self.__orig_class__is needed in __init__:
 # 	_Generic__new__ = typing.Generic.__new__

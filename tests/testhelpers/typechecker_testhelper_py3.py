@@ -441,6 +441,13 @@ class test_iterable_annotated():
         return test_iter(self)
 
 
+T_it = TypeVar('T_it')
+class test_iterable_subclass_TypList(Generic[T_it], list):
+    @typechecked
+    def extend(self, itb: Iterator[T_it]) -> None:
+        super(test_iterable_subclass_TypList, self).extend(itb)
+
+
 class testClass_check_argument_types(object):
 
     def testMeth_check_argument_types(self, a: int) -> None:

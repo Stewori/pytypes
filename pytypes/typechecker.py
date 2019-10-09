@@ -23,6 +23,7 @@ import inspect
 import re as _re
 import sys
 import types
+import collections
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from warnings import warn
 
@@ -605,16 +606,25 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
             return True, typechecked_func(obj, force, typing.Tuple[clb_args], clb_res)
         return True, obj
     if type_util.is_Generic(cls):
-        if cls.__origin__ is type_util._orig_Iterable:
-            if not pytypes.check_iterables:
-                return _isinstance(obj, cls, bound_Generic, bound_typevars,
-                        bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
-            else:
-                if not type_util.is_iterable(obj):
-                    return False, obj
-                itp = type_util.get_iterable_itemtype(obj)
-                if itp is None:
-                    return not pytypes.check_iterables, obj
+        if cls.__origin__ in (type_util._orig_Iterable, type_util._orig_Iterator):
+            if not type_util.is_iterable(obj):
+                return False, obj
+            itp = type_util.get_iterable_itemtype(obj)
+            if itp is None:
+                if pytypes.check_iterables:
+                    if cls.__origin__ is type_util._orig_Iterator:
+                        return True, type_util._typechecked_Iterator(obj, cls, bound_Generic,
+                                bound_typevars, bound_typevars_readonly, follow_fwd_refs,
+                                _recursion_check, force)
+                    else:
+                        assert cls.__origin__ is type_util._orig_Iterable
+                        return True, type_util._typechecked_Iterable(obj, cls, bound_Generic,
+                                bound_typevars, bound_typevars_readonly, follow_fwd_refs,
+                                _recursion_check, force)
+                else:
+                    return _isinstance(obj, cls, bound_Generic, bound_typevars,
+                            bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
+                    #return True, obj
 # 	There was this idea of monkeypatching, but it doesn't work in Python 3 and is anyway too invasive.
 # 					if not hasattr(obj, '__iter__'):
 # 						raise TypeError(
@@ -624,7 +634,7 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
 # 						def __iter__checked(self):
 # 							res = __iter__orig()
 # 							if sys.version_info.major == 3:
-# 								# Instance-level monkeypatching doesn' seem to work in Python 3
+# 								# Instance-level monkeypatching doesn't seem to work in Python 3
 # 								res.__next__ = types.MethodType(typechecked_func(res.__next__.__func__,
 # 										force, typing.Tuple[tuple()], cls.__args__[0]), res)
 # 							else:
@@ -634,10 +644,9 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
 # 							return res
 # 						obj.__iter__ = types.MethodType(__iter__checked, obj)
 # 						return True, obj
-                else:
-                    return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
-                            bound_typevars_readonly, follow_fwd_refs,
-                            _recursion_check), obj
+            else:
+                return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
+                        bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
         elif type_util.is_Generator(cls):
             if is_args or not inspect.isgeneratorfunction(func):
                 # Todo: Insert fully qualified function name

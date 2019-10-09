@@ -1550,10 +1550,27 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(res, [16, 17, 18, 19])
         self.assertEqual(testfunc_Iter_ret(), [1, 2, 3, 4, 5])
         self.assertRaises(ReturnTypeError, lambda: testfunc_Iter_ret_err())
-        ti = test_iterable((2, 4, 6))
-        self.assertRaises(InputTypeError, lambda: testfunc_Iter_arg(ti, 'vwxy'))
+        ti = test_iterable((2, 4, 6, 'a'))
+        self.assertRaises(ReturnTypeError, lambda: testfunc_Iter_arg(ti, 'vwxy'))
         tia = test_iterable_annotated((3, 6, 9))
         self.assertEqual(testfunc_Iter_arg(tia, 'vwxy'), [3, 6, 9])
+
+    def test_iterable_subclass(self):
+        # See https://github.com/Stewori/pytypes/issues/57
+        T_it = TypeVar('T_it')
+        class TypList(Generic[T_it], list):
+            @typechecked
+            def extend(self, itb):
+                # type: (Iterator[T_it]) -> None
+                super(TypList, self).extend(itb)
+        class IntList(TypList[int]): pass
+
+        il = IntList() 
+        il.extend(iter([1, 2, 3]))
+        self.assertRaises(ReturnTypeError, lambda: il.extend(iter(['a', 'b', 'c'])))
+        self.assertRaises(InputTypeError, lambda: il.extend(['d', 'e', 'f']))
+        il.extend([4, 5, 6])
+        self.assertEqual(il, [1, 2, 3, 4, 5, 6])
 
     def test_dict(self):
         self.assertIsNone(testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))
@@ -2982,8 +2999,8 @@ class TestStubfile(unittest.TestCase):
         self.assertEqual(stub_py2.testfunc_Iter_ret_py2(), [1, 2, 3, 4, 5])
         self.assertRaises(ReturnTypeError, lambda:
                 stub_py2.testfunc_Iter_ret_err_py2())
-        ti = test_iterable((2, 4, 6))
-        self.assertRaises(InputTypeError, lambda:
+        ti = test_iterable((2, 4, 6, 'a'))
+        self.assertRaises(ReturnTypeError, lambda:
                 stub_py2.testfunc_Iter_arg_py2(ti, 'vwxy'))
         # tia = stub_py2.test_iterable_annotated_py2((3, 6, 9))
         # self.assertEqual(stub_py2.testfunc_Iter_arg_py2(tia, 'vwxy'), [3, 6, 9])
@@ -4072,10 +4089,21 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(res, [16, 17, 18, 19])
         self.assertEqual(py3.testfunc_Iter_ret(), [1, 2, 3, 4, 5])
         self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Iter_ret_err())
-        ti = py3.test_iterable((2, 4, 6))
-        self.assertRaises(InputTypeError, lambda: py3.testfunc_Iter_arg(ti, 'vwxy'))
+        ti = py3.test_iterable((2, 4, 6, 'a'))
+        self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Iter_arg(ti, 'vwxy'))
         tia = py3.test_iterable_annotated((3, 6, 9))
         self.assertEqual(py3.testfunc_Iter_arg(tia, 'vwxy'), [3, 6, 9])
+
+    def test_iterable_subclass_py3(self):
+        # See https://github.com/Stewori/pytypes/issues/57
+        class IntList(py3.test_iterable_subclass_TypList[int]): pass
+
+        il = IntList() 
+        il.extend(iter([1, 2, 3]))
+        self.assertRaises(ReturnTypeError, lambda: il.extend(iter(['a', 'b', 'c'])))
+        self.assertRaises(InputTypeError, lambda: il.extend(['d', 'e', 'f']))
+        il.extend([4, 5, 6])
+        self.assertEqual(il, [1, 2, 3, 4, 5, 6])
 
     def test_dict_py3(self):
         self.assertIsNone(py3.testfunc_Dict_arg(5, {'5': 4, 'c': '8'}))

@@ -24,16 +24,18 @@ import weakref
 from inspect import isfunction, ismethod, isclass, ismodule
 try:
     from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
-            T_co, V_co, VT_co, T_contra, KT, T, VT
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
+            Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
 except ImportError:
     from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Generator, \
-            T_co, V_co, VT_co, T_contra, KT, T, VT
-try:
+            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
+            Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
+
+import pytypes
+_typing_3_7 = pytypes.typing_3_7
+if _typing_3_7:
     # Python 3.7
     from typing import ForwardRef
-    _typing_3_7 = True
     _Generic_Singleton = Generic[T_co]
     _bases_cache = {
         List: (list, typing.MutableSequence),
@@ -56,14 +58,13 @@ try:
     }
     _orig_Iterable = collections.abc.Iterable
     _orig_Iterator = collections.abc.Iterator
-except ImportError:
+else:
     from typing import _ForwardRef as ForwardRef
     _typing_3_7 = False
     _orig_Iterable = Iterable
-    _orig_Iterator = typing.Iterator
+    _orig_Iterator = Iterator
 from warnings import warn, warn_explicit
 
-import pytypes
 from .stubfile_manager import _match_stub_type, as_stub_func_if_any
 from .typecomment_parser import _get_typestrings, _funcsigtypesfromstring
 from . import util
@@ -225,6 +226,8 @@ def get_iterable_itemtype(obj):
     via sampling without the risk of modifying inner state.
     """
     # support further specific iterables on demand
+    if isinstance(obj, _typechecked_Iterable):
+        return obj.itemtype
     try:
         if isinstance(obj, range):
             tpl = tuple(deep_type(obj.start), deep_type(obj.stop), deep_type(obj.step))
@@ -422,6 +425,13 @@ def is_iterable(obj):
     except:
         return False
 
+def is_iterator(obj):
+    """Tests if an object is an iterator.
+    This function is intentionally not capitalized, because
+    it does not check w.r.t. (capital) Iterator class from
+    typing.
+    """
+    return isinstance(obj, collections.Iterator)
 
 def is_Type(tp):
     """Python version independent check if an object is a type.
@@ -502,6 +512,28 @@ def is_Generator(tp):
                     _origin(tp) is collections.abc.Generator
         except AttributeError:
             raise #return False
+
+
+def is_Iterable(tp):
+    if not _typing_3_7:
+        return _origin(tp) is typing.Iterable
+    else:
+        try:
+            return isinstance(tp, typing._GenericAlias) and \
+                    _origin(tp) is collections.abc.Iterable
+        except AttributeError:
+            raise
+
+
+def is_Iterator(tp):
+    if not _typing_3_7:
+        return _origin(tp) is typing.Iterator
+    else:
+        try:
+            return isinstance(tp, typing._GenericAlias) and \
+                    _origin(tp) is collections.abc.Iterator
+        except AttributeError:
+            raise
 
 
 def deep_type(obj, depth = None, max_sample = None, get_type = None):
@@ -2049,7 +2081,16 @@ def _isinstance(obj, cls, bound_Generic=None, bound_typevars=None,
             return False
         itp = get_iterable_itemtype(obj)
         if itp is None:
-            return not pytypes.check_iterables
+            return True
+        else:
+            return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
+                    bound_typevars_readonly, follow_fwd_refs, _recursion_check)
+    if is_Generic(cls) and cls.__origin__ is typing.Iterator:
+        if not is_iterator(obj):
+            return False
+        itp = get_iterable_itemtype(obj)
+        if itp is None:
+            return True
         else:
             return _issubclass(itp, cls.__args__[0], bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check)
@@ -2142,6 +2183,94 @@ def generator_checker_py2(gen, gen_type, bound_Generic, bound_typevars,
             _raise_typecheck_error(msg, False, sn, tpsn, gen_type.__args__[1])
 # 			raise pytypes.InputTypeError(_make_generator_error_message(tpsn, gen,
 # 					gen_type.__args__[1], 'has incompatible send type'))
+
+
+def _make_iterator_error_message(tp, itr, expected_tp, incomp_text,
+            bound_Generic, bound_typevars, bound_typevars_readonly):
+# 	if bound_typevars is not None or bound_typevars_readonly is not None:
+# 		btv = []
+# 		if bound_typevars is not None:
+# 			btv.extend(bound_typevars)
+# 		if bound_typevars_readonly is not None:
+# 			btv.extend(bound_typevars_readonly)
+# 	else:
+# 		btv = None
+    _cmp_msg_format = 'Expected: %s\nReceived: %s'
+    # todo: obtain fully qualified generator name
+    return type_str(itr, bound_Generic=bound_Generic, bound_typevars=bound_typevars)+' '+ \
+            incomp_text+':\n'+_cmp_msg_format % (
+            type_str(expected_tp, bound_Generic=bound_Generic, bound_typevars=bound_typevars),
+            type_str(tp, bound_Generic=bound_Generic, bound_typevars=bound_typevars))
+
+
+class _typechecked_Iterable(collections.Iterable):
+    #typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False)
+    def __init__(self, iter_obj, cls, bound_Generic, bound_typevars,
+                bound_typevars_readonly, follow_fwd_refs, _recursion_check, force):
+        if not hasattr(iter_obj, '__iter__'):
+            raise TypeError(
+                    'Can only create iterable-checker for objects with __iter__ method.')
+        self.iter_obj = iter_obj
+        self.itemtype = cls.__args__[0]
+        self.cls = cls
+        self.bound_Generic = bound_Generic
+        self.bound_typevars = bound_typevars
+        self.bound_typevars_readonly = bound_typevars_readonly
+        self.follow_fwd_refs = follow_fwd_refs
+        self._recursion_check = _recursion_check
+        self.force = force
+
+    def __iter__(self):
+        return _typechecked_Iterator(self.iter_obj.__iter__(), self.cls, self.bound_Generic,
+                self.bound_typevars, self.bound_typevars_readonly, self.follow_fwd_refs,
+                self._recursion_check, self.force)
+
+    def __getattr__(self, name):
+        return getattr(self.iter_obj, name)
+
+
+class _typechecked_Iterator(collections.Iterator, _typechecked_Iterable):
+    def __init__(self, iter_obj, cls, bound_Generic, bound_typevars,
+                bound_typevars_readonly, follow_fwd_refs, _recursion_check, force):
+        if not hasattr(iter_obj, '__iter__'):
+            raise TypeError(
+                    'Can only create iterator-checker for objects with __iter__ method.')
+        if (sys.version_info.major == 2 and not hasattr(iter_obj, 'next')) \
+            or (sys.version_info.major > 2 and not hasattr(iter_obj, '__next__')):
+            raise TypeError(
+                    'Can only create iterator-checker for objects with next method.')
+        self.iter_obj = iter_obj
+        self.itemtype = cls.__args__[0]
+        self.cls = cls
+        self.bound_Generic = bound_Generic
+        self.bound_typevars = bound_typevars
+        self.bound_typevars_readonly = bound_typevars_readonly
+        self.follow_fwd_refs = follow_fwd_refs
+        self._recursion_check = _recursion_check
+        self.force = force
+
+    def __next__(self):
+        res = self.iter_obj.__next__()
+        if not _isinstance(res, self.itemtype, self.bound_Generic, self.bound_typevars,
+                self.bound_typevars_readonly, self.follow_fwd_refs, self._recursion_check):
+            tpa = deep_type(res)
+            msg = _make_iterator_error_message(tpa, self.cls, self.itemtype,
+                    'has incompatible item type',
+                    self.bound_Generic, self.bound_typevars, self.bound_typevars_readonly)
+            _raise_typecheck_error(msg, True, res, tpa, self.itemtype)
+        return res
+
+    # For Python 2.7
+    def next(self):
+        res = self.iter_obj.next()
+        if not _isinstance(res, self.itemtype, self.bound_Generic, self.bound_typevars,
+                self.bound_typevars_readonly, self.follow_fwd_refs, self._recursion_check):
+            tpa = deep_type(res)
+            msg = _make_iterator_error_message(tpa, self.cls, self.itemtype,
+                    'has incompatible item type',
+                    self.bound_Generic, self.bound_typevars, self.bound_typevars_readonly)
+            _raise_typecheck_error(msg, True, res, tpa, self.itemtype)
+        return res
 
 
 def _find_typed_base_method(meth, cls):
