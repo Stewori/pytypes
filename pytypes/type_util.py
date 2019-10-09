@@ -2126,8 +2126,6 @@ def generator_checker_py3(gen, gen_type, bound_Generic, bound_typevars,
                     msg = _make_generator_error_message(deep_type(a), gen, gen_type.__args__[0],
                             'has incompatible yield type')
                     _raise_typecheck_error(msg, True, a, tpa, gen_type.__args__[0])
-# 					raise pytypes.ReturnTypeError(_make_generator_error_message(deep_type(a), gen,
-# 							gen_type.__args__[0], 'has incompatible yield type'))
             initialized = True
             sn = yield a
             if not gen_type.__args__[1] is Any and \
@@ -2137,8 +2135,6 @@ def generator_checker_py3(gen, gen_type, bound_Generic, bound_typevars,
                 msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
                         'has incompatible send type')
                 _raise_typecheck_error(msg, False, sn, tpsn, gen_type.__args__[1])
-# 				raise pytypes.InputTypeError(_make_generator_error_message(deep_type(sn), gen,
-# 						gen_type.__args__[1], 'has incompatible send type'))
     except StopIteration as st:
         # Python 3:
         # todo: Check if st.value is always defined (i.e. as None if not present)
@@ -2149,8 +2145,6 @@ def generator_checker_py3(gen, gen_type, bound_Generic, bound_typevars,
             msg = _make_generator_error_message(tpst, gen, gen_type.__args__[2],
                     'has incompatible return type')
             _raise_typecheck_error(msg, True, st.value, tpst, gen_type.__args__[2])
-# 			raise pytypes.ReturnTypeError(_make_generator_error_message(sttp, gen,
-# 					gen_type.__args__[2], 'has incompatible return type'))
         raise st
 
 
@@ -2170,8 +2164,6 @@ def generator_checker_py2(gen, gen_type, bound_Generic, bound_typevars,
                 msg = _make_generator_error_message(tpa, gen, gen_type.__args__[0],
                         'has incompatible yield type')
                 _raise_typecheck_error(msg, True, a, tpa, gen_type.__args__[0])
-# 				raise pytypes.ReturnTypeError(_make_generator_error_message(tpa, gen,
-# 						gen_type.__args__[0], 'has incompatible yield type'))
         initialized  = True
         sn = yield a
         if not gen_type.__args__[1] is Any and \
@@ -2181,20 +2173,10 @@ def generator_checker_py2(gen, gen_type, bound_Generic, bound_typevars,
             msg = _make_generator_error_message(tpsn, gen, gen_type.__args__[1],
                     'has incompatible send type')
             _raise_typecheck_error(msg, False, sn, tpsn, gen_type.__args__[1])
-# 			raise pytypes.InputTypeError(_make_generator_error_message(tpsn, gen,
-# 					gen_type.__args__[1], 'has incompatible send type'))
 
 
 def _make_iterator_error_message(tp, itr, expected_tp, incomp_text,
             bound_Generic, bound_typevars, bound_typevars_readonly):
-# 	if bound_typevars is not None or bound_typevars_readonly is not None:
-# 		btv = []
-# 		if bound_typevars is not None:
-# 			btv.extend(bound_typevars)
-# 		if bound_typevars_readonly is not None:
-# 			btv.extend(bound_typevars_readonly)
-# 	else:
-# 		btv = None
     _cmp_msg_format = 'Expected: %s\nReceived: %s'
     # todo: obtain fully qualified generator name
     return type_str(itr, bound_Generic=bound_Generic, bound_typevars=bound_typevars)+' '+ \
@@ -2204,7 +2186,6 @@ def _make_iterator_error_message(tp, itr, expected_tp, incomp_text,
 
 
 class _typechecked_Iterable(collections.Iterable):
-    #typechecked_func(func, force = False, argType = None, resType = None, prop_getter = False)
     def __init__(self, iter_obj, cls, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check, force):
         if not hasattr(iter_obj, '__iter__'):

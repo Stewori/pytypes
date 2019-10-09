@@ -624,7 +624,6 @@ def _checkinstance(obj, cls, bound_Generic, bound_typevars, bound_typevars_reado
                 else:
                     return _isinstance(obj, cls, bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check), obj
-                    #return True, obj
 # 	There was this idea of monkeypatching, but it doesn't work in Python 3 and is anyway too invasive.
 # 					if not hasattr(obj, '__iter__'):
 # 						raise TypeError(
