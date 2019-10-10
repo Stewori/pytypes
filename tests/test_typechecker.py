@@ -1707,8 +1707,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertTrue(is_subtype(tuple, Sequence))
         self.assertTrue(is_subtype(tuple, Sequence[Any]))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_empty(self):
         asg = {Dict, List, Set, pytypes.Empty}
 
@@ -4797,8 +4795,6 @@ class Test_utils(unittest.TestCase):
 
     # See: https://github.com/Stewori/pytypes/issues/32
     # See: https://github.com/Stewori/pytypes/issues/33
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_empty_values(self):
         self.assertTrue(is_of_type([], typing.Sequence))
         self.assertTrue(is_of_type([], typing.Sequence[int]))

@@ -897,6 +897,9 @@ def type_str(tp, assumed_globals=None, update_assumed_globals=None,
                 args = tp.__parameters__
             else:
                 return tp_name
+        elif hasattr(tp, '__parameters__') and tp.__parameters__ == tp.__args__:
+            # Happens on Python 3.7. For now, we avoid printing unbound typevars.
+            return tp_name
         else:
             args = tp.__args__
         params = [type_str(param, assumed_globals, update_assumed_globals,
@@ -1257,7 +1260,8 @@ def _issubclass_Mapping_covariant(subclass, superclass, bound_Generic, bound_typ
     This subclass-check treats Mapping-values as covariant.
     """
     if is_Generic(subclass):
-        if subclass.__origin__ is None or not issubclass(subclass.__origin__, Mapping):
+        suborigin = _origin(subclass)
+        if suborigin is None or not issubclass(suborigin, Mapping):
             return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check)
         if superclass.__args__ is None:
@@ -1354,6 +1358,8 @@ def _resolve_parameters(params_list, args_list):
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
     """Helper for _issubclass_Generic.
     """
+    if superclass_origin in _extra_dict:
+        superclass_origin = _extra_dict[superclass_origin]
     x = _get_inheritance_stack(subclass, superclass_origin)
     if x is not None:
         return _resolve_parameters(x[1], x[2])
@@ -1865,10 +1871,13 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                 # It would e.g. cause false negative result of
                 # is_subtype(Empty[Dict], Empty[Container])
                 try:
-                    if _issubclass_2(superclass.__origin__, empty_target,
+                    suporigin = _origin(superclass)
+                    if suporigin in _extra_dict:
+                        suporigin = _extra_dict[suporigin]
+                    if _issubclass_2(suporigin, empty_target,
                             bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check):
-                        return _issubclass_2(subclass.__args__[0], superclass.__origin__,
+                        return _issubclass_2(subclass.__args__[0], suporigin,
                                 bound_Generic, bound_typevars,
                                 bound_typevars_readonly, follow_fwd_refs, _recursion_check)
                 except: pass
