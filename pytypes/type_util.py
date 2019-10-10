@@ -2145,7 +2145,7 @@ def generator_checker_py3(gen, gen_type, bound_Generic, bound_typevars,
             msg = _make_generator_error_message(tpst, gen, gen_type.__args__[2],
                     'has incompatible return type')
             _raise_typecheck_error(msg, True, st.value, tpst, gen_type.__args__[2])
-        raise st
+        return
 
 
 def generator_checker_py2(gen, gen_type, bound_Generic, bound_typevars,

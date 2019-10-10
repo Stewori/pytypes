@@ -4138,8 +4138,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(fnc.__name__, 'm')
         self.assertRaises(ReturnTypeError, lambda: py3.testfunc_Callable_ret_err())
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_generator_py3(self):
         test_gen = py3.testfunc_Generator()
         self.assertEqual(pytypes.deep_type(test_gen), Generator[int, Union[str, None], float])
@@ -4156,10 +4154,7 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         test_gen3 = py3.testfunc_Generator()
         self.assertIsNone(test_gen3.send(None))
         self.assertEqual(test_gen3.send('abcxyz'), 6)
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            # Causes deprecation warning:
-            self.assertRaises(StopIteration, lambda: test_gen3.send('ret'))
+        self.assertRaises(StopIteration, lambda: test_gen3.send('ret'))
         test_gen4 = py3.testfunc_Generator()
         self.assertIsNone(test_gen4.send(None))
         self.assertEqual(test_gen4.send('abcdefgh'), 8)
