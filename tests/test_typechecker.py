@@ -1637,8 +1637,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertRaises(TypeCheckError, lambda: testfunc_Generator_ret())
         self.assertEqual(pytypes.deep_type(test_gen), Generator[int, Union[str, None], Any])
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_custom_generic(self):
         self.assertEqual(testfunc_Generic_arg(Custom_Generic[str]('abc')), 'abc')
         self.assertEqual(testfunc_Generic_ret(5).v(), 5)
@@ -3074,8 +3072,6 @@ class TestStubfile(unittest.TestCase):
         self.assertRaises(TypeCheckError, lambda:
                 stub_py2.testfunc_Generator_ret_py2())
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_custom_generic_plain_2_7_stub(self):
         from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_Generic_arg_py2(
@@ -4160,8 +4156,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(test_gen4.send('abcdefgh'), 8)
         self.assertRaises(ReturnTypeError, lambda: test_gen4.send('ret_fail'))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_custom_generic_py3(self):
         self.assertEqual(py3.testfunc_Generic_arg(py3.Custom_Generic[str]('abc')), 'abc')
         self.assertEqual(py3.testfunc_Generic_ret(5).v(), 5)

@@ -1462,6 +1462,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         return False
     if subclass in _extra_dict:
         subclass = _extra_dict[subclass]
+    origin = _origin(superclass)
     if is_Tuple(subclass):
         tpl_prms = get_Tuple_params(subclass)
         if not tpl_prms is None and len(tpl_prms) == 0:
@@ -1471,12 +1472,11 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # note that we needn't consider superclass beeing a tuple,
             # because that should have been checked in _issubclass_Tuple
             return issubclass(typing.Sequence,
-                    superclass if superclass.__origin__ is None else superclass.__origin__)
+                    superclass if origin is None else origin)
         subclass = Sequence[Union[tpl_prms]]
     if is_Generic(subclass):
         # For a class C(Generic[T]) where T is co-variant,
         # C[X] is a subclass of C[Y] iff X is a subclass of Y.
-        origin = _origin(superclass)
         suborigin = _origin(subclass)
         if suborigin is None:
             orig_bases = _bases(subclass)
@@ -1496,7 +1496,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 sub_args = subclass.__args__
             else:
                 # We select the relevant subset of args by TypeVar-matching
-                sub_args = _select_Generic_superclass_parameters(subclass, superclass.__origin__)
+                sub_args = _select_Generic_superclass_parameters(subclass, origin)
                 assert len(sub_args) == len(prms)
             for p_self, p_cls, p_origin in zip(superclass.__args__,
                                             sub_args,
@@ -1541,8 +1541,8 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 return True
             # If we break out of the loop, the superclass gets a chance.
 
-        # I.e.: origin is None or not _issubclass(subclass.__origin__, origin)
-        # In this case we must consider origin or subclass.__origin__ to be None
+        # I.e.: origin is None or not _issubclass(suborigin, origin)
+        # In this case we must consider origin or suborigin to be None
         # We treat param-values as unknown in the following sense:
         #   for covariant params: treat unknown more-or-equal specific than Any
         #   for contravariant param: Any more-or-equal specific than Unknown
@@ -1552,10 +1552,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
         if origin is None:
             if not pytypes.check_unbound_types:
                 raise TypeError("Attempted to check unbound type(superclass): "+str(superclass))
-            if not subclass.__origin__ is None:
-                if not type.__subclasscheck__(superclass, subclass.__origin__):
+            if not suborigin is None:
+                if not type.__subclasscheck__(superclass, suborigin):
                     return False
-                prms = _find_Generic_super_origin(subclass.__origin__, superclass)
+                prms = _find_Generic_super_origin(suborigin, superclass)
                 args = _select_Generic_superclass_parameters(subclass, superclass)
                 for i in range(len(prms)):
                     if prms[i].__covariant__:
@@ -1570,12 +1570,12 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 return True
             #else:
                 # nothing to do here... (?)
-        elif subclass.__origin__ is None:
+        elif suborigin is None:
             if not pytypes.check_unbound_types:
                 raise TypeError("Attempted to check unbound type (subclass): "+str(subclass))
-            if not type.__subclasscheck__(superclass.__origin__, subclass):
+            if not type.__subclasscheck__(origin, subclass):
                 return False
-            prms = superclass.__origin__.__parameters__
+            prms = origin.__parameters__
             for i in range(len(prms)):
                 if prms[i].__covariant__:
                     # subclass-arg here is unknown, so in superclass only Any can pass:
@@ -1973,7 +1973,9 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check) \
                 for t in get_Union_params(subclass))
     if is_Generic(superclass):
-        cls = superclass.__origin__ if not superclass.__origin__ is None else superclass
+        cls = _origin(superclass)
+        if cls is None:
+            cls = superclass
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
         if pytypes.covariant_Mapping and (_has_base(cls, Mapping) or
                     # Python 3.7 maps everything to collections.abc:
