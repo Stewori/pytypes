@@ -4822,8 +4822,6 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(f(), ())
 
     # See: https://github.com/Stewori/pytypes/issues/48
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_empty_tuple(self):
         self.assertFalse(is_of_type((), List))
         self.assertTrue(is_of_type((), Tuple))

@@ -356,19 +356,20 @@ def get_Tuple_params(tpl):
     try:
         return tpl.__tuple_params__
     except AttributeError:
-        try:
-            if tpl.__args__ is None:
-                return None
-            # Python 3.6
-            if tpl.__args__[0] == ():
-                return ()
-            else:
-                if tpl.__args__[-1] is Ellipsis:
-                    return tpl.__args__[:-1] if len(tpl.__args__) > 1 else None
-                else:
-                    return tpl.__args__
-        except AttributeError:
+        pass
+    try:
+        if tpl.__args__ is None:
             return None
+        # Python 3.6
+        if tpl.__args__[0] == ():
+            return ()
+        else:
+            if tpl.__args__[-1] is Ellipsis:
+                return tpl.__args__[:-1] if len(tpl.__args__) > 1 else None
+            else:
+                return tpl.__args__
+    except (AttributeError, IndexError):
+        return None
 
 
 def is_Tuple_ellipsis(tpl):
@@ -1477,8 +1478,10 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # an empty Tuple is any Sequence, regardless of type
             # note that we needn't consider superclass beeing a tuple,
             # because that should have been checked in _issubclass_Tuple
-            return issubclass(typing.Sequence,
-                    superclass if origin is None else origin)
+            sup = superclass if origin is None else origin
+            if sup in _extra_dict:
+                sup = _extra_dict[sup]
+            return issubclass(typing.Sequence, sup)
         subclass = Sequence[Union[tpl_prms]]
     if is_Generic(subclass):
         # For a class C(Generic[T]) where T is co-variant,
