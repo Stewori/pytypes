@@ -130,20 +130,20 @@ def _bases(tp):
     try:
         return _bases_cache[_extra_dict[tp.__origin__]]
     except KeyError: pass
-    res = [_extra_dict[bs] if bs in _extra_dict else bs
+    res = [_extra_dict[bs] if _is_extra(bs) else bs
             for bs in tp.__origin__.__bases__]
     try:
         obidx = res.index(object)
         res[obidx] = _Generic_Singleton
     except ValueError: pass
     res = tuple(res)
-    if tp.__origin__ in _extra_dict:
+    if _is_extra(tp.__origin__):
         _bases_cache[_extra_dict[tp.__origin__]] = res
     return res
 
 
 def _parameters(origin):
-    if _typing_3_7 and origin in _extra_dict:
+    if _typing_3_7 and _is_extra(origin):
         # Python 3.7
         origin = _extra_dict[origin]
     try: return origin.__parameters__
@@ -167,6 +167,21 @@ def _extra(tp):
     except AttributeError:
         pass
     return None
+
+
+def _extra_inv(tp):
+    if _typing_3_7 and not isclass(tp):
+        return tp
+    if tp in _extra_dict:
+        return _extra_dict[tp]
+    else:
+        return tp
+
+
+def _is_extra(tp):
+    if _typing_3_7 and not isclass(tp):
+        return False
+    return tp in _extra_dict
 
 
 def _get_orig_class(obj):
@@ -1310,13 +1325,13 @@ def _get_inheritance_stack(subclass, superclass_origin):
     stack = [subclass]
     b = subclass
     bo = _origin(b)
-    bo = _extra_dict[bo] if bo in _extra_dict else bo
+    bo = _extra_inv(bo)
     if bo is superclass_origin:
         return stack, [_parameters(x) for x in stack], [getattr(x, '__args__', None) for x in stack]
     while True:
         for bs in _bases(b):
             bso = _origin(bs)
-            bso = _extra_dict[bso] if bso in _extra_dict else bso
+            bso = _extra_inv(bso)
             try:
                 bs_check = is_Generic(bs) and issubclass(bs, superclass_origin)
             except TypeError:
@@ -1359,8 +1374,7 @@ def _resolve_parameters(params_list, args_list):
 def _select_Generic_superclass_parameters(subclass, superclass_origin):
     """Helper for _issubclass_Generic.
     """
-    if superclass_origin in _extra_dict:
-        superclass_origin = _extra_dict[superclass_origin]
+    superclass_origin = _extra_inv(superclass_origin)
     x = _get_inheritance_stack(subclass, superclass_origin)
     if x is not None:
         return _resolve_parameters(x[1], x[2])
@@ -1444,7 +1458,7 @@ def _get_arg_for_TypeVar(typevar, generic, arg_holder):
     try:
         if _typing_3_7:
             og = _origin(generic)
-            og = _extra_dict[og] if og in _extra_dict else og
+            _extra_inv(og)
         else:
             og = generic
         prms = _parameters(og)
@@ -1467,8 +1481,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
     # this function is partly based on code from typing module 3.5.2.2
     if subclass is None:
         return False
-    if subclass in _extra_dict:
-        subclass = _extra_dict[subclass]
+    subclass = _extra_inv(subclass)
     origin = _origin(superclass)
     if is_Tuple(subclass):
         tpl_prms = get_Tuple_params(subclass)
@@ -1479,8 +1492,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # note that we needn't consider superclass beeing a tuple,
             # because that should have been checked in _issubclass_Tuple
             sup = superclass if origin is None else origin
-            if sup in _extra_dict:
-                sup = _extra_dict[sup]
+            sup = _extra_inv(sup)
             return issubclass(typing.Sequence, sup)
         subclass = Sequence[Union[tpl_prms]]
     if is_Generic(subclass):
@@ -1612,8 +1624,7 @@ def _issubclass_Tuple(subclass, superclass, bound_Generic, bound_typevars,
     """Helper for _issubclass, a.k.a pytypes.issubtype.
     """
     # this function is partly based on code from typing module 3.5.2.2
-    if subclass in _extra_dict:
-        subclass = _extra_dict[subclass]
+    subclass = _extra_inv(subclass)
     if not is_Type(subclass):
         # To TypeError.
         return False
@@ -1824,16 +1835,22 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                     .__forward_arg__,
                     "Retry with follow_fwd_refs=True."))
         # Now that forward refs are in the game, we must continue in recursion-proof manner:
+        # Since Python 3.7 ForwardRef's hash is itself affected by this type of recursion.
+        # So we only store __forward_arg__ if it's a ForwardRef. This might fail if the sub-
+        # or superclass that is not directly a ForwardRef contains a ForwardRef. So it this
+        # approach might require revision.
+        supkey = superclass.__forward_arg__ if isinstance(superclass, ForwardRef) else superclass
+        subkey = subclass.__forward_arg__ if isinstance(subclass, ForwardRef) else subclass
         if _recursion_check is None:
-            _recursion_check = {superclass: {subclass}}
-        elif superclass in _recursion_check:
-            if subclass in _recursion_check[superclass]:
+            _recursion_check = {supkey: {subkey}}
+        elif supkey in _recursion_check:
+            if subkey in _recursion_check[supkey]:
                 # recursion detected
                 return False
             else:
-                _recursion_check[superclass].add(subclass)
+                _recursion_check[supkey].add(subkey)
         else:
-            _recursion_check[superclass] = {subclass}
+            _recursion_check[supkey] = {subkey}
         if isinstance(subclass, ForwardRef):
             if not subclass.__forward_evaluated__:
                 raise pytypes.ForwardRefError("ForwardRef in subclass not evaluated: '%s'\n%s"%
@@ -1856,13 +1873,11 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
         elif superclass is complex and \
                 (subclass is int or subclass is float):
             return True
-    if superclass in _extra_dict:
-        if subclass in _extra_dict:
+    if _is_extra(superclass):
+        if _is_extra(subclass):
             try:
                 # if both are not PEP 484 types, attempt to use ordinary issubclass
                 return issubclass(subclass, superclass)
-                #if issubclass(subclass, superclass):
-                #	return True
             except: pass
         superclass = _extra_dict[superclass]
     try:
@@ -1875,8 +1890,7 @@ def _issubclass(subclass, superclass, bound_Generic=None, bound_typevars=None,
                 # is_subtype(Empty[Dict], Empty[Container])
                 try:
                     suporigin = _origin(superclass)
-                    if suporigin in _extra_dict:
-                        suporigin = _extra_dict[suporigin]
+                    suporigin = _extra_inv(suporigin)
                     if _issubclass_2(suporigin, empty_target,
                             bound_Generic, bound_typevars,
                             bound_typevars_readonly, follow_fwd_refs, _recursion_check):
@@ -1991,7 +2005,7 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
         # We would rather use issubclass(superclass.__origin__, Mapping), but that's somehow erroneous
         if pytypes.covariant_Mapping and (_has_base(cls, Mapping) or
                     # Python 3.7 maps everything to collections.abc:
-                    (cls in _extra_dict and issubclass(cls, collections.abc.Mapping))):
+                    (_is_extra(cls) and issubclass(cls, collections.abc.Mapping))):
             return _issubclass_Mapping_covariant(subclass, superclass,
                     bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs,
@@ -1999,8 +2013,7 @@ def _issubclass_2(subclass, superclass, bound_Generic, bound_typevars,
         else:
             return _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                     bound_typevars_readonly, follow_fwd_refs, _recursion_check)
-    if subclass in _extra_dict:
-        subclass = _extra_dict[subclass]
+    subclass = _extra_inv(subclass)
     try:
         return issubclass(subclass, superclass)
     except TypeError:

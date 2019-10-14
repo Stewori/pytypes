@@ -4844,8 +4844,6 @@ class Test_utils(unittest.TestCase):
         self.assertTrue(is_subtype(L[float], C, bound_typevars_readonly=False, bound_typevars={}))
 
     # See: https://github.com/Stewori/pytypes/issues/22
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_forward_declaration(self):
         Wrapper = typing.Union[
             typing.Sequence['Data'],
@@ -4868,8 +4866,6 @@ class Test_utils(unittest.TestCase):
         self.assertTrue(is_subtype(Wrapper, Data))
 
     # See: https://github.com/Stewori/pytypes/issues/22
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_forward_declaration_infinite_recursion(self):
         Data = typing.Union['Wrapper', float]
         Wrapper = typing.Union[Data, int]
