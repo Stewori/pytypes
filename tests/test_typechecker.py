@@ -2323,8 +2323,6 @@ class TestTypecheck(unittest.TestCase):
 
         pytypes.annotations_from_typestring = annotations_from_typestring_tmp
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs(self):
         self.assertEqual(testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(testfunc_varargs1(), (0, 1.0))
@@ -2412,8 +2410,6 @@ class TestTypecheck(unittest.TestCase):
         tcv._prop1 = 8
         self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs_check_argument_types(self):
         self.assertEqual(testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(testfunc_varargs_ca1(), (0, 1.0))
@@ -3118,8 +3114,6 @@ class TestStubfile(unittest.TestCase):
         self.assertEqual(get_member_types(tcp, 'testprop_py2'), (Tuple[int], type(None)))
         self.assertEqual(get_member_types(tcp, 'testprop_py2', True), (Tuple[()], int))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs_plain_2_7_stub(self):
         from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_varargs1_py2(16.4, 2, 3.2), (3, 104.96))
@@ -3213,8 +3207,6 @@ class TestStubfile(unittest.TestCase):
         tcv._prop1_py2 = 8
         self.assertRaises(ReturnTypeError, lambda: tcv.prop1_py2)
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs_check_argument_types_plain_2_7_stub(self):
         from testhelpers import stub_testhelper_py2 as stub_py2
         self.assertEqual(stub_py2.testfunc_varargs_ca1_py2(16.4, 2, 3.2), (3, 104.96))
@@ -3537,8 +3529,6 @@ class TestStubfile(unittest.TestCase):
         self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
         self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_varargs_plain_3_5_stub(self):
@@ -3671,8 +3661,6 @@ class TestStubfile(unittest.TestCase):
         tcv._prop1 = 8
         self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     @unittest.skipUnless(sys.version_info.major >= 3 and sys.version_info.minor >= 5,
             'Only applicable in Python >= 3.5.')
     def test_varargs_check_argument_types_plain_3_5_stub(self):
@@ -4204,8 +4192,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         self.assertEqual(get_member_types(tcp, 'testprop'), (Tuple[int], type(None)))
         self.assertEqual(get_member_types(tcp, 'testprop', True), (Tuple[()], int))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs(self):
         self.assertEqual(py3.testfunc_varargs1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(py3.testfunc_varargs1(), (0, 1.0))
@@ -4331,8 +4317,6 @@ class TestTypecheck_Python3_5(unittest.TestCase):
         tcv._prop1 = 8
         self.assertRaises(ReturnTypeError, lambda: tcv.prop1)
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_varargs_check_argument_types(self):
         self.assertEqual(py3.testfunc_varargs_ca1(16.4, 2, 3.2), (3, 104.96))
         self.assertEqual(py3.testfunc_varargs_ca1(), (0, 1.0))
@@ -4828,8 +4812,6 @@ class Test_utils(unittest.TestCase):
         self.assertTrue(is_of_type((), Sequence))
 
     # See: https://github.com/Stewori/pytypes/issues/24
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_bound_typevars_readonly(self):
         T = typing.TypeVar('T', covariant=True)
 
@@ -4845,20 +4827,11 @@ class Test_utils(unittest.TestCase):
 
     # See: https://github.com/Stewori/pytypes/issues/22
     def test_forward_declaration(self):
-        Wrapper = typing.Union[
-            typing.Sequence['Data'],
-        ]
-
-        Data = typing.Union[
-            Wrapper,
-            str, bytes, bool, float, int, dict,
-        ]
-
+        Wrapper = typing.Union[typing.Sequence['Data']]
+        Data = typing.Union[Wrapper, str, bytes, bool, float, int, dict]
         with self.assertRaises(pytypes.ForwardRefError):
             is_subtype(typing.Sequence[float], Wrapper)
-
         pytypes.resolve_fw_decl(Wrapper)
-
         self.assertTrue(is_subtype(typing.Sequence[float], Wrapper))
         self.assertTrue(is_subtype(int, Data))
         self.assertTrue(is_subtype(float, Data))
@@ -4869,9 +4842,7 @@ class Test_utils(unittest.TestCase):
     def test_forward_declaration_infinite_recursion(self):
         Data = typing.Union['Wrapper', float]
         Wrapper = typing.Union[Data, int]
-
         pytypes.resolve_fw_decl(Data)
-
         self.assertFalse(is_subtype(list, Wrapper))
 
     # See: https://github.com/Stewori/pytypes/issues/49
@@ -5016,8 +4987,6 @@ class Test_agent(unittest.TestCase):
             restore_profiler()
             self.assertRaises(ReturnTypeError, lambda: testfunc_agent_err('abc'))
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_method_agent_return(self):
         a = Test_agent_err_class()
         with TypeChecker():
@@ -5048,8 +5017,6 @@ class Test_agent_Python3_5(unittest.TestCase):
             restore_profiler()
             self.assertRaises(ReturnTypeError, lambda: py3.testfunc_agent_err('abc'))
     
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_method_agent_return(self):
         a = py3.Test_agent_err_class()
         with TypeChecker():
