@@ -561,7 +561,7 @@ default_typelogger_path = 'typelogger_output'
 #  monkeypatch is required, i.e. in typing-3.5.2.2.)
 if not hasattr(typing, '_generic_new') and not typing_3_7:
 
-# This former approach has issues if self.__orig_class__is needed in __init__:
+# This former approach has issues if self.__orig_class__ is needed in __init__:
 # 	_Generic__new__ = typing.Generic.__new__
 # 	def __Generic__new__(cls, *args, **kwds):
 # 		res = _Generic__new__(cls, *args, **kwds)

@@ -805,7 +805,7 @@ def _typeinspect_func(func, do_typecheck, do_logging, \
         
         parent_class = None
         if slf:
-            parent_class = get_orig_class(args_kw[0])
+            parent_class = get_orig_class(args_kw[0], True)
         elif clsm:
             parent_class = args_kw[0]
 

@@ -558,7 +558,7 @@ See ``util.get_function_perspective_globals`` for obtaining a ``globs`` that can
 cached. ``util.get_function_perspective_globals`` works like described above.
 
 
-get_orig_class(obj)
+get_orig_class(obj, default_to__class__=False)
 ~~~~~~~~~~~~~~~~~~~
 
 Robust way to access ``obj.__orig_class__``. Compared to a direct access this has the
@@ -570,7 +570,9 @@ following advantages:
    - the object's class defines ``__getattribute__`` or
    - the object has no ``__orig_class__`` attribute and the object's class defines ``__getattr__``.
    See `discussion at pull request 53 <https://github.com/Stewori/pytypes/pull/53>`__.
-3) It returns ``obj.__class__`` as final fallback.
+
+If ``default_to__class__`` is ``True`` it returns ``obj.__class__`` as final fallback.
+Otherwise, ``AttributeError`` is raised in failure case (default behavior).
 
 
 Python 2.7 compliant stubfiles

@@ -184,16 +184,17 @@ def _is_extra(tp):
     return tp in _extra_dict
 
 
-def get_orig_class(obj):
+def get_orig_class(obj, default_to__class__=False):
     """Robust way to access `obj.__orig_class__`. Compared to a direct access this has the
     following advantages:
-    1) It works around https://github.com/python/typing/issues/658
-    2) It prevents infinite recursion when wrapping a method (`obj` is `self`/`cls`) and either
-       - the object's class defines __getattribute__
+    1) It works around https://github.com/python/typing/issues/658.
+    2) It prevents infinite recursion when wrapping a method (`obj` is `self` or `cls`) and either
+       - the object's class defines `__getattribute__`
        or
-       - the object has no `__orig_class__` attribute and the object's class defines __getattr__.
+       - the object has no `__orig_class__` attribute and the object's class defines `__getattr__`.
        See discussion at https://github.com/Stewori/pytypes/pull/53.
-    3) It returns `obj.__class__` as final fallback.
+    If `default_to__class__` is `True` it returns `obj.__class__` as final fallback.
+    Otherwise, `AttributeError` is raised  in failure case (default behavior).
     """
     try:
         # See https://github.com/Stewori/pytypes/pull/53:
@@ -213,23 +214,31 @@ def get_orig_class(obj):
         # again, and so on. So to bypass `__getattr[ibute]__` we do this:
         return object.__getattribute__(obj, '__orig_class__')
     except AttributeError:
-        if _typing_3_7 and is_Generic(obj.__class__):
+        if sys.version_info.major >= 3:
+            cls = object.__getattribute__(obj, '__class__')
+        else:
+            # Python 2 may return instance objects from object.__getattribute__.
+            cls = obj.__class__
+        if _typing_3_7 and is_Generic(cls):
             # Workaround for https://github.com/python/typing/issues/658
             stck = stack()
-            for line in stck[1:]:
+            # Searching from index 2 is sufficient: At 0 is get_orig_class, at 1 is the caller.
+            # We assume the caller is not typing._GenericAlias.__call__ which we are after.
+            for line in stck[2:]:
                 try:
                     res = line[0].f_locals['self']
-                    if res.__origin__ is obj.__class__:
+                    if res.__origin__ is cls:
                         return res
                 except (KeyError, AttributeError):
                     pass
-        # Fallback
-        return obj.__class__
+        if default_to__class__:
+            return cls # Fallback
+        raise
 
 
 def get_Generic_type(ob):
     try:
-        return get_orig_class(ob)
+        return get_orig_class(ob, True)
     except AttributeError:
         return ob.__class__
 
@@ -612,7 +621,7 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None, get_t
     if get_type is None:
         get_type = type
     try:
-        res = get_orig_class(obj)
+        res = get_orig_class(obj, True)
     except AttributeError:
         res = get_type(obj)
     if depth == 0 or util._is_in(obj, checked[:checked_len]):
