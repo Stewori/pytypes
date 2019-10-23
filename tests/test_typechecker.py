@@ -1865,8 +1865,6 @@ class TestTypecheck(unittest.TestCase):
 
         pytypes.apply_numeric_tower = num_tow_tmp
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_subtype_class_extends_generic(self):
         class Lint(List[int]):
             pass

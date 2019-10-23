@@ -1631,7 +1631,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 raise TypeError("Attempted to check unbound type (subclass): "+str(subclass))
             if not type.__subclasscheck__(origin, subclass):
                 return False
-            prms = origin.__parameters__
+            prms = _parameters(origin)
             for i in range(len(prms)):
                 if prms[i].__covariant__:
                     # subclass-arg here is unknown, so in superclass only Any can pass:
