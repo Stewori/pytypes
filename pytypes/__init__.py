@@ -592,7 +592,7 @@ from .type_util import deep_type, is_builtin_type, has_type_hints, resolve_fw_de
     get_arg_for_TypeVar, _issubclass as is_subtype, _isinstance as is_of_type, annotations, \
     get_member_types, Empty, _catch_up_global_annotations_decorator, TypeAgent, restore_profiler, \
     is_Tuple, is_Generic, is_Callable, _extra_dict as abc2typing_dict, _bases as type_bases, \
-    get_Generic_type
+    get_Generic_type, get_orig_class
 from .util import getargspecs, get_staticmethod_qualname, get_class_qualname, mro, \
     get_class_that_defined_method, is_method, is_classmethod, _pytypes_excepthook, \
     _install_excepthook

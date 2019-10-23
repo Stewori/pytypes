@@ -1947,8 +1947,6 @@ class TestTypecheck(unittest.TestCase):
         self.assertEqual(tpvar_test5(['a', 'b', 'c'], 1), 'b')
 
 
-    @unittest.skipIf(sys.version_info.major >= 3 and sys.version_info.minor >= 7,
-            'Currently fails in Python >= 3.7')
     def test_typevar_class(self):
         T2 = TypeVar('T2', covariant=True)
 

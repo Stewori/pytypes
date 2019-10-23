@@ -558,6 +558,21 @@ See ``util.get_function_perspective_globals`` for obtaining a ``globs`` that can
 cached. ``util.get_function_perspective_globals`` works like described above.
 
 
+get_orig_class(obj)
+~~~~~~~~~~~~~~~~~~~
+
+Robust way to access ``obj.__orig_class__``. Compared to a direct access this has the
+following advantages:
+
+1) It works around `python/typing#658 <https://github.com/python/typing/issues/658>`__.
+2) It prevents infinite recursion when wrapping a method (``obj`` is ``self`` or ``cls``) and either
+
+   - the object's class defines ``__getattribute__`` or
+   - the object has no ``__orig_class__`` attribute and the object's class defines ``__getattr__``.
+   See `discussion at pull request 53 <https://github.com/Stewori/pytypes/pull/53>`__.
+3) It returns ``obj.__class__`` as final fallback.
+
+
 Python 2.7 compliant stubfiles
 ------------------------------
 
