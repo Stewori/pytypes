@@ -789,6 +789,30 @@ def func_defaults_annotations(a: str, b, c=4) -> str:
     b = 'abc'
     return a+b*c
 
+@typechecked
+class method_defaults_typecheck(object):
+    value = 0
+
+    def plain_method(self, a, b: int = 0) -> int:
+        return a+b
+
+    @classmethod
+    def class_method(cls, a, b: int = 0) -> int:
+        return a+b
+
+    @property
+    def property_method(self, a = 0, b: int = 0) -> int:
+        return self.value+a+b
+
+    @property_method.setter
+    def property_method(self, a, b: int = 1) -> None:
+        self.value = a+b
+
+    @staticmethod
+    def static_method(a, b: int = 0) -> int:
+        return a+b
+
+
 class override_varargs_class_base(object):
 # var-arg tests:
     def method_vararg1(self, a: int, b: int, *args: int) -> int:
