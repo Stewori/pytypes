@@ -4508,6 +4508,35 @@ class TestTypecheck_Python3_5(unittest.TestCase):
 
         pytypes.infer_default_value_types = tmp
 
+    def test_defaults_with_missing_annotations_plain(self):
+        # See: https://github.com/Stewori/pytypes/issues/89
+        helper = py3.method_defaults_typecheck()
+        self.assertEqual(helper.plain_method(1), 1)
+        self.assertEqual(helper.plain_method(1, 2), 3)
+        self.assertRaises(InputTypeError, lambda: helper.plain_method(1, 'b'))
+
+    def test_defaults_with_missing_annotations_class(self):
+        # See: https://github.com/Stewori/pytypes/issues/89
+        helper = py3.method_defaults_typecheck()
+        self.assertEqual(helper.class_method(1), 1)
+        self.assertEqual(helper.class_method(1, 2), 3)
+        self.assertRaises(InputTypeError, lambda: helper.class_method(1, 'b'))
+
+    def test_defaults_with_missing_annotations_property(self):
+        # See: https://github.com/Stewori/pytypes/issues/89
+        helper = py3.method_defaults_typecheck()
+        self.assertEqual(helper.property_method, 0)
+        helper.property_method = 1
+        self.assertEqual(helper.property_method, 2)
+
+    def test_defaults_with_missing_annotations_static(self):
+        # See: https://github.com/Stewori/pytypes/issues/89
+        # Just being thorough (staticmethod already worked before fixing #89)
+        helper = py3.method_defaults_typecheck()
+        self.assertEqual(helper.static_method(1), 1)
+        self.assertEqual(helper.static_method(1, 2), 3)
+        self.assertRaises(InputTypeError, lambda: helper.static_method(1, 'b'))
+
     def test_typecheck_parent_type(self):
         always_check_parent_types_tmp = pytypes.always_check_parent_types
         pytypes.always_check_parent_types = False
