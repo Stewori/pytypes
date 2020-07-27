@@ -203,10 +203,10 @@ def get_orig_class(obj, default_to__class__=False):
         # (See `checker_tp` in `typechecker._typeinspect_func for context)
         # Necessary if:
         # - we're wrapping a method (`obj` is `self`/`cls`) and either
-        # 	- the object's class defines __getattribute__
+        #     - the object's class defines __getattribute__
         # or
-        # 	- the object doesn't have an `__orig_class__` attribute
-        # 	  and the object's class defines __getattr__.
+        #     - the object doesn't have an `__orig_class__` attribute
+        #       and the object's class defines __getattr__.
         # In such a situation, `parent_class = obj.__orig_class__`
         # would call `__getattr[ibute]__`. But that method is wrapped in a `checker_tp` too,
         # so then we'd go into the wrapped `__getattr[ibute]__` and do
@@ -533,8 +533,8 @@ def is_Generic(tp):
     except AttributeError:
         try:
             return issubclass(tp, typing.Generic)
-# 			return isinstance(tp, typing._VariadicGenericAlias) and \
-# 					tp.__origin__ is tuple
+#             return isinstance(tp, typing._VariadicGenericAlias) and \
+#                     tp.__origin__ is tuple
         except AttributeError:
             return False
         except TypeError:
@@ -1082,11 +1082,11 @@ def _tpHints_from_annotations(*args):
 
 # Only intended for use with __annotations__.
 # For typestrings, _funcsigtypesfromstring can directly insert defaults
-def _handle_defaults(sig_types, arg_specs, unspecified_indices = None):
+def _handle_defaults(sig_types, arg_specs, unspecified_indices=None, slf=False):
     if arg_specs.defaults is None:
         return sig_types
     prms = get_Tuple_params(sig_types[0])
-    if len(prms) < len(arg_specs.args):
+    if len(prms)+slf < len(arg_specs.args):
         # infer missing types from defaults...
         df = len(arg_specs.args)-len(prms)
         if df <= len(arg_specs.defaults):
@@ -1101,10 +1101,12 @@ def _handle_defaults(sig_types, arg_specs, unspecified_indices = None):
     elif not unspecified_indices is None:
         resType = [prm for prm in prms]
     if not unspecified_indices is None and len(unspecified_indices) > 0:
-        off = len(arg_specs.args)-len(arg_specs.defaults)
+        off = len(arg_specs.args)-slf-len(arg_specs.defaults)
         for i in unspecified_indices:
-            if i >= off:
-                resType[i] = deep_type(arg_specs.defaults[i-off])
+            if i >= off and i-off < len(arg_specs.defaults):
+                if arg_specs.defaults[i-off] is not None:
+                    # we would not want to infer NoneType here
+                    resType[i] = deep_type(arg_specs.defaults[i-off])
         res = Tuple[tuple(resType)], sig_types[1]
         return res
     return sig_types
@@ -1243,11 +1245,11 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
         unspecIndices = []
         for i in range(len(argNames)):
             if not argNames[i] in tpHints:
-                unspecIndices.append(i)
+                unspecIndices.append(i+slf)
         resType = (Tuple[tuple((tpHints[t] if t in tpHints else unspecified_type) \
                 for t in argNames)], retTp if not retTp is None else type(None))
         if infer_defaults:
-            resType = _handle_defaults(resType, argSpecs, unspecIndices)
+            resType = _handle_defaults(resType, argSpecs, unspecIndices, slf)
         if not pytypes.annotations_override_typestring and not \
                 (tpStr is None or tpStr[0] is None or tpStr[0] == 'ignore'):
             if pytypes.strict_annotation_collision_check:
@@ -1280,7 +1282,7 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
         globs = util.get_function_perspective_globals(func.__module__, 3)
     res = _funcsigtypesfromstring(*tpStr, glbls=globs, argspec=argSpecs,
             argCount=len(argNames),
-            defaults = argSpecs.defaults if infer_defaults else None,
+            defaults=argSpecs.defaults if infer_defaults else None,
             unspecified_type=unspecified_type, func=actual_func,
             func_class=func_class, slf=slf)
     try:
@@ -1298,9 +1300,9 @@ def _funcsigtypes(func0, slf, func_class=None, globs=None, prop_getter=False,
             if not infer_defaults:
                 func0.__annotations__ = _get_type_hints(func0, res[0], res[1])
             else:
-                res2 = _funcsigtypesfromstring(*tpStr, argspec = argSpecs, glbls = globs,
-                        argCount = len(argNames), unspecified_type = unspecified_type,
-                        func = actual_func, func_class = func_class, slf = slf)
+                res2 = _funcsigtypesfromstring(*tpStr, argspec=argSpecs, glbls=globs,
+                        argCount=len(argNames), unspecified_type=unspecified_type,
+                        func=actual_func, func_class=func_class, slf=slf)
                 func0.__annotations__ = _get_type_hints(func0, res2[0], res2[1])
     return res
 
@@ -1643,7 +1645,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
                 else:
                     return False
             return True
-# 	Formerly: if super(GenericMeta, superclass).__subclasscheck__(subclass):
+#     Formerly: if super(GenericMeta, superclass).__subclasscheck__(subclass):
     try:
         if type.__subclasscheck__(superclass, subclass):
             return True
@@ -2065,11 +2067,11 @@ def _isinstance_Callable(obj, cls, bound_Generic, bound_typevars,
             check_callables = True):
     # todo: Let pytypes somehow create a Callable-scoped error message,
     # e.g. instead of
-    #	Expected: Tuple[Callable[[str, int], str], str]
-    #	Received: Tuple[function, str]
+    #    Expected: Tuple[Callable[[str, int], str], str]
+    #    Received: Tuple[function, str]
     # make
-    #	Expected: Tuple[Callable[[str, int], str], str]
-    #	Received: Tuple[Callable[[str, str], str], str]
+    #    Expected: Tuple[Callable[[str, int], str], str]
+    #    Received: Tuple[Callable[[str, str], str], str]
     if not hasattr(obj, '__call__'):
         return False
     if has_type_hints(obj):
@@ -2519,11 +2521,11 @@ def _raise_typecheck_error(msg, is_return=False, value=None, received_type=None,
         off = util._calc_traceback_list_offset(tb)
         cat = pytypes.ReturnTypeWarning if is_return else pytypes.InputTypeWarning
         warn_explicit(msg, cat, tb[off][0], tb[off][1])
-# 		if not func is None:
-# 			warn_explicit(msg, cat, func.__code__.co_filename,
-# 					func.__code__.co_firstlineno, func.__module__)
-# 		else:
-# 			warn(msg, pytypes.ReturnTypeWarning)
+#         if not func is None:
+#             warn_explicit(msg, cat, func.__code__.co_filename,
+#                     func.__code__.co_firstlineno, func.__module__)
+#         else:
+#             warn(msg, pytypes.ReturnTypeWarning)
     else:
         if is_return:
             raise pytypes.ReturnTypeError(msg)
