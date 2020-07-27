@@ -629,6 +629,7 @@ Contributors (no specific order, names as provided on github)
 * `Jonas <https://github.com/elcombato>`__
 * `MinJune Kim <https://github.com/qria>`__
 * `Uryga <https://github.com/lubieowoce>`__
+* `Steve Jessop <https://github.com/sjjessop>`__
 
 
 License
