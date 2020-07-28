@@ -31,7 +31,7 @@ pytypes is a typing toolbox w.r.t. `PEP
 later also `544 <https://www.python.org/dev/peps/pep-0544/>`__ if it
 gets accepted).
 
-It's main features are currently
+Its main features are currently
 
 - ``@typechecked`` decorator for runtime typechecking with support for `stubfiles <https://www.python.org/dev/peps/pep-0484/#stub-files>`__ and `type comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__
 - ``@override`` decorator that asserts existence of a type-compatible parent method
