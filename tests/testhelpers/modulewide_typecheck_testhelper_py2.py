@@ -16,12 +16,8 @@
 
 from pytypes import override, no_type_check
 
-try:
-    from backports import typing; from backports.typing import Tuple, List, Union, Any, \
-            Dict, Generator, TypeVar, Generic, Iterable, Iterator, Sequence, Callable, Mapping
-except ImportError:
-    import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
-            Generic, Iterable, Iterator, Sequence, Callable, Mapping
+import typing; from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, \
+        Generic, Iterable, Iterator, Sequence, Callable, Mapping
 from numbers import Real
 import abc; from abc import abstractmethod
 

@@ -23,6 +23,7 @@ import inspect
 import re as _re
 import sys
 import types
+import typing
 import collections
 from inspect import isclass, ismodule, isfunction, ismethod, ismethoddescriptor
 from warnings import warn
@@ -36,11 +37,6 @@ from .type_util import type_str, has_type_hints, _has_type_hints, is_builtin_typ
         _preprocess_typecheck, _raise_typecheck_error, _check_caller_type, TypeAgent, \
         _check_as_func, is_Tuple, get_orig_class
 from . import util, type_util
-
-try:
-    from backports import typing
-except ImportError:
-    import typing
 
 if sys.version_info.major >= 3:
     import builtins

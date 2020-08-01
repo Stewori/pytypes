@@ -44,10 +44,7 @@ except ImportError:
 import pytypes
 from pytypes import util, typelogger, type_util
 
-try:
-    from backports.typing import Any, TypeVar
-except ImportError:
-    from typing import Any, TypeVar
+from typing import Any, TypeVar
 
 
 py3 = False

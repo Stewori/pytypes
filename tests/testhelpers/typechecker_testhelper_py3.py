@@ -21,12 +21,7 @@ from numbers import Real
 import pytypes
 import testhelpers
 from pytypes import typechecked, override, check_argument_types, auto_override
-
-try:
-    from backports.typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, \
-        Iterable, Iterator, Sequence, Callable, List, Any
-except ImportError:
-    from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, Iterable, \
+from typing import Tuple, Union, Mapping, Dict, Generator, TypeVar, Generic, Iterable, \
         Iterator, Sequence, Callable, List, Any, Optional
 
 
