@@ -1141,7 +1141,7 @@ def _catch_up_global_auto_override_decorator():
             except KeyError:
                 md = None
             if not md is None and ismodule(md):
-                _auto_override_modules(mod_name)
+                auto_override_module(mod_name)
 
 
 def no_type_check(memb):
