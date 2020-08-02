@@ -22,14 +22,9 @@ import typing
 import collections
 import weakref
 from inspect import isfunction, ismethod, isclass, ismodule, stack
-try:
-    from backports.typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
-            Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
-except ImportError:
-    from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
-            Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
-            Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
+from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
+        Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
+        Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
 
 import pytypes
 _typing_3_7 = pytypes.typing_3_7

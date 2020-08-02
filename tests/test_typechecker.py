@@ -28,15 +28,10 @@ from pytypes import typechecked, override, auto_override, no_type_check, get_typ
     TypeChecker, restore_profiler, is_subtype, is_of_type, type_bases
     
 pytypes.clean_traceback = False
-try:
-    from backports import typing
-    from backports.typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, \
-        Iterable, Iterator, Sequence, Callable, Mapping, Set
-except ImportError:
-    import typing
-    from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, Iterable, \
-        Iterator, Sequence, Callable, Mapping, Set, Optional, \
-        T_co, V_co, VT_co, T_contra, KT, T, VT
+import typing
+from typing import Tuple, List, Union, Any, Dict, Generator, TypeVar, Generic, Iterable, \
+    Iterator, Sequence, Callable, Mapping, Set, Optional, \
+    T_co, V_co, VT_co, T_contra, KT, T, VT
 
 pytypes.check_override_at_class_definition_time = False
 pytypes.check_override_at_runtime = True

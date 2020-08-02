@@ -303,10 +303,7 @@ try:
 except ImportError:
     pass
 
-try:
-    from backports import typing
-except ImportError:
-    import typing
+import typing
 
 typing_3_7 = False
 try:

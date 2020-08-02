@@ -26,6 +26,7 @@ import os
 import abc
 import datetime
 import atexit
+from typing import Union, Any, Tuple
 from inspect import getmembers, isclass, ismodule, getsourcelines, \
         findsource, isfunction, ismethod, ismethoddescriptor
 
@@ -33,11 +34,6 @@ try:
     import pkg_resources
 except ImportError:
     pass
-
-try:
-    from backports.typing import Union, Any, Tuple
-except ImportError:
-    from typing import Union, Any, Tuple
 
 import pytypes
 from .type_util import deep_type, type_str, get_Tuple_params, \

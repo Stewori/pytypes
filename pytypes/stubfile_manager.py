@@ -23,10 +23,7 @@ import sys
 import tempfile
 import warnings
 from inspect import isclass, ismodule, ismethod
-try:
-    from backports.typing import Union, Tuple, Callable
-except ImportError:
-    from typing import Union, Tuple, Callable
+from typing import Union, Tuple, Callable
 
 import pytypes
 from pytypes import util

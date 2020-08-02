@@ -14,14 +14,9 @@
 
 # Created on 21.10.2016
 
+from typing import Any, TypeVar, Generic, Generator, Iterable, Sequence, \
+        Tuple, List, Callable, Dict, Mapping, Union
 from numbers import Real
-
-try:
-    from backports.typing import Any, TypeVar, Generic, Generator, Iterable, Sequence, \
-            Tuple, List, Callable, Dict, Mapping, Union
-except ImportError:
-    from typing import Any, TypeVar, Generic, Generator, Iterable, Sequence, \
-            Tuple, List, Callable, Dict, Mapping, Union
 
 def testfunc1(a: int, b: Real) -> str: ...
 
