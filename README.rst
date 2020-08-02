@@ -630,6 +630,7 @@ Contributors (no specific order, names as provided on github)
 * `MinJune Kim <https://github.com/qria>`__
 * `Uryga <https://github.com/lubieowoce>`__
 * `Steve Jessop <https://github.com/sjjessop>`__
+* `David Barnett <https://github.com/dbarnett>`__
 
 
 License
