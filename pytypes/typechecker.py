@@ -964,15 +964,19 @@ def typechecked_module(md, force_recursive = False):
     """
     if not pytypes.checking_enabled:
         return md
+    # Save input to return original string if input was a string.
+    md_arg = md
     if isinstance(md, str):
         if md in sys.modules:
             md = sys.modules[md]
             if md is None:
-                return md
+                return md_arg
         elif md in _pending_modules:
             # if import is pending, we just store this call for later
             _pending_modules[md].append(lambda t: typechecked_module(t, True))
-            return md
+            return md_arg
+        else:
+            raise KeyError('Found no module {!r} to typecheck'.format(md))
     assert(ismodule(md))
     if md.__name__ in _pending_modules:
             # if import is pending, we just store this call for later
@@ -981,7 +985,7 @@ def typechecked_module(md, force_recursive = False):
             # todo: Issue warning here that not the whole module might be covered yet
     if md.__name__ in _fully_typechecked_modules and \
             _fully_typechecked_modules[md.__name__] == len(md.__dict__):
-        return md
+        return md_arg
     # To play it safe we avoid to modify the dict while iterating over it,
     # so we previously cache keys.
     # For this we don't use keys() because of Python 3.
@@ -997,7 +1001,7 @@ def typechecked_module(md, force_recursive = False):
                 typechecked_class(memb, force_recursive, force_recursive)
     if not md.__name__ in _pending_modules:
         _fully_typechecked_modules[md.__name__] = len(md.__dict__)
-    return md
+    return md_arg
 
 
 def typechecked(memb):
