@@ -2651,8 +2651,14 @@ class TestTypecheck_module(unittest.TestCase):
     def test_function_py2(self):
         from testhelpers import modulewide_typecheck_testhelper_py2 as mth
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
+        with self.assertRaises(KeyError):
+            pytypes.typechecked_module('nonexistent123')
         self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
-        pytypes.typechecked_module(mth)
+        module_name = 'testhelpers.modulewide_typecheck_testhelper_py2'
+        returned_mth = pytypes.typechecked_module(module_name)
+        self.assertEqual(returned_mth, module_name)
+        returned_mth = pytypes.typechecked_module(mth)
+        self.assertEqual(returned_mth, mth)
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
         self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
 
@@ -2662,7 +2668,8 @@ class TestTypecheck_module(unittest.TestCase):
         from testhelpers import modulewide_typecheck_testhelper as mth
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
         self.assertEqual(mth.testfunc(3, 2.5, 7), (9, 7.5)) # would normally fail
-        pytypes.typechecked_module(mth)
+        returned_mth = pytypes.typechecked_module(mth)
+        self.assertEqual(returned_mth, mth)
         self.assertEqual(mth.testfunc(3, 2.5, 'abcd'), (9, 7.5))
         self.assertRaises(InputTypeError, lambda: mth.testfunc(3, 2.5, 7))
 
