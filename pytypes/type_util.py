@@ -613,12 +613,13 @@ def _deep_type(obj, checked, checked_len, depth = None, max_sample = None, get_t
         max_sample = pytypes.deep_type_samplesize
     if -1 != max_sample < 2:
         max_sample = 2
-    if get_type is None:
-        get_type = type
-    try:
-        res = get_orig_class(obj, True)
-    except AttributeError:
+    if get_type is not None:
         res = get_type(obj)
+    else:
+        try:
+            res = get_orig_class(obj, True)
+        except AttributeError:
+            res = type(obj)
     if depth == 0 or util._is_in(obj, checked[:checked_len]):
         return res
     elif not util._is_in(obj, checked[checked_len:]):
