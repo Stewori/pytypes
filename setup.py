@@ -32,7 +32,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
     ],
-    setup_requires=['setuptools_scm >= 1.7.0'],
+    setup_requires=['setuptools_scm == 3.5.0'],
     extras_require={
         ':python_version == "2.7"': 'typing',
         ':python_version == "3.3"': 'typing >= 3.5',
