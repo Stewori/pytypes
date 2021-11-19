@@ -1,4 +1,4 @@
-# Copyright 2017 Stefan Richthofer
+# Copyright 2017, 2018, 2021 Stefan Richthofer
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -296,7 +296,7 @@ default_typelogger_path : str
     Default: 'typelogger_output'
 """
 
-_version = '>=1.0b5' # Only used as fallback for jython-standalone.jar
+_version = '1.0b7' # Only used as fallback for jython-standalone.jar
 # Needs to be imported before touching the Python import machinery
 try:
     import pkg_resources

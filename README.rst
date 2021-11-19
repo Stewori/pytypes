@@ -1,4 +1,4 @@
-.. Copyright 2017, 2018 Stefan Richthofer
+.. Copyright 2017, 2018, 2021 Stefan Richthofer
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -49,12 +49,13 @@ An additional future goal will be integration with the Java typing system when r
 In wider sense, PEP 484-style type annotations can be used to build type safe interfaces to allow also other programming languages to call into Python code (kind of reverse FFI). In this sense the project name refers to 'ctypes', which provides Python-bindings of C.
 
 
-Python 2.7, 3.5, 3.6
---------------------
+Python 2.7, 3.5-3.8
+-------------------
 
 All described features of pytypes were carefully implemented such that they are equally workable on CPython 3.5, 3.6, 2.7 and on Jython 2.7.1 (other interpreters might work as well, but were not yet tested).
 For Python 2.7, pytypes fully supports type-annotations via `type comments <https://www.python.org/dev/peps/pep-0484/#suggested-syntax-for-python-2-7-and-straddling-code>`__.
 It also supports Python 2.7-style type annotations in Python 3.5-code to allow easier 2.7/3.5 multi-version development.
+Python 3.7 and 3.8 are mostly supported, but some bugs still need to be fixed.
 
 
 Why write another runtime typecheck decorator?
