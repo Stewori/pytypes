@@ -560,7 +560,7 @@ cached. ``util.get_function_perspective_globals`` works like described above.
 
 
 get_orig_class(obj, default_to__class__=False)
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Robust way to access ``obj.__orig_class__``. Compared to a direct access this has the
 following advantages:
