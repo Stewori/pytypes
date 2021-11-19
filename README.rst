@@ -570,6 +570,7 @@ following advantages:
 
    - the object's class defines ``__getattribute__`` or
    - the object has no ``__orig_class__`` attribute and the object's class defines ``__getattr__``.
+
    See `discussion at pull request 53 <https://github.com/Stewori/pytypes/pull/53>`__.
 
 If ``default_to__class__`` is ``True`` it returns ``obj.__class__`` as final fallback.
