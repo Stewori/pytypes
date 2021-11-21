@@ -642,7 +642,7 @@ pytypes is released under Apache 2.0 license.
 A copy is provided in the file LICENSE.
 
 | 
-| Copyright 2017, 2018 Stefan Richthofer
+| Copyright 2017, 2018, 2021 Stefan Richthofer
 | 
 | Licensed under the Apache License, Version 2.0 (the "License");
 | you may not use this file except in compliance with the License.
