@@ -217,7 +217,9 @@ def get_orig_class(obj, default_to__class__=False):
         if _typing_3_7 and is_Generic(cls):
             # Workaround for https://github.com/python/typing/issues/658
             frame = currentframe()
-            while frame:
+            # Searching from index 2 is sufficient: At 0 is get_orig_class, at 1 is the caller.
+            # We assume the caller is not typing._GenericAlias.__call__ which we are after.
+            while frame and frame.f_lineno >= 2:
                 try:
                     res = frame.f_locals['self']
                     if res.__origin__ is cls:
