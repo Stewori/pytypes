@@ -216,8 +216,8 @@ def get_orig_class(obj, default_to__class__=False):
             cls = obj.__class__
         if _typing_3_7 and is_Generic(cls):
             # Workaround for https://github.com/python/typing/issues/658
+            frame = currentframe()
             try:
-                frame = currentframe()
                 # Searching from index 2 is sufficient: At 0 is get_orig_class, at 1 is the caller.
                 # We assume the caller is not typing._GenericAlias.__call__ which we are after.
                 while frame.f_back.f_back:
