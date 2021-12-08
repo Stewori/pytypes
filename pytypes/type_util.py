@@ -225,8 +225,9 @@ def get_orig_class(obj, default_to__class__=False):
                     if res.__origin__ is cls:
                         return res
                 except (KeyError, AttributeError):
-                    del frame
+                    old_frame = frame
                     frame = frame.f_back
+                    del old_frame
 
         if default_to__class__:
             return cls # Fallback
