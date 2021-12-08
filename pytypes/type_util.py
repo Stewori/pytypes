@@ -1145,7 +1145,7 @@ def resolve_fw_decl(in_type, module_name=None, globs=None, level=0,
         _fw_resolve_cache[in_type] = out_type
         return out_type, True
     elif isinstance(in_type, ForwardRef):
-        # Todo: Mabe somehow get globs from in_type.__forward_code__
+        # Todo: Maybe somehow get globs from in_type.__forward_code__
         if not in_type.__forward_evaluated__:
             in_type.__forward_value__ = eval(in_type.__forward_arg__, globs)
             in_type.__forward_evaluated__ = True
@@ -1526,7 +1526,7 @@ def _issubclass_Generic(subclass, superclass, bound_Generic, bound_typevars,
             # (This section is required because Empty shall not be
             # used on Tuples.)
             # an empty Tuple is any Sequence, regardless of type
-            # note that we needn't consider superclass beeing a tuple,
+            # note that we needn't consider superclass being a tuple,
             # because that should have been checked in _issubclass_Tuple
             sup = superclass if origin is None else origin
             sup = _extra_inv(sup)
@@ -2573,7 +2573,7 @@ def _check_caller_type(return_type, cllable=None, call_args=None, clss=None, cal
     orig_clss = clss
     if not return_type:
         if call_args is None:
-            # If return_type is True we must assume that call_args being None is authorative
+            # If return_type is True we must assume that call_args being None is authoritative
             # i.e. None is the actual value to check rather than an indicator to
             # auto-retrieve the args. See https://github.com/Stewori/pytypes/issues/64
             call_args = util.get_current_args(caller_level+1, cllable, util.getargnames(specs))
