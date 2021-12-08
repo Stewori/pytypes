@@ -224,7 +224,6 @@ def get_orig_class(obj, default_to__class__=False):
                     try:
                         res = frame.f_locals['self']
                         if res.__origin__ is cls:
-                            del frame
                             return res
                     except (KeyError, AttributeError):
                         frame = frame.f_back
