@@ -81,10 +81,10 @@ for tp in typing.__all__:
 if not tuple in _extra_dict:
     _extra_dict[tuple] = Tuple
 
-if sys.version_info.major >= 3:
-    _basestring = str
-else:
+try:
     _basestring = basestring
+except NameError:
+    _basestring = str
 
 EMPTY = TypeVar('EMPTY', bound=Container, covariant=True)
 
