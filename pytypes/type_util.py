@@ -21,7 +21,7 @@ import threading
 import typing
 import collections
 import weakref
-from inspect import isfunction, ismethod, isclass, ismodule, stack
+from inspect import currentframe, isfunction, ismethod, isclass, ismodule
 from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
         Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
         Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
@@ -216,16 +216,20 @@ def get_orig_class(obj, default_to__class__=False):
             cls = obj.__class__
         if _typing_3_7 and is_Generic(cls):
             # Workaround for https://github.com/python/typing/issues/658
-            stck = stack()
             # Searching from index 2 is sufficient: At 0 is get_orig_class, at 1 is the caller.
             # We assume the caller is not typing._GenericAlias.__call__ which we are after.
-            for line in stck[2:]:
-                try:
-                    res = line[0].f_locals['self']
-                    if res.__origin__ is cls:
-                        return res
-                except (KeyError, AttributeError):
-                    pass
+            frame = currentframe().f_back.f_back
+            try:
+                while frame:
+                    try:
+                        res = frame.f_locals['self']
+                        if res.__origin__ is cls:
+                            return res
+                    except (KeyError, AttributeError):
+                        frame = frame.f_back
+            finally:
+                del frame
+
         if default_to__class__:
             return cls # Fallback
         raise
