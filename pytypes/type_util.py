@@ -2249,7 +2249,7 @@ def _make_iterator_error_message(tp, itr, expected_tp, incomp_text,
             type_str(tp, bound_Generic=bound_Generic, bound_typevars=bound_typevars))
 
 
-class _typechecked_Iterable(collections.Iterable):
+class _typechecked_Iterable(_orig_Iterable):
     def __init__(self, iter_obj, cls, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check, force):
         if not hasattr(iter_obj, '__iter__'):
@@ -2274,7 +2274,7 @@ class _typechecked_Iterable(collections.Iterable):
         return getattr(self.iter_obj, name)
 
 
-class _typechecked_Iterator(collections.Iterator, _typechecked_Iterable):
+class _typechecked_Iterator(_orig_Iterator, _typechecked_Iterable):
     def __init__(self, iter_obj, cls, bound_Generic, bound_typevars,
                 bound_typevars_readonly, follow_fwd_refs, _recursion_check, force):
         if not hasattr(iter_obj, '__iter__'):
