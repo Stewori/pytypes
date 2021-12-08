@@ -21,7 +21,7 @@ import threading
 import typing
 import collections
 import weakref
-from inspect import currentframe, isfunction, ismethod, isclass, ismodule, stack
+from inspect import currentframe, isfunction, ismethod, isclass, ismodule
 from typing import Tuple, Dict, List, Set, FrozenSet, Union, Any, \
         Sequence, Mapping, TypeVar, Container, Generic, Sized, Iterable, Iterator, \
         Generator, T_co, V_co, VT_co, T_contra, KT, T, VT
@@ -226,7 +226,7 @@ def get_orig_class(obj, default_to__class__=False):
                         return res
                 except (KeyError, AttributeError):
                     frame = frame.f_back
-                    pass
+
         if default_to__class__:
             return cls # Fallback
         raise
